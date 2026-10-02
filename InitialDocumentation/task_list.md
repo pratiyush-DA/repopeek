@@ -10,7 +10,7 @@
 *Purpose: Set up the local environment and project scaffolding.*
 - [x] Step 1: Initialize project structure and Python environment.
 - [x] Step 2: Add required MVP dependencies (e.g., AST parsers, local graph library).
-- [ ] Step 3: Create basic configuration and entry point script.
+- [x] Step 3: Create basic configuration and entry point script.
 
 ## Phase 2 — Repository Discovery
 *Purpose: Traverse a local directory and classify files.*

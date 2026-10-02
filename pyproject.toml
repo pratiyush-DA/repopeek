@@ -30,6 +30,10 @@ dev = [
     "pytest>=7.0.0",
 ]
 
+[project.scripts]
+repopeek = "repopeek.cli:main"
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["repopeek*"]
+
