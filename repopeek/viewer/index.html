@@ -4,22 +4,24 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>RepoPeek — Code Intelligence Graph</title>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
   <style>
     :root {
-      --bg: #0f1017;
-      --panel-bg: rgba(22, 24, 35, 0.85);
+      --bg: #0d0e15;
+      --panel-bg: rgba(20, 22, 33, 0.88);
       --border: rgba(255, 255, 255, 0.08);
-      --border-active: rgba(122, 162, 247, 0.4);
+      --border-hover: rgba(255, 255, 255, 0.18);
+      --border-active: rgba(122, 162, 247, 0.5);
       --text: #c0caf5;
       --text-muted: #7982a9;
       --accent: #7aa2f7;
-      --accent-glow: rgba(122, 162, 247, 0.25);
+      --accent-glow: rgba(122, 162, 247, 0.35);
       --color-module: #38bdf8;
       --color-class: #a855f7;
       --color-function: #10b981;
       --color-entity: #f59e0b;
       --color-config: #f43f5e;
-      --color-other: #94a3b8;
+      --color-symbol: #94a3b8;
       --color-impact: #ff0055;
     }
 
@@ -72,8 +74,8 @@
       backdrop-filter: blur(16px);
       border: 1px solid var(--border);
       border-radius: 10px;
-      padding: 8px 16px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      padding: 8px 14px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
     }
 
     .brand {
@@ -101,7 +103,7 @@
     }
 
     select, input {
-      background: rgba(0, 0, 0, 0.4);
+      background: rgba(0, 0, 0, 0.45);
       border: 1px solid var(--border);
       color: var(--text);
       padding: 6px 12px;
@@ -116,10 +118,89 @@
       box-shadow: 0 0 8px var(--accent-glow);
     }
 
+    .btn-icon {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-icon:hover {
+      border-color: var(--border-hover);
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+    }
+
     .stats-badge {
       font-size: 12px;
       color: var(--text-muted);
       white-space: nowrap;
+    }
+
+    /* Forces Control Dropdown */
+    .forces-panel {
+      position: absolute;
+      top: 65px;
+      left: 16px;
+      z-index: 15;
+      background: var(--panel-bg);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      width: 260px;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6);
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .forces-panel.open {
+      display: flex;
+    }
+
+    .control-row {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .control-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 2px;
+      outline: none;
+      padding: 0;
+      border: none;
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      box-shadow: 0 0 6px var(--accent);
     }
 
     /* Floating Legend */
@@ -132,7 +213,7 @@
       backdrop-filter: blur(16px);
       border: 1px solid var(--border);
       border-radius: 8px;
-      padding: 10px 14px;
+      padding: 8px 14px;
       display: flex;
       gap: 14px;
       font-size: 12px;
@@ -160,7 +241,7 @@
       bottom: 16px;
       width: 380px;
       background: var(--panel-bg);
-      backdrop-filter: blur(20px);
+      backdrop-filter: blur(24px);
       border: 1px solid var(--border);
       border-radius: 12px;
       padding: 20px;
@@ -168,7 +249,7 @@
       display: flex;
       flex-direction: column;
       gap: 16px;
-      box-shadow: -8px 0 32px rgba(0, 0, 0, 0.5);
+      box-shadow: -8px 0 36px rgba(0, 0, 0, 0.6);
       transform: translateX(420px);
       transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
       overflow-y: auto;
@@ -234,7 +315,7 @@
     }
 
     .story-card {
-      background: rgba(0, 0, 0, 0.3);
+      background: rgba(0, 0, 0, 0.35);
       border-left: 3px solid var(--accent);
       border-radius: 0 6px 6px 0;
       padding: 10px 12px;
@@ -250,7 +331,7 @@
     }
 
     .fact-item {
-      background: rgba(0, 0, 0, 0.25);
+      background: rgba(0, 0, 0, 0.3);
       border: 1px solid var(--border);
       border-radius: 6px;
       padding: 8px;
@@ -311,8 +392,8 @@
       font-size: 12px;
       pointer-events: none;
       display: none;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-      transform: translate(-50%, -120%);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+      transform: translate(-50%, -125%);
       white-space: nowrap;
     }
   </style>
@@ -342,8 +423,32 @@
       <option value="all">Full Canonical Graph</option>
     </select>
     <input type="text" id="search-input" placeholder="Search symbols or files..." />
+    <button class="btn-icon" id="toggle-forces" title="Adjust Graph Physics">Forces ⚙</button>
+    <button class="btn-icon" id="btn-recenter" title="Recenter View">Reset ⌂</button>
     <div class="divider"></div>
     <div class="stats-badge" id="stats-badge">Loading graph...</div>
+  </div>
+
+  <!-- Forces Physics Settings Panel -->
+  <div class="forces-panel" id="forces-panel">
+    <div style="font-weight: 600; font-size: 12px; color: #fff; margin-bottom: 4px;">Graph Forces & Physics</div>
+    <div class="control-row">
+      <div class="control-label"><span>Repel Strength</span><span id="lbl-repel">-120</span></div>
+      <input type="range" id="slider-repel" min="-400" max="-20" value="-120" />
+    </div>
+    <div class="control-row">
+      <div class="control-label"><span>Link Distance</span><span id="lbl-distance">55</span></div>
+      <input type="range" id="slider-distance" min="20" max="150" value="55" />
+    </div>
+    <div class="control-row">
+      <div class="control-label"><span>Center Gravity</span><span id="lbl-center">0.3</span></div>
+      <input type="range" id="slider-center" min="0.05" max="1" step="0.05" value="0.3" />
+    </div>
+    <div class="control-row">
+      <label style="font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer; margin-top: 4px;">
+        <input type="checkbox" id="chk-labels" checked /> Show Node Labels
+      </label>
+    </div>
   </div>
 
   <div class="legend">
@@ -406,12 +511,21 @@
 
   <script>
     // State
+    let rawNodes = [];
+    let rawEdges = [];
     let nodes = [];
     let edges = [];
     let nodeMap = new Map();
     let selectedNode = null;
     let hoveredNode = null;
     let impactHighlight = null; // Set of node IDs in blast radius
+    let isInteracting = false;
+
+    // Physics parameters
+    let repelStrength = -120;
+    let linkDistance = 55;
+    let centerGravity = 0.3;
+    let showLabels = true;
 
     // Viewport transform
     let scale = 1;
@@ -422,6 +536,11 @@
     let dragStartY = 0;
     let draggedNode = null;
 
+    // Simulation reference
+    let d3Simulation = null;
+    let customSimAlpha = 1.0;
+    let isCustomSimulating = false;
+
     const canvas = document.getElementById("graph-canvas");
     const ctx = canvas.getContext("2d");
     const tooltip = document.getElementById("tooltip");
@@ -429,6 +548,7 @@
     const lensSelect = document.getElementById("lens-select");
     const searchInput = document.getElementById("search-input");
     const statsBadge = document.getElementById("stats-badge");
+    const forcesPanel = document.getElementById("forces-panel");
 
     function resizeCanvas() {
       canvas.width = window.innerWidth;
@@ -437,6 +557,7 @@
         offsetX = canvas.width / 2;
         offsetY = canvas.height / 2;
       }
+      requestDraw();
     }
     window.addEventListener("resize", resizeCanvas);
     resizeCanvas();
@@ -456,108 +577,177 @@
       try {
         const res = await fetch("/api/graph?lens=" + lensName);
         const data = await res.json();
-        nodes = data.nodes || [];
-        edges = data.edges || [];
-        nodeMap.clear();
+        rawNodes = data.nodes || [];
+        rawEdges = data.edges || [];
 
-        // Initialize positions randomly in circle
-        const radius = Math.min(canvas.width, canvas.height) * 0.4;
-        nodes.forEach((n, i) => {
-          const angle = (i / Math.max(1, nodes.length)) * 2 * Math.PI;
-          n.x = (Math.cos(angle) * radius) + (Math.random() * 40 - 20);
-          n.y = (Math.sin(angle) * radius) + (Math.random() * 40 - 20);
-          n.vx = 0;
-          n.vy = 0;
-          n.radius = n.kind === "module" ? 8 : (n.kind === "class" ? 7 : 5);
-          nodeMap.set(n.id, n);
+        // Build node objects
+        nodeMap.clear();
+        const total = rawNodes.length;
+
+        // Arrange in a calm phyllotaxis sunflower spiral to avoid initial cluster blow-up
+        const c = 18;
+        nodes = rawNodes.map((n, i) => {
+          const r = c * Math.sqrt(i + 1);
+          const theta = i * 2.399963229728653; // Golden angle
+          const node = {
+            ...n,
+            x: Math.cos(theta) * r,
+            y: Math.sin(theta) * r,
+            vx: 0,
+            vy: 0,
+            radius: n.kind === "module" ? 8 : (n.kind === "class" ? 7 : 5),
+          };
+          nodeMap.set(n.id, node);
+          return node;
         });
 
-        // Resolve edge src/dst objects
-        edges.forEach(e => {
-          e.sourceNode = nodeMap.get(e.src);
-          e.targetNode = nodeMap.get(e.dst);
+        // Filter and map edges
+        edges = [];
+        rawEdges.forEach(e => {
+          const s = nodeMap.get(e.src);
+          const t = nodeMap.get(e.dst);
+          if (s && t) {
+            edges.push({
+              src: e.src,
+              dst: e.dst,
+              source: s,
+              target: t,
+              type: e.type,
+            });
+          }
         });
 
         statsBadge.innerText = `${nodes.length.toLocaleString()} nodes · ${edges.length.toLocaleString()} edges`;
         impactHighlight = null;
+
+        // Start force simulation with smooth cooling schedule
+        initSimulation();
       } catch (err) {
         statsBadge.innerText = "Failed to load lens: " + err.message;
       }
     }
 
-    // Force simulation step (Hooke attraction + Coulomb repulsion + damping)
-    function simulate() {
-      const kRepulsion = 400;
-      const kSpring = 0.04;
-      const springLength = 60;
-      const damping = 0.85;
+    function initSimulation() {
+      // Prefer D3 force simulation if loaded via CDN
+      if (typeof d3 !== "undefined" && d3.forceSimulation) {
+        if (d3Simulation) d3Simulation.stop();
 
-      // Repulsion (sample subset if large)
+        d3Simulation = d3.forceSimulation(nodes)
+          .force("charge", d3.forceManyBody().strength(repelStrength).distanceMax(500).distanceMin(10))
+          .force("link", d3.forceLink(edges).id(d => d.id).distance(linkDistance).strength(0.6))
+          .force("center", d3.forceCenter(0, 0).strength(centerGravity))
+          .force("collide", d3.forceCollide().radius(d => d.radius + 3).iterations(1))
+          .alpha(1)
+          .alphaDecay(0.025) // Smoothly cools and settles in ~150 frames (2.5s)
+          .velocityDecay(0.4); // Strong damping prevents vibration/bouncing
+
+        d3Simulation.on("tick", () => {
+          draw();
+        });
+        d3Simulation.on("end", () => {
+          draw(); // Final tranquil frame
+        });
+      } else {
+        // Fallback: Built-in Alpha-Cooled Velocity Verlet Simulation (Zero dependencies)
+        customSimAlpha = 1.0;
+        isCustomSimulating = true;
+        runCustomSimulationLoop();
+      }
+    }
+
+    function runCustomSimulationLoop() {
+      if (!isCustomSimulating) return;
+
+      if (customSimAlpha < 0.001) {
+        isCustomSimulating = false;
+        draw();
+        return;
+      }
+
       const count = nodes.length;
-      const maxPairs = count > 800 ? 5 : count; // limit steps for huge graph
+      const alpha = customSimAlpha;
+      const kRepulsion = Math.abs(repelStrength) * 12 * alpha;
+      const kSpring = 0.06 * alpha;
+      const velocityDecay = 0.55; // 45% damping per frame kills oscillation
+      const epsilon = 100; // Softening factor avoids divide-by-zero explosions
+
+      // 1. Center gravity
+      for (let i = 0; i < count; i++) {
+        const n = nodes[i];
+        if (n === draggedNode) continue;
+        n.vx -= n.x * 0.008 * centerGravity * alpha;
+        n.vy -= n.y * 0.008 * centerGravity * alpha;
+      }
+
+      // 2. Repulsion with distance threshold
       for (let i = 0; i < count; i++) {
         const n1 = nodes[i];
-        if (n1 === draggedNode) continue;
-
-        // Pull toward center
-        n1.vx += -n1.x * 0.001;
-        n1.vy += -n1.y * 0.001;
-
-        for (let j = i + 1; j < Math.min(count, i + maxPairs); j++) {
+        for (let j = i + 1; j < count; j++) {
           const n2 = nodes[j];
           const dx = n2.x - n1.x;
           const dy = n2.y - n1.y;
-          const distSq = dx * dx + dy * dy + 1;
-          if (distSq < 40000) {
+          const distSq = dx * dx + dy * dy + epsilon;
+          if (distSq < 160000) { // Max interaction radius 400px
             const dist = Math.sqrt(distSq);
             const force = kRepulsion / distSq;
             const fx = (dx / dist) * force;
             const fy = (dy / dist) * force;
-            n1.vx -= fx;
-            n1.vy -= fy;
-            n2.vx += fx;
-            n2.vy += fy;
+            if (n1 !== draggedNode) { n1.vx -= fx; n1.vy -= fy; }
+            if (n2 !== draggedNode) { n2.vx += fx; n2.vy += fy; }
           }
         }
       }
 
-      // Spring attraction along edges
+      // 3. Spring attraction along links
       for (let i = 0; i < edges.length; i++) {
         const e = edges[i];
-        if (!e.sourceNode || !e.targetNode) continue;
-        const dx = e.targetNode.x - e.sourceNode.x;
-        const dy = e.targetNode.y - e.sourceNode.y;
+        const s = e.source;
+        const t = e.target;
+        if (!s || !t) continue;
+        const dx = t.x - s.x;
+        const dy = t.y - s.y;
         const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-        const displacement = dist - springLength;
+        const displacement = dist - linkDistance;
         const force = displacement * kSpring;
         const fx = (dx / dist) * force;
         const fy = (dy / dist) * force;
 
-        if (e.sourceNode !== draggedNode) {
-          e.sourceNode.vx += fx;
-          e.sourceNode.vy += fy;
-        }
-        if (e.targetNode !== draggedNode) {
-          e.targetNode.vx -= fx;
-          e.targetNode.vy -= fy;
-        }
+        if (s !== draggedNode) { s.vx += fx; s.vy += fy; }
+        if (t !== draggedNode) { t.vx -= fx; t.vy -= fy; }
       }
 
-      // Update positions
+      // 4. Update positions with velocity clamps
       for (let i = 0; i < count; i++) {
         const n = nodes[i];
         if (n === draggedNode) continue;
-        n.vx *= damping;
-        n.vy *= damping;
+        // Clamp speed to prevent violent flings
+        n.vx = Math.max(-8, Math.min(8, n.vx * velocityDecay));
+        n.vy = Math.max(-8, Math.min(8, n.vy * velocityDecay));
         n.x += n.vx;
         n.y += n.vy;
       }
+
+      // 5. Exponential cooling schedule
+      customSimAlpha *= 0.975;
+
+      draw();
+      requestAnimationFrame(runCustomSimulationLoop);
     }
 
-    // Render loop
-    function render() {
-      simulate();
+    function reheatSimulation(alphaVal = 0.25) {
+      if (d3Simulation) {
+        d3Simulation.alphaTarget(0).alpha(alphaVal).restart();
+      } else {
+        customSimAlpha = alphaVal;
+        if (!isCustomSimulating) {
+          isCustomSimulating = true;
+          runCustomSimulationLoop();
+        }
+      }
+    }
 
+    // Canvas drawing
+    function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.save();
       ctx.translate(offsetX, offsetY);
@@ -566,21 +756,23 @@
       // Draw edges
       for (let i = 0; i < edges.length; i++) {
         const e = edges[i];
-        if (!e.sourceNode || !e.targetNode) continue;
+        const s = e.source;
+        const t = e.target;
+        if (!s || !t) continue;
 
-        const isHighlighted = impactHighlight && impactHighlight.has(e.src) && impactHighlight.has(e.dst);
-        const isHovered = hoveredNode && (e.src === hoveredNode.id || e.dst === hoveredNode.id);
+        const inImpact = impactHighlight && impactHighlight.has(e.src) && impactHighlight.has(e.dst);
+        const inHover = hoveredNode && (e.src === hoveredNode.id || e.dst === hoveredNode.id);
 
         ctx.beginPath();
-        ctx.moveTo(e.sourceNode.x, e.sourceNode.y);
-        ctx.lineTo(e.targetNode.x, e.targetNode.y);
+        ctx.moveTo(s.x, s.y);
+        ctx.lineTo(t.x, t.y);
 
-        if (isHighlighted) {
+        if (inImpact) {
           ctx.strokeStyle = "#ff0055";
-          ctx.lineWidth = 2.5;
-        } else if (isHovered) {
+          ctx.lineWidth = 2.2;
+        } else if (inHover) {
           ctx.strokeStyle = "#7aa2f7";
-          ctx.lineWidth = 1.8;
+          ctx.lineWidth = 1.6;
         } else {
           ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
           ctx.lineWidth = 0.8;
@@ -595,32 +787,43 @@
         const isHovered = hoveredNode && hoveredNode.id === n.id;
         const inImpact = impactHighlight && impactHighlight.has(n.id);
 
-        ctx.beginPath();
-        ctx.arc(n.x, n.y, n.radius * (isSelected ? 1.4 : 1), 0, Math.PI * 2);
-
         let color = getNodeColor(n.kind);
         if (inImpact) color = "#ff0055";
 
+        // Draw glow aura for selected / impact
+        if (isSelected || inImpact) {
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, n.radius + 6, 0, Math.PI * 2);
+          ctx.fillStyle = inImpact ? "rgba(255, 0, 85, 0.25)" : "rgba(122, 162, 247, 0.3)";
+          ctx.fill();
+        }
+
+        // Draw node body
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, n.radius, 0, Math.PI * 2);
         ctx.fillStyle = color;
         ctx.fill();
 
-        if (isSelected || inImpact) {
-          ctx.strokeStyle = "#fff";
-          ctx.lineWidth = 2;
+        if (isSelected || inImpact || isHovered) {
+          ctx.strokeStyle = "#ffffff";
+          ctx.lineWidth = 1.8;
           ctx.stroke();
         }
 
-        // Draw labels if zoomed in or hovered
-        if (scale > 1.2 || isHovered || isSelected || inImpact) {
-          ctx.font = "10px sans-serif";
-          ctx.fillStyle = isHovered || isSelected ? "#fff" : "rgba(255, 255, 255, 0.75)";
+        // Draw labels
+        if (showLabels && (scale > 1.2 || isHovered || isSelected || inImpact)) {
+          ctx.font = "11px -apple-system, sans-serif";
+          ctx.fillStyle = isHovered || isSelected ? "#ffffff" : "rgba(255, 255, 255, 0.75)";
           const label = n.id.split("::").pop();
           ctx.fillText(label, n.x + n.radius + 4, n.y + 3);
         }
       }
 
       ctx.restore();
-      requestAnimationFrame(render);
+    }
+
+    function requestDraw() {
+      draw();
     }
 
     // Hit test
@@ -632,68 +835,84 @@
         const n = nodes[i];
         const dx = worldX - n.x;
         const dy = worldY - n.y;
-        if (dx * dx + dy * dy <= (n.radius + 4) * (n.radius + 4)) {
+        if (dx * dx + dy * dy <= (n.radius + 5) * (n.radius + 5)) {
           return n;
         }
       }
       return null;
     }
 
-    // Interaction Events
+    // Interactions
     canvas.addEventListener("mousedown", e => {
       const node = findNodeAt(e.clientX, e.clientY);
       if (node) {
         draggedNode = node;
+        node.fx = node.x;
+        node.fy = node.y;
+        reheatSimulation(0.3);
       } else {
         isDraggingCanvas = true;
         dragStartX = e.clientX - offsetX;
-        dragStartY = e.clientY - offsetY;
+        dragStartY = e.clientY - dragStartY;
       }
     });
 
     window.addEventListener("mousemove", e => {
       if (draggedNode) {
-        draggedNode.x = (e.clientX - offsetX) / scale;
-        draggedNode.y = (e.clientY - offsetY) / scale;
-        draggedNode.vx = 0;
-        draggedNode.vy = 0;
+        const worldX = (e.clientX - offsetX) / scale;
+        const worldY = (e.clientY - offsetY) / scale;
+        draggedNode.x = worldX;
+        draggedNode.y = worldY;
+        draggedNode.fx = worldX;
+        draggedNode.fy = worldY;
+        reheatSimulation(0.15);
         return;
       }
 
       if (isDraggingCanvas) {
         offsetX = e.clientX - dragStartX;
         offsetY = e.clientY - dragStartY;
+        requestDraw();
         return;
       }
 
       const node = findNodeAt(e.clientX, e.clientY);
-      hoveredNode = node;
-      if (node) {
-        tooltip.style.display = "block";
-        tooltip.style.left = e.clientX + "px";
-        tooltip.style.top = e.clientY + "px";
-        const shortName = node.id.split("::").pop();
-        tooltip.innerText = `${shortName} (${node.kind})`;
-      } else {
-        tooltip.style.display = "none";
+      if (node !== hoveredNode) {
+        hoveredNode = node;
+        if (node) {
+          tooltip.style.display = "block";
+          tooltip.style.left = e.clientX + "px";
+          tooltip.style.top = e.clientY + "px";
+          const shortName = node.id.split("::").pop();
+          tooltip.innerText = `${shortName} (${node.kind})`;
+        } else {
+          tooltip.style.display = "none";
+        }
+        requestDraw();
       }
     });
 
     window.addEventListener("mouseup", () => {
-      draggedNode = null;
+      if (draggedNode) {
+        draggedNode.fx = null;
+        draggedNode.fy = null;
+        draggedNode = null;
+        reheatSimulation(0.2);
+      }
       isDraggingCanvas = false;
     });
 
     canvas.addEventListener("wheel", e => {
       e.preventDefault();
-      const zoomFactor = e.deltaY < 0 ? 1.15 : 0.85;
+      const zoomFactor = e.deltaY < 0 ? 1.12 : 0.88;
       const mouseX = e.clientX;
       const mouseY = e.clientY;
 
       offsetX = mouseX - (mouseX - offsetX) * zoomFactor;
       offsetY = mouseY - (mouseY - offsetY) * zoomFactor;
       scale *= zoomFactor;
-      scale = Math.max(0.1, Math.min(10, scale));
+      scale = Math.max(0.1, Math.min(8, scale));
+      requestDraw();
     });
 
     canvas.addEventListener("click", e => {
@@ -724,12 +943,14 @@
       document.getElementById("fact-writes").innerText = (facts.writes || []).length;
 
       inspector.classList.add("open");
+      requestDraw();
     }
 
     document.getElementById("close-inspector").addEventListener("click", () => {
       inspector.classList.remove("open");
       selectedNode = null;
       impactHighlight = null;
+      requestDraw();
     });
 
     document.getElementById("impact-btn").addEventListener("click", async () => {
@@ -744,6 +965,7 @@
         (data.affected_nodes || []).forEach(n => affected.add(n.id));
         impactHighlight = affected;
         btn.innerText = `Blast Radius (${affected.size} nodes)`;
+        requestDraw();
       } catch (err) {
         btn.innerText = "Error analyzing impact";
       }
@@ -778,9 +1000,46 @@
       }
     });
 
+    // Forces Settings Panel
+    document.getElementById("toggle-forces").addEventListener("click", () => {
+      forcesPanel.classList.toggle("open");
+    });
+
+    document.getElementById("slider-repel").addEventListener("input", e => {
+      repelStrength = parseInt(e.target.value);
+      document.getElementById("lbl-repel").innerText = repelStrength;
+      if (d3Simulation) d3Simulation.force("charge", d3.forceManyBody().strength(repelStrength).distanceMax(500));
+      reheatSimulation(0.3);
+    });
+
+    document.getElementById("slider-distance").addEventListener("input", e => {
+      linkDistance = parseInt(e.target.value);
+      document.getElementById("lbl-distance").innerText = linkDistance;
+      if (d3Simulation) d3Simulation.force("link", d3.forceLink(edges).id(d => d.id).distance(linkDistance));
+      reheatSimulation(0.3);
+    });
+
+    document.getElementById("slider-center").addEventListener("input", e => {
+      centerGravity = parseFloat(e.target.value);
+      document.getElementById("lbl-center").innerText = centerGravity;
+      if (d3Simulation) d3Simulation.force("center", d3.forceCenter(0, 0).strength(centerGravity));
+      reheatSimulation(0.3);
+    });
+
+    document.getElementById("chk-labels").addEventListener("change", e => {
+      showLabels = e.target.checked;
+      requestDraw();
+    });
+
+    document.getElementById("btn-recenter").addEventListener("click", () => {
+      scale = 1;
+      offsetX = canvas.width / 2;
+      offsetY = canvas.height / 2;
+      requestDraw();
+    });
+
     // Start
     loadLens("call");
-    requestAnimationFrame(render);
   </script>
 </body>
 </html>
