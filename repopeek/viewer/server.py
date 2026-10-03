@@ -4,7 +4,7 @@ import json
 import threading
 import urllib.parse
 import webbrowser
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -52,6 +52,8 @@ class GraphViewerHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(content)))
+        self.send_header("Connection", "close")
+        self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
         self.wfile.write(content)
 
@@ -92,6 +94,8 @@ class GraphViewerHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(payload)))
+        self.send_header("Connection", "close")
+        self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
         self.wfile.write(payload)
 
@@ -101,6 +105,8 @@ class GraphViewerHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(payload)))
+        self.send_header("Connection", "close")
+        self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
         self.wfile.write(payload)
 
@@ -110,6 +116,8 @@ class GraphViewerHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", "text/plain; charset=utf-8")
         self.send_header("Content-Length", str(len(payload)))
+        self.send_header("Connection", "close")
+        self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
         self.wfile.write(payload)
 
@@ -119,14 +127,15 @@ def start_viewer(
     storage_dir: Optional[Path] = None,
     port: int = 8765,
     open_browser: bool = True,
-) -> HTTPServer:
-    """Start local HTTP server serving the interactive graph viewer."""
+) -> ThreadingHTTPServer:
+    """Start local threaded HTTP server serving the interactive graph viewer."""
     handler = type("ConfiguredGraphViewerHandler", (GraphViewerHandler,), {
         "engine": engine,
         "storage_dir": storage_dir,
     })
 
-    server = HTTPServer(("127.0.0.1", port), handler)
+    server = ThreadingHTTPServer(("127.0.0.1", port), handler)
+    server.daemon_threads = True
     url = f"http://127.0.0.1:{port}"
     print(f"RepoPeek Graph Viewer running at {url}")
 

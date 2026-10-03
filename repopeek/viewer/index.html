@@ -4,11 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>RepoPeek — Code Intelligence Graph</title>
-  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
   <style>
     :root {
       --bg: #0d0e15;
-      --panel-bg: rgba(20, 22, 33, 0.88);
+      --panel-bg: rgba(20, 22, 33, 0.90);
       --border: rgba(255, 255, 255, 0.08);
       --border-hover: rgba(255, 255, 255, 0.18);
       --border-active: rgba(122, 162, 247, 0.5);
@@ -518,8 +517,7 @@
     let nodeMap = new Map();
     let selectedNode = null;
     let hoveredNode = null;
-    let impactHighlight = null; // Set of node IDs in blast radius
-    let isInteracting = false;
+    let impactHighlight = null;
 
     // Physics parameters
     let repelStrength = -120;
@@ -536,10 +534,11 @@
     let dragStartY = 0;
     let draggedNode = null;
 
-    // Simulation reference
-    let d3Simulation = null;
-    let customSimAlpha = 1.0;
-    let isCustomSimulating = false;
+    // Alpha cooling schedule
+    let alpha = 1.0;
+    const alphaDecay = 0.022; // Cools in ~120 frames (~2 seconds)
+    const alphaMin = 0.002;
+    let isSimulating = false;
 
     const canvas = document.getElementById("graph-canvas");
     const ctx = canvas.getContext("2d");
@@ -557,7 +556,7 @@
         offsetX = canvas.width / 2;
         offsetY = canvas.height / 2;
       }
-      requestDraw();
+      draw();
     }
     window.addEventListener("resize", resizeCanvas);
     resizeCanvas();
@@ -580,12 +579,9 @@
         rawNodes = data.nodes || [];
         rawEdges = data.edges || [];
 
-        // Build node objects
+        // Build node objects arranged in gentle phyllotaxis sunflower spiral
         nodeMap.clear();
-        const total = rawNodes.length;
-
-        // Arrange in a calm phyllotaxis sunflower spiral to avoid initial cluster blow-up
-        const c = 18;
+        const c = 22;
         nodes = rawNodes.map((n, i) => {
           const r = c * Math.sqrt(i + 1);
           const theta = i * 2.399963229728653; // Golden angle
@@ -595,13 +591,13 @@
             y: Math.sin(theta) * r,
             vx: 0,
             vy: 0,
-            radius: n.kind === "module" ? 8 : (n.kind === "class" ? 7 : 5),
+            radius: n.kind === "module" ? 9 : (n.kind === "class" ? 7 : 5),
           };
           nodeMap.set(n.id, node);
           return node;
         });
 
-        // Filter and map edges
+        // Resolve edge src/dst objects directly
         edges = [];
         rawEdges.forEach(e => {
           const s = nodeMap.get(e.src);
@@ -620,66 +616,44 @@
         statsBadge.innerText = `${nodes.length.toLocaleString()} nodes · ${edges.length.toLocaleString()} edges`;
         impactHighlight = null;
 
-        // Start force simulation with smooth cooling schedule
-        initSimulation();
+        // Start force simulation
+        startSimulation(1.0);
       } catch (err) {
-        statsBadge.innerText = "Failed to load lens: " + err.message;
+        statsBadge.innerText = "Failed to load: " + err.message;
       }
     }
 
-    function initSimulation() {
-      // Prefer D3 force simulation if loaded via CDN
-      if (typeof d3 !== "undefined" && d3.forceSimulation) {
-        if (d3Simulation) d3Simulation.stop();
-
-        d3Simulation = d3.forceSimulation(nodes)
-          .force("charge", d3.forceManyBody().strength(repelStrength).distanceMax(500).distanceMin(10))
-          .force("link", d3.forceLink(edges).id(d => d.id).distance(linkDistance).strength(0.6))
-          .force("center", d3.forceCenter(0, 0).strength(centerGravity))
-          .force("collide", d3.forceCollide().radius(d => d.radius + 3).iterations(1))
-          .alpha(1)
-          .alphaDecay(0.025) // Smoothly cools and settles in ~150 frames (2.5s)
-          .velocityDecay(0.4); // Strong damping prevents vibration/bouncing
-
-        d3Simulation.on("tick", () => {
-          draw();
-        });
-        d3Simulation.on("end", () => {
-          draw(); // Final tranquil frame
-        });
-      } else {
-        // Fallback: Built-in Alpha-Cooled Velocity Verlet Simulation (Zero dependencies)
-        customSimAlpha = 1.0;
-        isCustomSimulating = true;
-        runCustomSimulationLoop();
+    function startSimulation(initAlpha = 1.0) {
+      alpha = initAlpha;
+      if (!isSimulating) {
+        isSimulating = true;
+        requestAnimationFrame(tickSimulation);
       }
     }
 
-    function runCustomSimulationLoop() {
-      if (!isCustomSimulating) return;
-
-      if (customSimAlpha < 0.001) {
-        isCustomSimulating = false;
+    // Alpha-cooled force simulation with velocity damping and collision separation
+    function tickSimulation() {
+      if (alpha < alphaMin) {
+        isSimulating = false;
         draw();
         return;
       }
 
       const count = nodes.length;
-      const alpha = customSimAlpha;
-      const kRepulsion = Math.abs(repelStrength) * 12 * alpha;
-      const kSpring = 0.06 * alpha;
-      const velocityDecay = 0.55; // 45% damping per frame kills oscillation
-      const epsilon = 100; // Softening factor avoids divide-by-zero explosions
+      const kRepel = Math.abs(repelStrength) * 14 * alpha;
+      const kLink = 0.08 * alpha;
+      const epsilon = 120; // Softening factor avoids divide-by-zero
+      const velocityDamping = 0.65; // 35% velocity decay per frame kills vibration
 
       // 1. Center gravity
       for (let i = 0; i < count; i++) {
         const n = nodes[i];
         if (n === draggedNode) continue;
-        n.vx -= n.x * 0.008 * centerGravity * alpha;
-        n.vy -= n.y * 0.008 * centerGravity * alpha;
+        n.vx -= n.x * 0.006 * centerGravity * alpha;
+        n.vy -= n.y * 0.006 * centerGravity * alpha;
       }
 
-      // 2. Repulsion with distance threshold
+      // 2. Pairwise repulsion
       for (let i = 0; i < count; i++) {
         const n1 = nodes[i];
         for (let j = i + 1; j < count; j++) {
@@ -687,9 +661,9 @@
           const dx = n2.x - n1.x;
           const dy = n2.y - n1.y;
           const distSq = dx * dx + dy * dy + epsilon;
-          if (distSq < 160000) { // Max interaction radius 400px
+          if (distSq < 160000) { // Interaction cutoff 400px
             const dist = Math.sqrt(distSq);
-            const force = kRepulsion / distSq;
+            const force = kRepel / distSq;
             const fx = (dx / dist) * force;
             const fy = (dy / dist) * force;
             if (n1 !== draggedNode) { n1.vx -= fx; n1.vy -= fy; }
@@ -698,17 +672,16 @@
         }
       }
 
-      // 3. Spring attraction along links
+      // 3. Link spring attraction
       for (let i = 0; i < edges.length; i++) {
         const e = edges[i];
         const s = e.source;
         const t = e.target;
-        if (!s || !t) continue;
         const dx = t.x - s.x;
         const dy = t.y - s.y;
         const dist = Math.sqrt(dx * dx + dy * dy) || 1;
         const displacement = dist - linkDistance;
-        const force = displacement * kSpring;
+        const force = displacement * kLink;
         const fx = (dx / dist) * force;
         const fy = (dy / dist) * force;
 
@@ -716,34 +689,41 @@
         if (t !== draggedNode) { t.vx -= fx; t.vy -= fy; }
       }
 
-      // 4. Update positions with velocity clamps
+      // 4. Collision separation (prevent node overlap)
+      for (let i = 0; i < count; i++) {
+        const n1 = nodes[i];
+        for (let j = i + 1; j < count; j++) {
+          const n2 = nodes[j];
+          const dx = n2.x - n1.x;
+          const dy = n2.y - n1.y;
+          const minDist = n1.radius + n2.radius + 6;
+          const distSq = dx * dx + dy * dy;
+          if (distSq < minDist * minDist && distSq > 0.01) {
+            const dist = Math.sqrt(distSq);
+            const overlap = (minDist - dist) * 0.4 * alpha;
+            const ox = (dx / dist) * overlap;
+            const oy = (dy / dist) * overlap;
+            if (n1 !== draggedNode) { n1.x -= ox; n1.y -= oy; }
+            if (n2 !== draggedNode) { n2.x += ox; n2.y += oy; }
+          }
+        }
+      }
+
+      // 5. Update positions with velocity clamps
       for (let i = 0; i < count; i++) {
         const n = nodes[i];
         if (n === draggedNode) continue;
-        // Clamp speed to prevent violent flings
-        n.vx = Math.max(-8, Math.min(8, n.vx * velocityDecay));
-        n.vy = Math.max(-8, Math.min(8, n.vy * velocityDecay));
+        n.vx = Math.max(-10, Math.min(10, n.vx * velocityDamping));
+        n.vy = Math.max(-10, Math.min(10, n.vy * velocityDamping));
         n.x += n.vx;
         n.y += n.vy;
       }
 
-      // 5. Exponential cooling schedule
-      customSimAlpha *= 0.975;
+      // 6. Decay alpha
+      alpha *= (1 - alphaDecay);
 
       draw();
-      requestAnimationFrame(runCustomSimulationLoop);
-    }
-
-    function reheatSimulation(alphaVal = 0.25) {
-      if (d3Simulation) {
-        d3Simulation.alphaTarget(0).alpha(alphaVal).restart();
-      } else {
-        customSimAlpha = alphaVal;
-        if (!isCustomSimulating) {
-          isCustomSimulating = true;
-          runCustomSimulationLoop();
-        }
-      }
+      requestAnimationFrame(tickSimulation);
     }
 
     // Canvas drawing
@@ -774,7 +754,7 @@
           ctx.strokeStyle = "#7aa2f7";
           ctx.lineWidth = 1.6;
         } else {
-          ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+          ctx.strokeStyle = "rgba(255, 255, 255, 0.09)";
           ctx.lineWidth = 0.8;
         }
         ctx.stroke();
@@ -790,7 +770,7 @@
         let color = getNodeColor(n.kind);
         if (inImpact) color = "#ff0055";
 
-        // Draw glow aura for selected / impact
+        // Aura for selected / impact
         if (isSelected || inImpact) {
           ctx.beginPath();
           ctx.arc(n.x, n.y, n.radius + 6, 0, Math.PI * 2);
@@ -798,7 +778,7 @@
           ctx.fill();
         }
 
-        // Draw node body
+        // Node body
         ctx.beginPath();
         ctx.arc(n.x, n.y, n.radius, 0, Math.PI * 2);
         ctx.fillStyle = color;
@@ -810,8 +790,8 @@
           ctx.stroke();
         }
 
-        // Draw labels
-        if (showLabels && (scale > 1.2 || isHovered || isSelected || inImpact)) {
+        // Labels
+        if (showLabels && (scale > 1.1 || isHovered || isSelected || inImpact)) {
           ctx.font = "11px -apple-system, sans-serif";
           ctx.fillStyle = isHovered || isSelected ? "#ffffff" : "rgba(255, 255, 255, 0.75)";
           const label = n.id.split("::").pop();
@@ -820,10 +800,6 @@
       }
 
       ctx.restore();
-    }
-
-    function requestDraw() {
-      draw();
     }
 
     // Hit test
@@ -835,7 +811,7 @@
         const n = nodes[i];
         const dx = worldX - n.x;
         const dy = worldY - n.y;
-        if (dx * dx + dy * dy <= (n.radius + 5) * (n.radius + 5)) {
+        if (dx * dx + dy * dy <= (n.radius + 6) * (n.radius + 6)) {
           return n;
         }
       }
@@ -847,13 +823,11 @@
       const node = findNodeAt(e.clientX, e.clientY);
       if (node) {
         draggedNode = node;
-        node.fx = node.x;
-        node.fy = node.y;
-        reheatSimulation(0.3);
+        startSimulation(0.25);
       } else {
         isDraggingCanvas = true;
         dragStartX = e.clientX - offsetX;
-        dragStartY = e.clientY - dragStartY;
+        dragStartY = e.clientY - offsetY;
       }
     });
 
@@ -863,16 +837,16 @@
         const worldY = (e.clientY - offsetY) / scale;
         draggedNode.x = worldX;
         draggedNode.y = worldY;
-        draggedNode.fx = worldX;
-        draggedNode.fy = worldY;
-        reheatSimulation(0.15);
+        draggedNode.vx = 0;
+        draggedNode.vy = 0;
+        startSimulation(0.12);
         return;
       }
 
       if (isDraggingCanvas) {
         offsetX = e.clientX - dragStartX;
         offsetY = e.clientY - dragStartY;
-        requestDraw();
+        draw();
         return;
       }
 
@@ -888,16 +862,14 @@
         } else {
           tooltip.style.display = "none";
         }
-        requestDraw();
+        draw();
       }
     });
 
     window.addEventListener("mouseup", () => {
       if (draggedNode) {
-        draggedNode.fx = null;
-        draggedNode.fy = null;
         draggedNode = null;
-        reheatSimulation(0.2);
+        startSimulation(0.2);
       }
       isDraggingCanvas = false;
     });
@@ -912,7 +884,7 @@
       offsetY = mouseY - (mouseY - offsetY) * zoomFactor;
       scale *= zoomFactor;
       scale = Math.max(0.1, Math.min(8, scale));
-      requestDraw();
+      draw();
     });
 
     canvas.addEventListener("click", e => {
@@ -943,14 +915,14 @@
       document.getElementById("fact-writes").innerText = (facts.writes || []).length;
 
       inspector.classList.add("open");
-      requestDraw();
+      draw();
     }
 
     document.getElementById("close-inspector").addEventListener("click", () => {
       inspector.classList.remove("open");
       selectedNode = null;
       impactHighlight = null;
-      requestDraw();
+      draw();
     });
 
     document.getElementById("impact-btn").addEventListener("click", async () => {
@@ -965,7 +937,7 @@
         (data.affected_nodes || []).forEach(n => affected.add(n.id));
         impactHighlight = affected;
         btn.innerText = `Blast Radius (${affected.size} nodes)`;
-        requestDraw();
+        draw();
       } catch (err) {
         btn.innerText = "Error analyzing impact";
       }
@@ -1008,34 +980,31 @@
     document.getElementById("slider-repel").addEventListener("input", e => {
       repelStrength = parseInt(e.target.value);
       document.getElementById("lbl-repel").innerText = repelStrength;
-      if (d3Simulation) d3Simulation.force("charge", d3.forceManyBody().strength(repelStrength).distanceMax(500));
-      reheatSimulation(0.3);
+      startSimulation(0.3);
     });
 
     document.getElementById("slider-distance").addEventListener("input", e => {
       linkDistance = parseInt(e.target.value);
       document.getElementById("lbl-distance").innerText = linkDistance;
-      if (d3Simulation) d3Simulation.force("link", d3.forceLink(edges).id(d => d.id).distance(linkDistance));
-      reheatSimulation(0.3);
+      startSimulation(0.3);
     });
 
     document.getElementById("slider-center").addEventListener("input", e => {
       centerGravity = parseFloat(e.target.value);
       document.getElementById("lbl-center").innerText = centerGravity;
-      if (d3Simulation) d3Simulation.force("center", d3.forceCenter(0, 0).strength(centerGravity));
-      reheatSimulation(0.3);
+      startSimulation(0.3);
     });
 
     document.getElementById("chk-labels").addEventListener("change", e => {
       showLabels = e.target.checked;
-      requestDraw();
+      draw();
     });
 
     document.getElementById("btn-recenter").addEventListener("click", () => {
       scale = 1;
       offsetX = canvas.width / 2;
       offsetY = canvas.height / 2;
-      requestDraw();
+      draw();
     });
 
     // Start
