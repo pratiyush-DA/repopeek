@@ -71,7 +71,31 @@ python -m repopeek.cli --trace table.invoices
 python -m repopeek.cli --pack InvoiceParser.parse
 ```
 
-### 4. Serve MCP (Model Context Protocol)
+### 4. Interactive Web Graph Viewer (Obsidian-Style)
+
+Launch a local, zero-dependency force-directed code property graph viewer in your default browser:
+
+```bash
+python -m repopeek.cli --view
+# Custom port:
+python -m repopeek.cli --view --port 9000
+```
+- **Capabilities:** 9 switchable lenses (`Call Graph`, `Module Hierarchy`, `Data Flow`, etc.), interactive zoom/pan, hover glowing links, real-time symbol search, click-to-inspect node drawer, and one-click blast radius highlighting.
+
+### 5. Export to Obsidian Vault
+
+Export the code property graph as a structured, native Obsidian Markdown vault complete with `.obsidian/` color groups and bidirectional `[[wikilinks]]`:
+
+```bash
+# Export graph to an Obsidian vault
+python -m repopeek.cli --export-obsidian ./my_obsidian_vault
+
+# Query documentation note directly from the Obsidian vault
+python -m repopeek.cli --read-obsidian GraphQueryEngine --vault-path ./my_obsidian_vault
+```
+Open `./my_obsidian_vault` in **Obsidian Desktop** to explore your codebase using Obsidian's native force-directed **Graph View**!
+
+### 6. Serve MCP (Model Context Protocol)
 
 ```bash
 python -m repopeek.cli --serve-mcp

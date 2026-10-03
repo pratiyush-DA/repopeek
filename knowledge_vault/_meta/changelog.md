@@ -14,5 +14,6 @@
 2026-10-04 | comp-enrichment, feat-semantic-enrichment, Phase-2/log, _meta/changelog | PR 9 Story cascade, content-hash cache, fact verifier, and cost governor
 2026-10-04 | comp-query, feat-query-cli, Phase-2/log, _meta/changelog | PR 10 Low-context retrieval, context-pack service, and stdio MCP server
 2026-10-04 | Phase-2/plan, Phase-2/log, _meta/changelog | PR 11 Dogfooding on RepoPeek repository, golden scenarios validation, and CLI/MCP polish
+2026-10-04 | feat-graph-persistence, feat-query-cli, _meta/changelog | Interactive graph viewer and Obsidian Markdown vault exporter/reader
 
 

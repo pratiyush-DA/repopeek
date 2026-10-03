@@ -5,11 +5,11 @@ title: Graph Persistence
 summary: Serialize and deserialize the in-memory property graph to and from local disk storage.
 status: active
 tags: [phase4, storage, persistence]
-code_refs: [repopeek/storage/json_store.py, repopeek/storage/provenance.py, repopeek/storage/sqlite_cache.py, repopeek/storage/__init__.py]
+code_refs: [repopeek/storage/json_store.py, repopeek/storage/provenance.py, repopeek/storage/sqlite_cache.py, repopeek/storage/obsidian_exporter.py, repopeek/storage/__init__.py]
 depends_on: ['[[adr-004-graph-persistence-tbd]]', '[[comp-graph]]', '[[data-graph-lenses]]',
   '[[feat-graph-construction]]', '[[feat-graph-validation]]']
 affects: ['[[comp-query]]', '[[feat-query-cli]]']
-last_verified: 2026-10-03
+last_verified: 2026-10-04
 source: "_sources/task_list.md §Phase 4"
 ---
 # Graph Persistence
@@ -24,6 +24,7 @@ Enables storing the constructed code intelligence graph locally so that subseque
 - **Materialized Lenses:** Subgraphs for `module`, `symbol`, `call`, `class`, `data`, `data_entity`, `config`, `process`, and `bridges`.
 - **Atomic Writes:** Staged in temporary directories with atomic rename swap ensuring zero partial-write corruption.
 - **SQLite Cache:** Ephemeral SQLite schema (`nodes`, `edges`, `metadata`) with recursive CTE query engine (`query_sqlite_impact`) for sub-millisecond impact traversal.
+- **Obsidian Vault Export:** `export_to_obsidian_vault` generates atomic markdown notes with YAML frontmatter, `[[wikilinks]]`, and native Obsidian `.obsidian/graph.json` color groupings. `read_obsidian_node` allows fast querying of documentation notes.
 
 ## Impact (blast radius)
 - **Depends on:** [[feat-graph-construction]], [[comp-graph]]

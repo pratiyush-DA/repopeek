@@ -88,6 +88,35 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Run stdio JSON-RPC MCP server for autonomous coding agents",
     )
+    parser.add_argument(
+        "--view",
+        action="store_true",
+        help="Launch interactive local web-based code property graph viewer in browser",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8765,
+        help="Port for the interactive graph viewer server (default: 8765)",
+    )
+    parser.add_argument(
+        "--export-obsidian",
+        type=Path,
+        default=None,
+        help="Export canonical code graph into an Obsidian Markdown vault with [[wikilinks]]",
+    )
+    parser.add_argument(
+        "--read-obsidian",
+        type=str,
+        default=None,
+        help="Query symbol documentation from an exported Obsidian vault",
+    )
+    parser.add_argument(
+        "--vault-path",
+        type=Path,
+        default=None,
+        help="Path to the Obsidian vault directory for reading (default: ./obsidian_vault)",
+    )
     return parser
 
 
@@ -112,7 +141,16 @@ def main(argv=None) -> int:
         )
 
     resolved_repo = config.repo_path.resolve()
-    is_query_mode = bool(args.serve_mcp or args.lookup or args.impact or args.trace or args.pack)
+    is_query_mode = bool(
+        args.serve_mcp
+        or args.lookup
+        or args.impact
+        or args.trace
+        or args.pack
+        or args.view
+        or args.export_obsidian
+        or args.read_obsidian
+    )
     if not is_query_mode:
         print(f"Repopeek v{__version__} - Repository Intelligence Engine")
         print(f"Target repository: {resolved_repo}")
@@ -148,6 +186,33 @@ def main(argv=None) -> int:
             from repopeek.graph.builder import GraphBuilder
             graph = GraphBuilder().build_from_directory(resolved_repo)
             engine = GraphQueryEngine(graph=graph)
+
+        if args.read_obsidian:
+            vault_dir = args.vault_path or Path("./obsidian_vault")
+            from repopeek.storage import read_obsidian_node
+            note = read_obsidian_node(vault_dir, args.read_obsidian)
+            if note:
+                print(json.dumps(note, indent=2))
+                return 0
+            print(f"Error: Node matching '{args.read_obsidian}' not found in Obsidian vault at '{vault_dir}'.", file=sys.stderr)
+            return 1
+
+        if args.export_obsidian:
+            from repopeek.storage import export_to_obsidian_vault
+            res = export_to_obsidian_vault(engine.graph, args.export_obsidian)
+            print(f"Obsidian vault successfully exported to: {res['vault_dir']}")
+            print(f"Exported {res['exported_notes']} notes across categories: {', '.join(res['categories'])}")
+            return 0
+
+        if args.view:
+            from repopeek.viewer import start_viewer
+            server = start_viewer(engine, storage_dir=storage_dir, port=args.port, open_browser=True)
+            try:
+                server.serve_forever()
+            except KeyboardInterrupt:
+                print("\nShutting down RepoPeek Graph Viewer.")
+                server.server_close()
+            return 0
 
         if args.serve_mcp:
             server = RepoPeekMCPServer(engine)

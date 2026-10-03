@@ -5,7 +5,7 @@ title: Query CLI and Low-Context Retrieval Service
 summary: Low-context retrieval operations (lookup, neighbors, impact, data_trace, context_pack) and stdio MCP server for autonomous agents.
 status: active
 tags: [phase6, query, cli, mcp]
-code_refs: [repopeek/query/engine.py, repopeek/query/pack.py, repopeek/query/mcp_server.py, repopeek/query/__init__.py, repopeek/cli.py]
+code_refs: [repopeek/query/engine.py, repopeek/query/pack.py, repopeek/query/mcp_server.py, repopeek/query/__init__.py, repopeek/viewer/server.py, repopeek/viewer/__init__.py, repopeek/cli.py]
 depends_on: ['[[adr-011-mcp-interface]]', '[[comp-cli]]', '[[comp-graph]]', '[[comp-query]]',
   '[[data-node-card-spec]]', '[[feat-graph-construction]]', '[[feat-graph-persistence]]',
   '[[req-queryable-graph]]']
@@ -16,7 +16,7 @@ source: "_sources/task_list.md §Phase 6"
 # Query CLI and Low-Context Retrieval Service
 
 ## Purpose
-Provides low-context retrieval operations and a standard Model Context Protocol (MCP) server for autonomous AI coding agents operating with small context windows (<500 tokens).
+Provides low-context retrieval operations, an interactive graph viewer, and a standard Model Context Protocol (MCP) server for autonomous AI coding agents operating with small context windows (<500 tokens).
 
 ## Core Retrieval Operations
 1. **Node Lookup (`repopeek --lookup <query>` / `repopeek_lookup`):**
@@ -31,6 +31,10 @@ Provides low-context retrieval operations and a standard Model Context Protocol 
    - Bundles the minimal sufficient sub-graph (<500 tokens) with one-line stories, signatures, and blast-radius summaries.
 6. **Stdio MCP Server (`repopeek --serve-mcp`):**
    - Standard JSON-RPC protocol implementation connecting directly to external coding assistants.
+7. **Interactive Web Graph Viewer (`repopeek --view`):**
+   - Obsidian-style dark Canvas graph viewer serving local HTTP endpoints (`/api/graph`, `/api/impact`, `/api/pack`).
+8. **Obsidian Vault Query (`repopeek --read-obsidian <symbol>`):**
+   - Directly reads documentation notes, frontmatter, and extracted wikilinks from an exported Obsidian vault.
 
 ## Impact (blast radius)
 - **Depends on:** [[feat-graph-persistence]], [[comp-graph]], [[req-queryable-graph]], [[adr-011-mcp-interface]]

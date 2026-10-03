@@ -18,6 +18,9 @@ DEFAULT_IGNORE_DIRS: Set[str] = {
     ".idea",
     ".vscode",
     ".obsidian",
+    ".repopeek",
+    "output",
+    "scratch",
 }
 
 DEFAULT_IGNORE_PATTERNS: List[str] = [
