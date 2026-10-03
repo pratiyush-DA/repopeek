@@ -33,6 +33,8 @@ env/
 # IDE files
 .vscode/
 .idea/
+.obsidian/
+**/.obsidian/
 
 # Testing & coverage
 .pytest_cache/

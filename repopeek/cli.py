@@ -58,6 +58,36 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Estimate token and cost requirements without invoking LLM APIs",
     )
+    parser.add_argument(
+        "--lookup",
+        type=str,
+        default=None,
+        help="Lookup node card by symbol or ID",
+    )
+    parser.add_argument(
+        "--impact",
+        type=str,
+        default=None,
+        help="Compute upstream blast radius for a node",
+    )
+    parser.add_argument(
+        "--trace",
+        type=str,
+        default=None,
+        help="Trace def-use flow for a variable or table entity",
+    )
+    parser.add_argument(
+        "--pack",
+        type=str,
+        nargs="+",
+        default=None,
+        help="Generate a minimal budget-governed context pack for targets",
+    )
+    parser.add_argument(
+        "--serve-mcp",
+        action="store_true",
+        help="Run stdio JSON-RPC MCP server for autonomous coding agents",
+    )
     return parser
 
 
@@ -95,6 +125,47 @@ def main(argv=None) -> int:
     if args.check:
         print("Configuration check passed successfully.")
         return 0
+
+    # Query dispatch handling
+    if args.serve_mcp or args.lookup or args.impact or args.trace or args.pack:
+        import json
+        from repopeek.query import GraphQueryEngine, RepoPeekMCPServer
+
+        storage_dir = config.output_dir if (config.output_dir / "graph.json").exists() else resolved_repo / ".repopeek"
+        if (storage_dir / "graph.json").exists():
+            engine = GraphQueryEngine(storage_dir=storage_dir)
+        else:
+            from repopeek.graph.builder import GraphBuilder
+            graph = GraphBuilder().build_from_directory(resolved_repo)
+            engine = GraphQueryEngine(graph=graph)
+
+        if args.serve_mcp:
+            server = RepoPeekMCPServer(engine)
+            server.run_stdio()
+            return 0
+
+        if args.lookup:
+            card = engine.lookup(args.lookup)
+            if card:
+                print(json.dumps(card.model_dump(exclude_none=True), indent=2))
+                return 0
+            print(f"Error: Node matching '{args.lookup}' not found.", file=sys.stderr)
+            return 1
+
+        if args.impact:
+            res = engine.impact(args.impact)
+            print(json.dumps(res, indent=2))
+            return 0
+
+        if args.trace:
+            res = engine.data_trace(args.trace)
+            print(json.dumps(res, indent=2))
+            return 0
+
+        if args.pack:
+            pack = engine.context_pack(args.pack)
+            print(pack.to_markdown())
+            return 0
 
     from repopeek.discovery import discover_repository
     from repopeek.graph.builder import GraphBuilder

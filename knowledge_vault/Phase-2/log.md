@@ -47,3 +47,9 @@ last_verified: 2026-10-04
 - 5-tier cascade: `HierarchicalStoryGenerator` in `repopeek/enrichment/summarizer.py` (trivial bypass, content-hash cache, structured fast LLM, bottom-up map-reduce, strong escalation).
 - Caching & validation: `StoryCache` in `repopeek/enrichment/cache.py`; `FactVerifier` in `repopeek/enrichment/verifier.py` preventing table/call hallucinations.
 - Cost governor & CLI: `CostGovernor` in `repopeek/enrichment/governor.py`; `StoryPipeline` wired into CLI with `--offline` and `--dry-run` flags. 70/70 tests passing.
+
+## 2026-10-04: PR 10 — Low-Context Retrieval & Context-Pack Service
+- Graph query engine: `GraphQueryEngine` in `repopeek/query/engine.py` implementing `lookup`, `neighbors`, multi-hop `impact`, and cross-language `data_trace`.
+- Context-pack service: `ContextPack` in `repopeek/query/pack.py` producing budget-governed (<500 tokens) prompt markdown blocks with node cards, stories, and blast-radius summaries.
+- MCP server & CLI: `RepoPeekMCPServer` in `repopeek/query/mcp_server.py` exposing stdio JSON-RPC MCP tools; CLI `--lookup`, `--impact`, `--trace`, `--pack`, and `--serve-mcp` flags. 77/77 tests passing.
+
