@@ -112,11 +112,13 @@ def main(argv=None) -> int:
         )
 
     resolved_repo = config.repo_path.resolve()
-    print(f"Repopeek v{__version__} - Repository Intelligence Engine")
-    print(f"Target repository: {resolved_repo}")
-    print(f"Supported file extensions: {', '.join(config.supported_extensions)}")
-    print(f"SQL dialect: {config.sql_dialect}")
-    print(f"Graph destination: {config.graph_output_path.resolve()}")
+    is_query_mode = bool(args.serve_mcp or args.lookup or args.impact or args.trace or args.pack)
+    if not is_query_mode:
+        print(f"Repopeek v{__version__} - Repository Intelligence Engine")
+        print(f"Target repository: {resolved_repo}")
+        print(f"Supported file extensions: {', '.join(config.supported_extensions)}")
+        print(f"SQL dialect: {config.sql_dialect}")
+        print(f"Graph destination: {config.graph_output_path.resolve()}")
 
     if not resolved_repo.exists():
         print(f"Error: Target repository path '{resolved_repo}' does not exist.", file=sys.stderr)
@@ -127,11 +129,19 @@ def main(argv=None) -> int:
         return 0
 
     # Query dispatch handling
-    if args.serve_mcp or args.lookup or args.impact or args.trace or args.pack:
+    if is_query_mode:
         import json
         from repopeek.query import GraphQueryEngine, RepoPeekMCPServer
 
-        storage_dir = config.output_dir if (config.output_dir / "graph.json").exists() else resolved_repo / ".repopeek"
+        if args.output_dir != Path("./output") and (config.output_dir / "graph.json").exists():
+            storage_dir = config.output_dir
+        elif (resolved_repo / ".repopeek" / "graph.json").exists():
+            storage_dir = resolved_repo / ".repopeek"
+        elif (config.output_dir / "graph.json").exists():
+            storage_dir = config.output_dir
+        else:
+            storage_dir = resolved_repo / ".repopeek"
+
         if (storage_dir / "graph.json").exists():
             engine = GraphQueryEngine(storage_dir=storage_dir)
         else:

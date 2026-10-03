@@ -53,3 +53,9 @@ last_verified: 2026-10-04
 - Context-pack service: `ContextPack` in `repopeek/query/pack.py` producing budget-governed (<500 tokens) prompt markdown blocks with node cards, stories, and blast-radius summaries.
 - MCP server & CLI: `RepoPeekMCPServer` in `repopeek/query/mcp_server.py` exposing stdio JSON-RPC MCP tools; CLI `--lookup`, `--impact`, `--trace`, `--pack`, and `--serve-mcp` flags. 77/77 tests passing.
 
+## 2026-10-04: PR 11 — Dogfooding, Golden Scenarios & Final Polish
+- Dogfooded RepoPeek on its own repository: 187 files parsed, 10,864 nodes, 17,454 edges assembled across 9 lenses and 88 shards in `.repopeek/`.
+- Validated golden scenarios (`tests/test_golden_scenarios.py`): (1) Blast radius tracing across polyglot files/tables, (2) Def-use data flow tracing writers/readers, (3) Sub-500 token context packs (~198 tokens).
+- Refined CLI storage resolution and MCP output isolation. Full suite: 80/80 passing tests.
+
+

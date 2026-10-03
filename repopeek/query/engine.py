@@ -107,11 +107,16 @@ class GraphQueryEngine:
             "outgoing": outgoing,
         }
 
-    def impact(self, target_query: str, max_depth: int = 5) -> Dict[str, Any]:
-        """Compute upstream blast-radius tree answering 'If I change X, what breaks?'"""
+    def impact(
+        self,
+        target_query: str,
+        max_depth: int = 5,
+        direction: str = "both",
+    ) -> Dict[str, Any]:
+        """Compute blast-radius tree answering 'If I change X, what breaks?'"""
         target = self.lookup(target_query)
         if not target:
-            return {"target": target_query, "found": False, "affected_nodes": [], "affected_files": []}
+            return {"target": target_query, "found": False, "affected_nodes": [], "affected_files": [], "affected_tables": [], "affected_configs": []}
 
         target_id = target.id
         queue: deque = deque([(target_id, 0)])
@@ -121,43 +126,56 @@ class GraphQueryEngine:
         traversed_edges: List[Dict[str, Any]] = []
         affected_files: Set[str] = set()
         affected_tables: Set[str] = set()
+        affected_configs: Set[str] = set()
 
         if target.span and target.span.file:
             affected_files.add(target.span.file)
         if "table" in target.id:
             affected_tables.add(target.id.split("::")[-1])
+        if "config" in target.id or target.kind in ("json_config", "yaml_config"):
+            affected_configs.add(target.id.split("::")[-1])
 
         while queue:
             curr_id, depth = queue.popleft()
             if depth >= max_depth:
                 continue
 
-            for edge in self._incoming_edges.get(curr_id, []):
-                src_id = edge.src
+            edges_to_traverse = []
+            if direction in ("both", "upstream"):
+                for e in self._incoming_edges.get(curr_id, []):
+                    edges_to_traverse.append((e, e.src, "upstream"))
+            if direction in ("both", "downstream"):
+                for e in self._outgoing_edges.get(curr_id, []):
+                    edges_to_traverse.append((e, e.dst, "downstream"))
+
+            for edge, next_id, flow_dir in edges_to_traverse:
                 traversed_edges.append({
                     "src": edge.src,
                     "dst": edge.dst,
                     "type": edge.type.value,
                     "depth": depth + 1,
+                    "flow": flow_dir,
                 })
 
-                if src_id not in visited:
-                    visited.add(src_id)
-                    src_node = self.graph.nodes.get(src_id)
-                    if src_node:
-                        if src_node.span and src_node.span.file:
-                            affected_files.add(src_node.span.file)
-                        if "table" in src_node.id:
-                            affected_tables.add(src_node.id.split("::")[-1])
+                if next_id not in visited:
+                    visited.add(next_id)
+                    next_node = self.graph.nodes.get(next_id)
+                    if next_node:
+                        if next_node.span and next_node.span.file:
+                            affected_files.add(next_node.span.file)
+                        if "table" in next_node.id:
+                            affected_tables.add(next_node.id.split("::")[-1])
+                        if "config" in next_node.id or next_node.kind in ("json_config", "yaml_config"):
+                            affected_configs.add(next_node.id.split("::")[-1])
 
                         affected_nodes.append({
-                            "id": src_node.id,
-                            "kind": src_node.kind,
+                            "id": next_node.id,
+                            "kind": next_node.kind,
                             "depth": depth + 1,
-                            "story": src_node.story.text if src_node.story else None,
-                            "file": src_node.span.file if src_node.span else None,
+                            "story": next_node.story.text if next_node.story else None,
+                            "file": next_node.span.file if next_node.span else None,
                         })
-                    queue.append((src_id, depth + 1))
+                    queue.append((next_id, depth + 1))
 
         return {
             "target": target_id,
@@ -167,6 +185,7 @@ class GraphQueryEngine:
             "traversed_edges": traversed_edges,
             "affected_files": sorted(list(affected_files)),
             "affected_tables": sorted(list(affected_tables)),
+            "affected_configs": sorted(list(affected_configs)),
         }
 
     def data_trace(self, entity_query: str) -> Dict[str, Any]:
