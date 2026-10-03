@@ -301,3 +301,63 @@ def read_obsidian_node(vault_dir: Path, symbol_or_name: str) -> Optional[Dict[st
             }
 
     return None
+
+
+def find_default_obsidian_vault() -> Optional[Path]:
+    """Auto-detect the user's primary active Obsidian vault from Obsidian's local config.
+
+    Inspects %APPDATA%/obsidian/obsidian.json on Windows,
+    ~/Library/Application Support/obsidian/obsidian.json on macOS,
+    and ~/.config/obsidian/obsidian.json on Linux.
+    """
+    import os
+    import sys
+
+    config_path = None
+    if sys.platform == "win32":
+        appdata = os.environ.get("APPDATA")
+        if appdata:
+            config_path = Path(appdata) / "obsidian" / "obsidian.json"
+    elif sys.platform == "darwin":
+        config_path = Path.home() / "Library" / "Application Support" / "obsidian" / "obsidian.json"
+    else:
+        config_path = Path.home() / ".config" / "obsidian" / "obsidian.json"
+
+    if not config_path or not config_path.exists():
+        return None
+
+    try:
+        data = json.loads(config_path.read_text(encoding="utf-8"))
+        vaults = data.get("vaults", {})
+        # 1. Prefer vault currently marked as open
+        for v in vaults.values():
+            if v.get("open") and v.get("path"):
+                p = Path(v["path"])
+                if p.exists():
+                    return p
+        # 2. Fallback to most recently accessed vault
+        sorted_vaults = sorted(vaults.values(), key=lambda x: x.get("ts", 0), reverse=True)
+        for v in sorted_vaults:
+            if v.get("path"):
+                p = Path(v["path"])
+                if p.exists():
+                    return p
+    except Exception:
+        pass
+
+    return None
+
+
+def open_in_obsidian(target_path: Path) -> bool:
+    """Open a folder or vault directly in Obsidian Desktop using the obsidian:// URI scheme."""
+    import urllib.parse
+    import webbrowser
+
+    resolved = Path(target_path).resolve()
+    # Official Obsidian URL scheme
+    url = f"obsidian://open?path={urllib.parse.quote(str(resolved))}"
+    try:
+        return webbrowser.open(url)
+    except Exception:
+        return False
+

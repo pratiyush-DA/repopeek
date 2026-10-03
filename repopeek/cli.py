@@ -101,9 +101,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--export-obsidian",
-        type=Path,
+        type=str,
+        nargs="?",
+        const="default",
         default=None,
-        help="Export canonical code graph into an Obsidian Markdown vault with [[wikilinks]]",
+        help="Export canonical code graph into an Obsidian Markdown vault with [[wikilinks]] (pass 'default' or omit path to auto-detect system vault)",
+    )
+    parser.add_argument(
+        "--open",
+        action="store_true",
+        help="Automatically open the exported vault in Obsidian Desktop via obsidian:// URI",
     )
     parser.add_argument(
         "--read-obsidian",
@@ -198,10 +205,33 @@ def main(argv=None) -> int:
             return 1
 
         if args.export_obsidian:
-            from repopeek.storage import export_to_obsidian_vault
-            res = export_to_obsidian_vault(engine.graph, args.export_obsidian)
+            from repopeek.storage import (
+                export_to_obsidian_vault,
+                find_default_obsidian_vault,
+                open_in_obsidian,
+            )
+
+            raw_target = args.export_obsidian
+            if str(raw_target).lower() in ("default", "true", "none"):
+                default_vault = find_default_obsidian_vault()
+                if default_vault:
+                    repo_folder = resolved_repo.resolve().name
+                    target_vault_dir = default_vault / repo_folder
+                    print(f"Auto-detected active Obsidian vault: {default_vault}")
+                else:
+                    print("Notice: No active Obsidian vault found on system. Exporting to ./obsidian_vault")
+                    target_vault_dir = Path("./obsidian_vault")
+            else:
+                target_vault_dir = Path(raw_target)
+
+            res = export_to_obsidian_vault(engine.graph, target_vault_dir)
             print(f"Obsidian vault successfully exported to: {res['vault_dir']}")
             print(f"Exported {res['exported_notes']} notes across categories: {', '.join(res['categories'])}")
+
+            if args.open:
+                print(f"Opening in Obsidian Desktop: {res['vault_dir']}")
+                open_in_obsidian(Path(res["vault_dir"]))
+
             return 0
 
         if args.view:

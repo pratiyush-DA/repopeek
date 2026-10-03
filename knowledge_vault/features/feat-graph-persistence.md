@@ -24,7 +24,7 @@ Enables storing the constructed code intelligence graph locally so that subseque
 - **Materialized Lenses:** Subgraphs for `module`, `symbol`, `call`, `class`, `data`, `data_entity`, `config`, `process`, and `bridges`.
 - **Atomic Writes:** Staged in temporary directories with atomic rename swap ensuring zero partial-write corruption.
 - **SQLite Cache:** Ephemeral SQLite schema (`nodes`, `edges`, `metadata`) with recursive CTE query engine (`query_sqlite_impact`) for sub-millisecond impact traversal.
-- **Obsidian Vault Export:** `export_to_obsidian_vault` generates atomic markdown notes with YAML frontmatter, `[[wikilinks]]`, and native Obsidian `.obsidian/graph.json` color groupings. `read_obsidian_node` allows fast querying of documentation notes.
+- **Obsidian Vault Export:** `export_to_obsidian_vault` generates atomic markdown notes with YAML frontmatter, `[[wikilinks]]`, and native Obsidian `.obsidian/graph.json` color groupings. `find_default_obsidian_vault` auto-detects the system active vault from local config (`%APPDATA%/obsidian/obsidian.json`), and `open_in_obsidian` dispatches `obsidian://open?path=` to launch the desktop application. `read_obsidian_node` allows fast querying of documentation notes.
 
 ## Impact (blast radius)
 - **Depends on:** [[feat-graph-construction]], [[comp-graph]]

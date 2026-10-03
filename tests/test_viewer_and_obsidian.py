@@ -143,3 +143,35 @@ def test_cli_export_and_read_obsidian(tmp_path: Path):
     # Read
     exit_code = main(["--repo-path", str(fixture_repo), "--read-obsidian", "InvoiceParser", "--vault-path", str(vault_target)])
     assert exit_code == 0
+
+
+def test_obsidian_vault_autodetect_and_open(tmp_path: Path, monkeypatch):
+    """Verify system vault auto-detection and open dispatch."""
+    from repopeek.storage import find_default_obsidian_vault, open_in_obsidian
+
+    # Mock obsidian config
+    fake_config = tmp_path / "obsidian.json"
+    vault_target = tmp_path / "detected_vault"
+    vault_target.mkdir()
+
+    fake_config.write_text(json.dumps({
+        "vaults": {
+            "v1": {"path": str(vault_target), "open": True, "ts": 100}
+        }
+    }), encoding="utf-8")
+
+    monkeypatch.setenv("APPDATA", str(tmp_path))
+    (tmp_path / "obsidian").mkdir()
+    (tmp_path / "obsidian" / "obsidian.json").write_text(fake_config.read_text())
+
+    detected = find_default_obsidian_vault()
+    assert detected == vault_target
+
+    # Test open_in_obsidian with monkeypatched webbrowser
+    opened_urls = []
+    monkeypatch.setattr("webbrowser.open", lambda url: opened_urls.append(url) or True)
+
+    assert open_in_obsidian(vault_target) is True
+    assert len(opened_urls) == 1
+    assert "obsidian://open?path=" in opened_urls[0]
+

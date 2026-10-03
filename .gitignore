@@ -48,6 +48,8 @@ scratch/
 output/
 data/
 .repopeek/
+my_obsidian_vault/
+*obsidian_vault*/
 .env
 .env.*
 !.env.example

@@ -23,6 +23,8 @@ from repopeek.storage.sqlite_cache import (
 )
 from repopeek.storage.obsidian_exporter import (
     export_to_obsidian_vault,
+    find_default_obsidian_vault,
+    open_in_obsidian,
     read_obsidian_node,
 )
 
@@ -43,6 +45,8 @@ __all__ = [
     "query_sqlite_impact",
     "query_sqlite_nodes",
     "export_to_obsidian_vault",
+    "find_default_obsidian_vault",
+    "open_in_obsidian",
     "read_obsidian_node",
 ]
 

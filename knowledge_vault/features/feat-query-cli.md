@@ -33,8 +33,8 @@ Provides low-context retrieval operations, an interactive graph viewer, and a st
    - Standard JSON-RPC protocol implementation connecting directly to external coding assistants.
 7. **Interactive Web Graph Viewer (`repopeek --view`):**
    - Obsidian-style dark Canvas graph viewer serving local HTTP endpoints (`/api/graph`, `/api/impact`, `/api/pack`).
-8. **Obsidian Vault Query (`repopeek --read-obsidian <symbol>`):**
-   - Directly reads documentation notes, frontmatter, and extracted wikilinks from an exported Obsidian vault.
+8. **Obsidian Vault Export & Query (`repopeek --export-obsidian [default] [--open]`, `repopeek --read-obsidian <symbol>`):**
+   - Automatically detects active Obsidian vault (`default`) and exports atomic notes with wikilinks and color tags. `--open` launches Obsidian Desktop directly via OS URI. `read-obsidian` parses notes and links.
 
 ## Impact (blast radius)
 - **Depends on:** [[feat-graph-persistence]], [[comp-graph]], [[req-queryable-graph]], [[adr-011-mcp-interface]]
