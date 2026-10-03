@@ -7,5 +7,6 @@
 2026-10-03 | comp-discovery, feat-file-discovery, feat-file-classification, Phase-2/log, pyproject.toml | PR 2 scanner agent, canonical schema models, and fixture repo implementation
 2026-10-03 | comp-parsers, feat-python-parser, Phase-2/log | PR 3 Python AST parser with resilient fallback and embedded SQL extraction
 2026-10-03 | comp-parsers, feat-sql-parser, feat-json-parser, Phase-2/log | PR 4 Polyglot Parsers (SQL, Shell, JSON, YAML) with Ponytail full mode
+2026-10-03 | comp-graph, feat-graph-construction, Phase-2/log | PR 5 Symbol resolution, GraphBuilder, and multi-lens projections
 
 

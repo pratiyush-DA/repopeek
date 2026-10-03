@@ -2,18 +2,17 @@
 id: feat-graph-construction
 type: feature
 title: Graph Construction
-summary: Assemble parsed deterministic nodes and relational edges into a unified NetworkX
-  directed property graph.
-status: planned
+summary: Assemble parsed deterministic nodes and relational edges into a unified NetworkX directed property graph with cross-file symbol resolution and lenses.
+status: active
 tags: [phase4, graph, networkx]
-code_refs: [repopeek/graph/]
+code_refs: [repopeek/graph/builder.py, repopeek/graph/resolver.py, repopeek/graph/lenses.py, repopeek/graph/__init__.py]
 depends_on: ['[[adr-001-networkx-local-graph]]', '[[comp-graph]]', '[[data-edge-types]]',
   '[[data-node-file]]', '[[data-node-repository]]', '[[feat-json-parser]]', '[[feat-python-parser]]',
   '[[feat-sql-parser]]', '[[req-deterministic-extraction]]']
 affects: ['[[comp-graph]]', '[[feat-graph-persistence]]', '[[feat-graph-validation]]',
   '[[feat-query-cli]]', '[[feat-semantic-enrichment]]']
 last_verified: 2026-10-03
-source: "_sources/task_list.md \xA7Phase 4"
+source: "_sources/task_list.md §Phase 4"
 ---
 # Graph Construction
 

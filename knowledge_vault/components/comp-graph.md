@@ -4,9 +4,9 @@ type: component
 title: Graph Component
 summary: Module repopeek/graph/ managing the in-memory NetworkX property graph, schema
   validation, and persistence.
-status: planned
+status: active
 tags: [phase4, component, graph]
-code_refs: [repopeek/graph/]
+code_refs: [repopeek/graph/builder.py, repopeek/graph/resolver.py, repopeek/graph/lenses.py, repopeek/graph/__init__.py]
 depends_on: ['[[adr-001-networkx-local-graph]]', '[[adr-003-no-distributed-infra]]',
   '[[adr-004-graph-persistence-tbd]]', '[[adr-008-canonical-graph-lenses]]', '[[adr-009-provenance-incremental-updates]]',
   '[[adr-010-multi-agent-orchestration]]', '[[comp-config]]', '[[comp-parsers]]',
@@ -17,7 +17,7 @@ depends_on: ['[[adr-001-networkx-local-graph]]', '[[adr-003-no-distributed-infra
 affects: ['[[comp-enrichment]]', '[[comp-query]]', '[[feat-graph-construction]]',
   '[[feat-graph-persistence]]', '[[feat-graph-validation]]', '[[feat-query-cli]]']
 last_verified: 2026-10-03
-source: "_sources/task_list.md \xA7Phase 4"
+source: "_sources/task_list.md §Phase 4"
 ---
 # Graph Component
 
