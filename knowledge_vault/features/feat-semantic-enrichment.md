@@ -2,36 +2,42 @@
 id: feat-semantic-enrichment
 type: feature
 title: Semantic Enrichment
-summary: Utilize an LLM pipeline to synthesize business processes, user stories, and
-  high-level architecture over deterministic graph nodes.
-status: planned
+summary: 5-tier story generation cascade, content-hash caching, bottom-up hierarchical summarization, and anti-hallucination fact verification.
+status: active
 tags: [phase5, enrichment, llm]
-code_refs: [repopeek/enrichment/]
+code_refs: [repopeek/enrichment/cache.py, repopeek/enrichment/verifier.py, repopeek/enrichment/governor.py, repopeek/enrichment/templates.py, repopeek/enrichment/summarizer.py, repopeek/enrichment/pipeline.py, repopeek/enrichment/__init__.py]
 depends_on: ['[[adr-007-story-cost-cascade]]', '[[comp-enrichment]]', '[[con-no-hallucination]]',
   '[[data-node-businessprocess]]', '[[data-node-story]]', '[[feat-graph-construction]]',
   '[[feat-graph-validation]]', '[[req-semantic-enrichment]]']
 affects: ['[[comp-enrichment]]', '[[data-node-businessprocess]]', '[[data-node-story]]',
   '[[feat-provenance-binding]]']
-last_verified: 2026-10-03
-source: "_sources/architecture_documentation.md \xA7Semantic Enrichment"
+last_verified: 2026-10-04
+source: "_sources/architecture_documentation.md §Semantic Enrichment"
 ---
 # Semantic Enrichment
 
 ## Purpose
-Bridges raw AST code facts with human and agent conceptual understanding. An LLM ingests deterministic graph subgraphs and generates high-level business capabilities, workflows, and stories grounded in verified source nodes.
+Bridges raw AST code facts with human and low-context agent conceptual understanding by executing a controlled 5-tier story generation cascade with content-hash caching and anti-hallucination verification.
 
-## Behavior / Contract
-- Input: Validated property graph containing deterministic code nodes
-- Pipeline Phases:
-  1. Function Summaries: Summarize function purpose from AST, docstrings, and call signatures
-  2. Module Summaries: Aggregate function summaries and file structure to understand module responsibilities
-  3. BusinessProcess Discovery: Identify coherent end-to-end execution paths and create [[data-node-businessprocess]] nodes
-  4. Story Formulation: Generate actionable [[data-node-story]] nodes representing user-facing capabilities
-- Grounding: Semantic nodes must never be free-floating; they must link via `IMPLEMENTS` edges to the concrete functions and files implementing them.
-- Handling Uncertainty: Ambiguous or undocumented logic must be marked TBD per [[con-no-hallucination]].
+## 5-Tier Story Generation Cascade
+1. **Tier 1 — Trivial Code Filter (Zero Cost):** Syntactic getters/setters, constants, and complexity-1 routines receive deterministic templates via `DeterministicStoryBuilder` without invoking an LLM.
+2. **Tier 2 — Content-Hash Cache:** Cached by `hash(content_hash + model_tier + prompt_version)` via `StoryCache`. Unchanged symbols are never re-queried across runs.
+3. **Tier 3 — Cheap Model Structured Summary:** Non-trivial leaf functions invoke fast models (`qwen/qwen3.8-27b` or `llama-3.1-8b-instant`) with constrained JSON decoding and cached prompt prefixes.
+4. **Tier 4 — Hierarchical Bottom-Up Map-Reduce:** Compound nodes (classes and modules) are summarized from child method/function stories, never raw bulk source code.
+5. **Tier 5 — Strong Model Escalation:** High-complexity architectural hotspots (complexity >= 10) escalate to frontier models under strict budget governance.
+
+## Anti-Hallucination Fact Verifier
+Every candidate LLM story is verified against AST facts via `FactVerifier`:
+- Verifies length (<= 60 words) and rejects raw code or fence dumps.
+- Rejects stories claiming database operations on tables not present in `facts.reads` or `facts.writes`.
+- Rejects stories claiming external network/service calls when `facts.calls == 0`.
+- Downgrades failed candidates to deterministic templates with `confidence="medium"`.
+
+## Cost Governor & Budget Enforcement
+`CostGovernor` tracks prompt, completion, and cached tokens, enforcing `--max-tokens` and `--max-cost` hard caps with automated fallback to deterministic templates upon exhaustion.
 
 ## Impact (blast radius)
-- **Depends on:** [[feat-graph-construction]], [[feat-graph-validation]], [[req-semantic-enrichment]]
+- **Depends on:** [[feat-graph-construction]], [[feat-graph-validation]], [[req-semantic-enrichment]], [[adr-007-story-cost-cascade]]
 - **Affects (downstream):** [[feat-provenance-binding]], [[data-node-businessprocess]], [[data-node-story]], [[comp-enrichment]]
 - **If this changes, also review:** [[req-provenance]], [[con-no-hallucination]]
 

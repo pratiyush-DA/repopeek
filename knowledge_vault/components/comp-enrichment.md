@@ -4,8 +4,7 @@ type: component
 title: Enrichment Component
 summary: Module repopeek/llm/ executing LLM-based semantic enrichment, model tiering, and story generation.
 status: active
-tags: [phase5, component, enrichment, llm]
-code_refs: [repopeek/llm/base.py, repopeek/llm/groq.py, repopeek/llm/mock.py, repopeek/llm/fallback.py, repopeek/llm/factory.py, repopeek/llm/__init__.py]
+code_refs: [repopeek/llm/base.py, repopeek/llm/groq.py, repopeek/llm/mock.py, repopeek/llm/fallback.py, repopeek/llm/factory.py, repopeek/llm/__init__.py, repopeek/enrichment/cache.py, repopeek/enrichment/verifier.py, repopeek/enrichment/governor.py, repopeek/enrichment/templates.py, repopeek/enrichment/summarizer.py, repopeek/enrichment/pipeline.py, repopeek/enrichment/__init__.py]
 depends_on: ['[[adr-006-llm-provider-abstraction]]', '[[adr-007-story-cost-cascade]]',
   '[[comp-config]]', '[[comp-graph]]', '[[con-no-hallucination]]', '[[data-node-businessprocess]]',
   '[[data-node-story]]', '[[feat-semantic-enrichment]]', '[[res-groq-capabilities]]',

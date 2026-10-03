@@ -48,6 +48,16 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Validate environment and configuration without running pipeline",
     )
+    parser.add_argument(
+        "--offline",
+        action="store_true",
+        help="Run enrichment in offline mode with deterministic stories (zero LLM calls)",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Estimate token and cost requirements without invoking LLM APIs",
+    )
     return parser
 
 
@@ -106,7 +116,23 @@ def main(argv=None) -> int:
     graph = builder.build_from_directory(resolved_repo)
     print(f"Graph assembled: {len(graph.nodes)} nodes, {len(graph.edges)} edges.")
 
-    print(f"Persisting artifacts to {config.output_dir.resolve()}...")
+    print("\nEnriching nodes with semantic stories (5-tier cascade)...")
+    from repopeek.enrichment import StoryPipeline
+    from repopeek.llm import get_llm_provider
+
+    provider = get_llm_provider("fallback" if args.offline else None)
+    pipeline = StoryPipeline(
+        provider=provider,
+        cache_dir=config.output_dir,
+        dry_run=args.dry_run,
+    )
+    report = pipeline.enrich(graph)
+    print(
+        f"Enrichment completed: {report.stories_generated} stories "
+        f"({report.cached_hits} cached, {report.deterministic_stories} deterministic, {report.llm_stories} LLM)."
+    )
+
+    print(f"\nPersisting artifacts to {config.output_dir.resolve()}...")
     manifest = save_canonical_graph(graph, config.output_dir, repo_root=resolved_repo)
     print(
         f"Deterministic JSON graph, {len(manifest.get('lenses', {}))} lenses, "
