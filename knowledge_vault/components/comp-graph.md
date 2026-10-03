@@ -6,7 +6,7 @@ summary: Module repopeek/graph/ managing the in-memory NetworkX property graph, 
   validation, and persistence.
 status: active
 tags: [phase4, component, graph]
-code_refs: [repopeek/graph/builder.py, repopeek/graph/resolver.py, repopeek/graph/lenses.py, repopeek/graph/__init__.py]
+code_refs: [repopeek/graph/builder.py, repopeek/graph/resolver.py, repopeek/graph/lenses.py, repopeek/graph/__init__.py, repopeek/storage/json_store.py, repopeek/storage/provenance.py, repopeek/storage/sqlite_cache.py, repopeek/storage/__init__.py]
 depends_on: ['[[adr-001-networkx-local-graph]]', '[[adr-003-no-distributed-infra]]',
   '[[adr-004-graph-persistence-tbd]]', '[[adr-008-canonical-graph-lenses]]', '[[adr-009-provenance-incremental-updates]]',
   '[[adr-010-multi-agent-orchestration]]', '[[comp-config]]', '[[comp-parsers]]',

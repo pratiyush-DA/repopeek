@@ -7,13 +7,14 @@ import networkx as nx
 
 from repopeek.discovery.classifier import classify_file
 from repopeek.discovery.crawler import discover_repository
-from repopeek.models.schema import CanonicalGraph, Edge, NodeCard
+from repopeek.models.schema import CanonicalGraph, Edge, NodeCard, NodeProvenance
 from repopeek.parsers.base import BaseParser, ParseResult
 from repopeek.parsers.config import JsonConfigParser, YamlConfigParser
 from repopeek.parsers.python import PythonParser
 from repopeek.parsers.shell import ShellParser
 from repopeek.parsers.sql import SqlParser
 from repopeek.graph.resolver import SymbolResolver
+from repopeek.storage.provenance import compute_repo_blob_shas, get_git_provenance
 
 
 class GraphBuilder:
@@ -32,16 +33,38 @@ class GraphBuilder:
         self,
         parse_results: List[ParseResult],
         repo_commit: Optional[str] = None,
+        dirty: bool = False,
         tool_version: str = "0.1.0",
+        blob_shas: Optional[Dict[str, str]] = None,
     ) -> CanonicalGraph:
         """Assemble parse results into a canonical graph and resolve cross-file references."""
-        graph = CanonicalGraph(repo_commit=repo_commit, tool_version=tool_version)
+        graph = CanonicalGraph(
+            repo_commit=repo_commit,
+            dirty=dirty,
+            tool_version=tool_version,
+        )
 
         raw_nodes: List[NodeCard] = []
         raw_edges: List[Edge] = []
 
         for res in parse_results:
             for node in res.nodes:
+                b_sha = None
+                if blob_shas and node.span and node.span.file:
+                    b_sha = blob_shas.get(node.span.file)
+
+                if node.provenance is None:
+                    node.provenance = NodeProvenance(
+                        commit=repo_commit,
+                        tool_version=tool_version,
+                        blob_sha=b_sha,
+                    )
+                else:
+                    if repo_commit and not node.provenance.commit:
+                        node.provenance.commit = repo_commit
+                    if b_sha and not node.provenance.blob_sha:
+                        node.provenance.blob_sha = b_sha
+
                 raw_nodes.append(node)
                 graph.add_node(node)
             for edge in res.edges:
@@ -65,6 +88,11 @@ class GraphBuilder:
         root = Path(repo_root).resolve()
         files = discover_repository(root)
 
+        prov = get_git_provenance(root)
+        commit = repo_commit if repo_commit is not None else prov.commit
+        dirty = prov.dirty if repo_commit is None else False
+        blob_shas = compute_repo_blob_shas(root, [f.path for f in files])
+
         results: List[ParseResult] = []
         for finfo in files:
             ftype = classify_file(finfo.path)
@@ -74,7 +102,12 @@ class GraphBuilder:
                 res = parser.parse_file(finfo.path, repo_root=root)
                 results.append(res)
 
-        return self.build(results, repo_commit=repo_commit)
+        return self.build(
+            results,
+            repo_commit=commit,
+            dirty=dirty,
+            blob_shas=blob_shas,
+        )
 
     @staticmethod
     def to_networkx(graph: CanonicalGraph) -> nx.MultiDiGraph:

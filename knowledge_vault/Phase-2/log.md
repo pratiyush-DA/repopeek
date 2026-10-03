@@ -47,3 +47,10 @@ last_verified: 2026-10-03
 - Multi-lens materialisation: `get_data_lens`, `get_data_entity_lens`, `get_config_lens`, `get_process_lens`, and `get_bridges_lens` in `repopeek/graph/lenses.py`.
 - Traversal utilities: `trace_variable_flow` and `trace_impact` for def-use inspection and upstream blast-radius queries. 49/49 tests passing.
 
+## 2026-10-03: PR 7 — Deterministic Graph Persistence & Git Provenance
+- Git-anchored provenance: `get_git_provenance` and `compute_repo_blob_shas` in `repopeek/storage/provenance.py` extract HEAD commit SHA, branch, and dirty status with non-git fallback and Git blob SHAs.
+- Deterministic sharded persistence: `save_canonical_graph`, `load_canonical_graph`, `load_lens`, `load_manifest`, and `load_file_shard` in `repopeek/storage/json_store.py` emit deterministic JSON (`graph.json`, `manifest.json`, 9 lenses, and source shards) with atomic swap.
+- Ephemeral SQLite traversal cache: `build_sqlite_cache` and recursive CTE engine `query_sqlite_impact` in `repopeek/storage/sqlite_cache.py`.
+- End-to-end integration: `GraphBuilder.build_from_directory` auto-attaches provenance and blob SHAs; CLI indexes and persists artifacts. 56/56 tests passing.
+
+

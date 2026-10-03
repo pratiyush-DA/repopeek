@@ -14,7 +14,7 @@ class RepopeekConfig(BaseModel):
         description="Path to the target repository root to analyze",
     )
     supported_extensions: List[str] = Field(
-        default=[".py", ".sql", ".json"],
+        default=[".py", ".sql", ".sh", ".bash", ".json", ".yaml", ".yml"],
         description="File extensions supported for deterministic parsing",
     )
     output_dir: Path = Field(
