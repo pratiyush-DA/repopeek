@@ -49,3 +49,11 @@ def test_cli_main_check_flag():
     """Verify main entry point with --check flag returns exit code 0."""
     exit_code = main(["--check"])
     assert exit_code == 0
+
+
+def test_cli_main_scan_repo():
+    """Verify main entry point scans target fixture repository."""
+    fixture_path = Path(__file__).parent / "fixtures" / "sample_repo"
+    exit_code = main(["--repo-path", str(fixture_path)])
+    assert exit_code == 0
+

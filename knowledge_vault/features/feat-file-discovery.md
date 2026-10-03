@@ -4,9 +4,9 @@ type: feature
 title: File Discovery
 summary: Recursively traverse a local repository directory and yield all candidate
   files, respecting ignore rules for virtual envs, caches, and hidden dirs.
-status: planned
+status: active
 tags: [phase2, discovery]
-code_refs: [repopeek/discovery/]
+code_refs: [repopeek/discovery/crawler.py, repopeek/discovery/ignore.py]
 depends_on: ['[[comp-config]]', '[[comp-discovery]]', '[[req-local-repo-analysis]]']
 affects: ['[[comp-discovery]]', '[[feat-file-classification]]']
 last_verified: 2026-10-03

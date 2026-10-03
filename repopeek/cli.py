@@ -86,7 +86,18 @@ def main(argv=None) -> int:
         print("Configuration check passed successfully.")
         return 0
 
-    print("Entry point initialized. Ready for Phase 2 (Repository Discovery).")
+    from repopeek.discovery import discover_repository
+    print("\nScanning repository...")
+    discovered = discover_repository(resolved_repo, config)
+    print(f"Discovered {len(discovered)} files.")
+
+    counts = {}
+    for f in discovered:
+      counts[f.file_type.value] = counts.get(f.file_type.value, 0) + 1
+
+    for ft, count in sorted(counts.items()):
+      print(f"  - {ft}: {count}")
+
     return 0
 
 

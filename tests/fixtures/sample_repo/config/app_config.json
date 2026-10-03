@@ -1,0 +1,9 @@
+{
+  "app_name": "InvoicePipeline",
+  "version": "1.0.0",
+  "max_workers": 4,
+  "database": {
+    "dialect": "oracle",
+    "schema": "CORE_SCHEMA"
+  }
+}

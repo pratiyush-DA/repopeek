@@ -1,0 +1,5 @@
+pipeline:
+  name: DailyInvoiceSync
+  version: "1.0"
+  script: scripts/run_pipeline.sh
+  schedule: "0 2 * * *"

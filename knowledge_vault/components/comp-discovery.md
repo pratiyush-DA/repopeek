@@ -4,9 +4,9 @@ type: component
 title: Discovery Component
 summary: Module repopeek/discovery/ responsible for file tree traversal, ignore filtering,
   and file type classification.
-status: planned
+status: active
 tags: [phase2, component, discovery]
-code_refs: [repopeek/discovery/]
+code_refs: [repopeek/discovery/crawler.py, repopeek/discovery/classifier.py, repopeek/discovery/hasher.py, repopeek/discovery/ignore.py]
 depends_on: ['[[adr-009-provenance-incremental-updates]]', '[[comp-config]]', '[[con-determinism]]',
   '[[con-local-execution]]', '[[con-scope-languages]]', '[[feat-file-discovery]]',
   '[[req-local-repo-analysis]]']
