@@ -19,6 +19,11 @@ class SymbolResolver:
         self.symbols_by_qualname: Dict[Tuple[str, str], str] = {}  # (norm_rel_path, qualname) -> node_id
         self.symbols_by_name: Dict[str, List[str]] = {}  # bare_name -> [node_id, ...]
         self.tables_by_name: Dict[str, str] = {}  # table_name -> table_node_id
+        self.variables_by_qualname: Dict[Tuple[str, str], str] = {}  # (norm_rel_path, qualname) -> node_id
+        self.variables_by_name: Dict[str, List[str]] = {}  # bare_name -> [node_id, ...]
+        self.configs_by_key: Dict[str, str] = {}  # key_path -> node_id
+        self.configs_by_short_key: Dict[str, List[str]] = {}  # short_key -> [node_id, ...]
+        self.env_vars: Dict[str, List[str]] = {}  # env_var_name -> [node_id, ...]
         self.file_imports: Dict[str, Dict[str, str]] = {}  # file_path -> {imported_name: full_target}
 
         self._build_indexes()
@@ -48,8 +53,32 @@ class SymbolResolver:
                 tname = card.facts.writes[0] if card.facts.writes else card.id.split("::table.")[-1]
                 self.tables_by_name[tname.lower()] = nid
 
+            elif card.kind == "variable":
+                if "::" in nid:
+                    qualname = nid.split("::")[-1]
+                    self.variables_by_qualname[(fpath, qualname)] = nid
+                    bare_name = qualname.split(".")[-1]
+                    self.variables_by_name.setdefault(bare_name, []).append(nid)
+                    self.variables_by_name.setdefault(qualname, []).append(nid)
+
+            elif card.kind in ("json_config", "yaml_config"):
+                if "::" in nid:
+                    key = nid.split("::")[-1]
+                    self.configs_by_key[key] = nid
+                    self.configs_by_key[key.lower()] = nid
+                    short_key = key.split(".")[-1].split("[")[0]
+                    self.configs_by_short_key.setdefault(short_key, []).append(nid)
+                    self.configs_by_short_key.setdefault(short_key.lower(), []).append(nid)
+
+            # Env vars written in commands / scripts
+            if card.kind in ("command", "shell_script", "file") and card.facts.writes:
+                for w in card.facts.writes:
+                    if w.isupper() or (w.replace("_", "").isupper() and len(w) > 1):
+                        self.env_vars.setdefault(w, []).append(nid)
+                        self.env_vars.setdefault(w.upper(), []).append(nid)
+
             # Index symbol names (classes, functions, methods)
-            if "::" in nid:
+            if "::" in nid and card.kind in ("class", "function", "method"):
                 qualname = nid.split("::")[-1]
                 self.symbols_by_qualname[(fpath, qualname)] = nid
                 bare_name = qualname.split(".")[-1]
@@ -106,15 +135,88 @@ class SymbolResolver:
                     new_edge.confidence = Confidence.UNRESOLVED
 
             elif new_edge.type in (EdgeType.READS, EdgeType.WRITES):
-                # Check if target is a known SQL table
-                t_lower = new_edge.dst.lower()
-                if t_lower in self.tables_by_name:
-                    new_edge.dst = self.tables_by_name[t_lower]
-                    new_edge.confidence = Confidence.RESOLVED
+                target_id, conf = self._resolve_data_access(src_card, new_edge.dst)
+                if target_id:
+                    new_edge.dst = target_id
+                    new_edge.confidence = conf
+                else:
+                    new_edge.confidence = Confidence.EXTERNAL
 
             resolved_edges.append(new_edge)
 
         return resolved_edges
+
+    def _resolve_data_access(
+        self,
+        src_card: Optional[NodeCard],
+        dst_name: str,
+    ) -> Tuple[Optional[str], Confidence]:
+        """Resolve a variable, config key, env var, or database table reference."""
+        # 1. Database Table
+        t_lower = dst_name.lower()
+        if t_lower in self.tables_by_name:
+            return self.tables_by_name[t_lower], Confidence.RESOLVED
+
+        # 2. Config Key (exact keypath match e.g. "database.dialect")
+        if dst_name in self.configs_by_key:
+            return self.configs_by_key[dst_name], Confidence.RESOLVED
+        if t_lower in self.configs_by_key:
+            return self.configs_by_key[t_lower], Confidence.RESOLVED
+
+        # 3. Variable / Attribute in same scope/file
+        src_file = src_card.span.file if src_card and src_card.span else ""
+        src_qualname = src_card.id.split("::")[-1] if src_card and "::" in src_card.id else ""
+
+        # Normalize self.<attr> or cls.<attr> to <attr>
+        clean_dst = dst_name
+        if clean_dst.startswith("self.") or clean_dst.startswith("cls."):
+            clean_dst = clean_dst.split(".", 1)[-1]
+
+        # If inside a method e.g. InvoiceParser.parse, check InvoiceParser.<attr>
+        if "." in src_qualname:
+            class_name = src_qualname.split(".")[0]
+            candidate_qualname = f"{class_name}.{clean_dst}"
+            if (src_file, candidate_qualname) in self.variables_by_qualname:
+                return self.variables_by_qualname[(src_file, candidate_qualname)], Confidence.RESOLVED
+
+        # Check local file variable
+        if (src_file, clean_dst) in self.variables_by_qualname:
+            return self.variables_by_qualname[(src_file, clean_dst)], Confidence.RESOLVED
+        if (src_file, dst_name) in self.variables_by_qualname:
+            return self.variables_by_qualname[(src_file, dst_name)], Confidence.RESOLVED
+
+        # 4. Environment variable (e.g. "PIPELINE_ENV")
+        if dst_name in self.env_vars or dst_name.upper() in self.env_vars:
+            candidates = self.env_vars.get(dst_name) or self.env_vars.get(dst_name.upper(), [])
+            if candidates:
+                cand_files = {self.nodes[c].span.file for c in candidates if self.nodes[c].span}
+                cmd_cands = [c for c in candidates if self.nodes[c].kind == "command"]
+                chosen = cmd_cands[0] if cmd_cands else candidates[0]
+                conf = Confidence.RESOLVED if len(candidates) == 1 or len(cand_files) == 1 else Confidence.AMBIGUOUS
+                return chosen, conf
+
+        # 5. Config Key (short key e.g. "dialect")
+        if dst_name in self.configs_by_short_key or t_lower in self.configs_by_short_key:
+            candidates = self.configs_by_short_key.get(dst_name) or self.configs_by_short_key.get(t_lower, [])
+            if candidates:
+                cand_files = {self.nodes[c].span.file for c in candidates if self.nodes[c].span}
+                conf = Confidence.RESOLVED if len(candidates) == 1 or len(cand_files) == 1 else Confidence.AMBIGUOUS
+                return candidates[0], conf
+
+        # 6. Check repository-wide variable name
+        if clean_dst in self.variables_by_name:
+            candidates = self.variables_by_name[clean_dst]
+            same_file = [
+                c for c in candidates
+                if self.nodes[c].span and self.nodes[c].span.file == src_file
+            ]
+            if same_file:
+                return same_file[0], Confidence.RESOLVED
+            if len(candidates) == 1:
+                return candidates[0], Confidence.RESOLVED
+            return candidates[0], Confidence.AMBIGUOUS
+
+        return None, Confidence.EXTERNAL
 
     def _resolve_symbol(self, src_file: str, callee_name: str) -> Tuple[Optional[str], Confidence]:
         """Resolve a function or class reference across local file, imports, or global symbols."""

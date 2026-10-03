@@ -1,5 +1,4 @@
-"""Invoice parser and billing processor."""
-
+import os
 from typing import Dict, Optional
 from tests.fixtures.sample_repo.src.models.base import AuditableEntity
 from tests.fixtures.sample_repo.src.billing.validators import validate_invoice
@@ -19,9 +18,11 @@ class Invoice(AuditableEntity):
 class InvoiceParser:
     """Parser for inbound invoice byte streams."""
 
-    def __init__(self, schema: str = "v1") -> None:
+    def __init__(self, schema: str = "v1", config: Optional[Dict] = None) -> None:
         self.schema = schema
         self._cache: Dict[str, Invoice] = {}
+        self.env = os.getenv("PIPELINE_ENV", "development")
+        self.dialect = (config or {}).get("database.dialect", "oracle")
 
     def parse(self, raw: bytes) -> Invoice:
         """Validates raw invoice bytes against schema and caches by hash."""

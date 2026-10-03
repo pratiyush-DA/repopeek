@@ -40,3 +40,10 @@ last_verified: 2026-10-03
 - `GraphBuilder`: aggregates multi-language parse results into `CanonicalGraph` and `networkx.MultiDiGraph`.
 - Multi-lens projections: `get_module_lens`, `get_symbol_lens`, `get_call_lens`, `get_class_lens`. 42/42 tests passing.
 
+## 2026-10-03: PR 6 — Def-Use Data Flow, Config Readers & Cross-Language Bridges
+- Variable def-use flow: AST variable assignments, state mutations, and data reads/writes in `repopeek/parsers/python.py`.
+- Config & env bindings: `SymbolResolver` resolves config keys (`database.dialect`) and env vars (`PIPELINE_ENV`) to config/script nodes.
+- Cross-language bridges: Python embedded SQL statements resolve directly to SQL schema table cards; Shell and YAML script runs resolve to Python/Shell targets.
+- Multi-lens materialisation: `get_data_lens`, `get_data_entity_lens`, `get_config_lens`, `get_process_lens`, and `get_bridges_lens` in `repopeek/graph/lenses.py`.
+- Traversal utilities: `trace_variable_flow` and `trace_impact` for def-use inspection and upstream blast-radius queries. 49/49 tests passing.
+
