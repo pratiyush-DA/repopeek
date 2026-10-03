@@ -53,4 +53,11 @@ last_verified: 2026-10-03
 - Ephemeral SQLite traversal cache: `build_sqlite_cache` and recursive CTE engine `query_sqlite_impact` in `repopeek/storage/sqlite_cache.py`.
 - End-to-end integration: `GraphBuilder.build_from_directory` auto-attaches provenance and blob SHAs; CLI indexes and persists artifacts. 56/56 tests passing.
 
+## 2026-10-04: PR 8 — LLM Provider Abstraction & Groq Adapter
+- Interface contract: `LLMProvider` abstract protocol in `repopeek/llm/base.py` with `CompletionRequest`, `CompletionResponse`, `ModelTier`, and `ProviderCapabilities`.
+- Zero-dependency Groq adapter: `GroqProvider` in `repopeek/llm/groq.py` via stdlib `urllib.request` with exponential backoff on HTTP 429, Cloudflare header compatibility, model tier resolution, and live API verification.
+- Testing & offline adapters: `MockProvider` in `repopeek/llm/mock.py` with error injection and history tracking; `DeterministicFallbackProvider` in `repopeek/llm/fallback.py` for offline zero-cost AST summaries.
+- Environment & factory: `load_env_file` in `repopeek/llm/env.py` and `get_llm_provider` in `repopeek/llm/factory.py`. 64/64 tests passing.
+
+
 

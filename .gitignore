@@ -39,7 +39,11 @@ env/
 .coverage
 htmlcov/
 
-# Local data and scratch files
+# Local data, environment, and scratch files
 scratch/
 output/
 data/
+.repopeek/
+.env
+.env.*
+!.env.example
