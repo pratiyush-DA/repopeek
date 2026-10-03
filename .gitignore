@@ -35,6 +35,8 @@ env/
 .idea/
 .obsidian/
 **/.obsidian/
+Antigravity/
+**/Antigravity/
 
 # Testing & coverage
 .pytest_cache/

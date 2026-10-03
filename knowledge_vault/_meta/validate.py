@@ -20,7 +20,7 @@ import yaml
 VAULT_DIR = Path(__file__).resolve().parent.parent
 
 # Excluded directories from link target validation
-EXCLUDED_DIRS = {"_sources", "_templates", ".obsidian"}
+EXCLUDED_DIRS = {"_sources", "_templates", ".obsidian", "Antigravity"}
 
 REQUIRED_FRONTMATTER_FIELDS = {"id", "type", "title", "summary", "last_verified"}
 
