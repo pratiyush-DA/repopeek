@@ -9,5 +9,6 @@
 2026-10-03 | comp-parsers, feat-sql-parser, feat-json-parser, Phase-2/log | PR 4 Polyglot Parsers (SQL, Shell, JSON, YAML) with Ponytail full mode
 2026-10-03 | comp-graph, feat-graph-construction, Phase-2/log | PR 5 Symbol resolution, GraphBuilder, and multi-lens projections
 2026-10-03 | comp-graph, data-graph-lenses, Phase-2/log, _meta/changelog | PR 6 Def-use data flow, config readers, cross-language bridges, and specialized lenses
+2026-10-03 | comp-graph, feat-graph-persistence, Phase-2/log, _meta/changelog | PR 7 Deterministic graph persistence, Git provenance, and SQLite traversal cache
 
 

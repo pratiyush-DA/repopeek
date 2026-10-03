@@ -87,16 +87,35 @@ def main(argv=None) -> int:
         return 0
 
     from repopeek.discovery import discover_repository
+    from repopeek.graph.builder import GraphBuilder
+    from repopeek.storage import build_sqlite_cache, save_canonical_graph
+
     print("\nScanning repository...")
     discovered = discover_repository(resolved_repo, config)
     print(f"Discovered {len(discovered)} files.")
 
     counts = {}
     for f in discovered:
-      counts[f.file_type.value] = counts.get(f.file_type.value, 0) + 1
+        counts[f.file_type.value] = counts.get(f.file_type.value, 0) + 1
 
     for ft, count in sorted(counts.items()):
-      print(f"  - {ft}: {count}")
+        print(f"  - {ft}: {count}")
+
+    print("\nBuilding canonical property graph...")
+    builder = GraphBuilder()
+    graph = builder.build_from_directory(resolved_repo)
+    print(f"Graph assembled: {len(graph.nodes)} nodes, {len(graph.edges)} edges.")
+
+    print(f"Persisting artifacts to {config.output_dir.resolve()}...")
+    manifest = save_canonical_graph(graph, config.output_dir, repo_root=resolved_repo)
+    print(
+        f"Deterministic JSON graph, {len(manifest.get('lenses', {}))} lenses, "
+        f"and {len(manifest.get('shards', {}))} shards saved."
+    )
+
+    db_path = config.output_dir / "cache.db"
+    build_sqlite_cache(graph, db_path)
+    print(f"SQLite traversal cache created at {db_path}.")
 
     return 0
 
