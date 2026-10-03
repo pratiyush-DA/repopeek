@@ -12,5 +12,6 @@
 2026-10-03 | comp-graph, feat-graph-persistence, Phase-2/log, _meta/changelog | PR 7 Deterministic graph persistence, Git provenance, and SQLite traversal cache
 2026-10-04 | comp-enrichment, Phase-2/log, _meta/changelog | PR 8 LLM provider abstraction, Groq adapter with live inference, mock and fallback providers
 2026-10-04 | comp-enrichment, feat-semantic-enrichment, Phase-2/log, _meta/changelog | PR 9 Story cascade, content-hash cache, fact verifier, and cost governor
+2026-10-04 | comp-query, feat-query-cli, Phase-2/log, _meta/changelog | PR 10 Low-context retrieval, context-pack service, and stdio MCP server
 
 

@@ -2,42 +2,40 @@
 id: comp-query
 type: component
 title: Query Component
-summary: Module repopeek/query/ providing graph traversal algorithms, impact radius
-  calculation, and path inspection.
-status: planned
+summary: Module repopeek/query/ providing graph traversal algorithms, impact radius calculation, and context packs.
+status: active
 tags: [phase6, component, query]
-code_refs: [repopeek/query/]
+code_refs: [repopeek/query/engine.py, repopeek/query/pack.py, repopeek/query/mcp_server.py, repopeek/query/__init__.py]
 depends_on: ['[[comp-cli]]', '[[comp-enrichment]]', '[[comp-graph]]', '[[data-node-card-spec]]',
   '[[feat-graph-persistence]]', '[[feat-query-cli]]', '[[req-queryable-graph]]']
 affects: ['[[comp-cli]]', '[[feat-query-cli]]']
-last_verified: 2026-10-03
-source: "_sources/task_list.md \xA7Phase 6"
+last_verified: 2026-10-04
+source: "_sources/task_list.md §Phase 6"
 ---
 # Query Component
 
 ## Purpose
-Provides high-performance query algorithms and traversal mechanics on top of the saved property graph. Allows callers to inspect nodes, calculate forward/reverse call paths, and evaluate the transitive blast radius of code or database schema changes.
+Provides high-performance query algorithms and traversal mechanics on top of the canonical property graph and SQLite cache. Allows callers to inspect atomic node cards, calculate blast radius, trace def-use data flows, and bundle budget-governed context packs.
 
 ## Responsibilities
-- Execute topological search and reachability queries across `CALLS`, `IMPORTS`, and `READS` relationships.
-- Compute impact trees indicating all functions, queries, or processes affected by modifying a given file or function.
-- Format traversal results into hierarchical display trees or structured JSON dictionaries.
+- Execute topological search and reachability queries across `CALLS`, `IMPORTS`, `READS`, and `WRITES` relationships.
+- Compute multi-hop blast radius trees answering "If I change X, what breaks?"
+- Produce minimal budget-governed `ContextPack` payloads (<500 tokens) with markdown serialization for low-context agents.
+- Expose retrieval operations over stdio JSON-RPC Model Context Protocol (MCP) server.
 
 ## Interface / Contract
-- `GraphQueryEngine.get_node(node_id: str) -> Optional[Node]`
-- `GraphQueryEngine.trace_calls(func_name: str, direction: str = "downstream") -> CallTree`
-- `GraphQueryEngine.calculate_impact(target_id: str) -> ImpactReport`
-- Inputs: Node identifiers, traversal direction, search filters
-- Outputs: Traversable graph path reports and impact sets
+- `GraphQueryEngine.lookup(query: str) -> Optional[NodeCard]`
+- `GraphQueryEngine.neighbors(node_id: str, direction: str) -> Dict[str, Any]`
+- `GraphQueryEngine.impact(target_query: str, max_depth: int) -> Dict[str, Any]`
+- `GraphQueryEngine.data_trace(entity_query: str) -> Dict[str, Any]`
+- `GraphQueryEngine.context_pack(targets: List[str], token_budget: int) -> ContextPack`
+- `RepoPeekMCPServer.run_stdio() -> None`
 
 ## Impact (blast radius)
-- **Depends on:** [[comp-graph]]
+- **Depends on:** [[comp-graph]], [[comp-enrichment]], [[feat-graph-persistence]]
 - **Affects (downstream):** [[comp-cli]], [[feat-query-cli]]
 - **If this changes, also review:** [[req-queryable-graph]]
 - **Data touched:** All nodes and edges in [[moc-data-models]]
-
-## Decisions & Constraints
-[[req-queryable-graph]], [[con-determinism]]
 
 ## Related
 [[moc-architecture]]
