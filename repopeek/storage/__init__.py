@@ -21,6 +21,10 @@ from repopeek.storage.sqlite_cache import (
     query_sqlite_impact,
     query_sqlite_nodes,
 )
+from repopeek.storage.obsidian_exporter import (
+    export_to_obsidian_vault,
+    read_obsidian_node,
+)
 
 __all__ = [
     "GitProvenance",
@@ -38,4 +42,7 @@ __all__ = [
     "query_sqlite_edges",
     "query_sqlite_impact",
     "query_sqlite_nodes",
+    "export_to_obsidian_vault",
+    "read_obsidian_node",
 ]
+
