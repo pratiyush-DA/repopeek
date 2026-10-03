@@ -45,3 +45,23 @@ last_verified: 2026-10-03
 - **Resilient Fallback:** Implemented fallback regex scanner for broken syntax (`SyntaxError`), recovering partial function, class, and import definitions with `Confidence.UNRESOLVED` without crashing.
 - **Testing:** 25/25 unit tests green across complete test suite.
 
+## 2026-10-03: Ponytail Configuration & Verification
+- **Installation:** Installed official `DietrichGebert/ponytail` extension via native Antigravity CLI (`agy plugin install https://github.com/DietrichGebert/ponytail`). Verified via `agy plugin list` (active components: skills, commands).
+- **Workspace Rule & Protocol:** Configured `.agents/rules/ponytail.md` and updated `AGENTS.md` with active `full` mode.
+- **Constraints Applied:** Enforced YAGNI -> codebase reuse -> stdlib first -> existing deps -> minimal correct implementation. Preserved all error handling, validation, and test requirements.
+
+## 2026-10-03: PR 4 — Polyglot Parsers Implemented
+- **SqlParser (`repopeek/parsers/sql.py`):**
+  - Utilizes `sqlglot` with Oracle dialect default and Postgres/ANSI fallback.
+  - Extracts table definition NodeCards (`sql_table`) and columns with `DEFINED_IN` edges.
+  - Extracts query NodeCards (`sql_query`), referenced tables/columns (`READS` edges), and write targets (`WRITES` edges).
+  - Resilient fallback regex extraction for malformed SQL without crashing.
+- **ShellParser (`repopeek/parsers/shell.py`):**
+  - Utilizes standard library `shlex` and regex.
+  - Extracts command NodeCards, command pipelines, environment variables written (`WRITES`) and read (`READS`).
+  - Detects executed script targets (`python script.py`, `bash script.sh`) and emits `RUNS_SCRIPT` edges.
+- **Config Parsers (`repopeek/parsers/config.py`):**
+  - `JsonConfigParser` using standard library `json`. Flattens nested keys (`json_config` NodeCards) and handles decode errors gracefully.
+  - `YamlConfigParser` using `yaml`. Flattens nested keys (`yaml_config` NodeCards), detects script execution references (`RUNS_SCRIPT` edges), and handles syntax errors gracefully.
+- **Testing:** Added `tests/test_polyglot_parsers.py`. Test suite increased to 35/35 passing unit tests.
+

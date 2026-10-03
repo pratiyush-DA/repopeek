@@ -10,3 +10,8 @@
   4. One line is appended to `knowledge_vault/_meta/changelog.md`.
   5. `python knowledge_vault/_meta/validate.py` passes with zero errors.
 - Details and templates: see `knowledge_vault/_meta/conventions.md`.
+
+## Ponytail Protocol (Active Mode: full)
+- Enforce the Decision Ladder: YAGNI -> Existing codebase -> Stdlib -> Existing dependencies -> Smallest correct implementation.
+- No unrequested abstractions, speculative frameworks, or stylistic wrappers.
+- Correctness boundary: Never compromise input validation, syntax error tolerance, malformed input recovery, security, or test coverage. Minimum necessary code, not minimum code at any cost.

@@ -2,16 +2,15 @@
 id: feat-json-parser
 type: feature
 title: JSON Parser
-summary: Parse configuration JSON files into graph nodes, extracting top-level keys
-  and structure without LLM inference.
-status: planned
+summary: Parse configuration JSON and YAML files into graph nodes, extracting structured keys, values, and script targets without LLM inference.
+status: active
 tags: [phase3, parser, deterministic]
-code_refs: [repopeek/parsers/]
+code_refs: [repopeek/parsers/config.py]
 depends_on: ['[[comp-parsers]]', '[[data-node-file]]', '[[data-node-jsonconfig]]',
   '[[feat-file-classification]]', '[[req-deterministic-extraction]]']
 affects: ['[[data-node-jsonconfig]]', '[[feat-graph-construction]]']
 last_verified: 2026-10-03
-source: "_sources/task_list.md \xA7Phase 3"
+source: "_sources/task_list.md §Phase 3"
 ---
 # JSON Parser
 

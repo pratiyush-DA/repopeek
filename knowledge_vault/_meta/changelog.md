@@ -6,5 +6,6 @@
 2026-10-03 | Phase-2 plan/log, ADR-006 to ADR-012, ADR-004/005 updates, 4 research notes, node-card-spec, lenses, runbook | Phase 2 kickoff, owner decisions recorded, research completed, vault documentation updated
 2026-10-03 | comp-discovery, feat-file-discovery, feat-file-classification, Phase-2/log, pyproject.toml | PR 2 scanner agent, canonical schema models, and fixture repo implementation
 2026-10-03 | comp-parsers, feat-python-parser, Phase-2/log | PR 3 Python AST parser with resilient fallback and embedded SQL extraction
+2026-10-03 | comp-parsers, feat-sql-parser, feat-json-parser, Phase-2/log | PR 4 Polyglot Parsers (SQL, Shell, JSON, YAML) with Ponytail full mode
 
 

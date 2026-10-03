@@ -50,7 +50,10 @@ class BaseParser(ABC):
             except ValueError:
                 rel_path = resolved_path.as_posix()
         else:
-            rel_path = resolved_path.as_posix()
+            try:
+                rel_path = resolved_path.relative_to(Path.cwd()).as_posix()
+            except ValueError:
+                rel_path = resolved_path.as_posix()
 
         try:
             with open(resolved_path, "r", encoding="utf-8", errors="replace") as f:

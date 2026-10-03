@@ -2,16 +2,15 @@
 id: feat-sql-parser
 type: feature
 title: SQL Parser
-summary: Extract SQL queries and referenced table names from .sql files using sqlglot
-  with Oracle dialect; handles PL/SQL exception blocks and || string concatenation.
-status: planned
+summary: Extract SQL queries, table definitions, and referenced tables/columns from .sql files using sqlglot with Oracle dialect default and ANSI/Postgres fallback.
+status: active
 tags: [phase4, parser, deterministic, sql, oracle]
-code_refs: [repopeek/parsers/]
+code_refs: [repopeek/parsers/sql.py]
 depends_on: ['[[adr-002-sqlglot-oracle-dialect]]', '[[comp-parsers]]', '[[data-node-file]]',
   '[[data-node-sqlquery]]', '[[feat-file-classification]]', '[[req-deterministic-extraction]]']
 affects: ['[[data-node-file]]', '[[data-node-sqlquery]]', '[[feat-graph-construction]]']
 last_verified: 2026-10-03
-source: "_sources/task_list.md \xA7Phase 4"
+source: "_sources/task_list.md §Phase 4"
 ---
 # SQL Parser
 
