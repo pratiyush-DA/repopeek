@@ -7,8 +7,9 @@ summary: Command-line interface allowing developers and agents to query graph no
 status: planned
 tags: [phase6, query, cli]
 code_refs: [repopeek/query/, repopeek/cli.py]
-depends_on: ['[[comp-cli]]', '[[comp-graph]]', '[[comp-query]]', '[[feat-graph-construction]]',
-  '[[feat-graph-persistence]]', '[[req-queryable-graph]]']
+depends_on: ['[[adr-011-mcp-interface]]', '[[comp-cli]]', '[[comp-graph]]', '[[comp-query]]',
+  '[[data-node-card-spec]]', '[[feat-graph-construction]]', '[[feat-graph-persistence]]',
+  '[[req-queryable-graph]]']
 affects: ['[[comp-cli]]', '[[comp-query]]']
 last_verified: 2026-10-03
 source: "_sources/task_list.md \xA7Phase 6"

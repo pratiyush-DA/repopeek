@@ -9,7 +9,7 @@ tags: [constraint, privacy, security, local]
 affects: ['[[comp-discovery]]', '[[comp-graph]]', '[[comp-parsers]]', '[[req-local-repo-analysis]]']
 last_verified: 2026-10-03
 source: "_sources/cursorrules.md \xA7Agent Operating Rules"
-depends_on: []
+depends_on: ['[[adr-012-secrets-and-privacy]]']
 ---
 # Local Execution Requirement
 

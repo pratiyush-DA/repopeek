@@ -8,10 +8,12 @@ status: planned
 tags: [phase4, component, graph]
 code_refs: [repopeek/graph/]
 depends_on: ['[[adr-001-networkx-local-graph]]', '[[adr-003-no-distributed-infra]]',
-  '[[adr-004-graph-persistence-tbd]]', '[[comp-config]]', '[[comp-parsers]]', '[[con-determinism]]',
-  '[[con-local-execution]]', '[[con-no-distributed-graph]]', '[[data-edge-types]]',
-  '[[data-node-file]]', '[[data-node-function]]', '[[data-node-jsonconfig]]', '[[data-node-repository]]',
-  '[[data-node-sqlquery]]', '[[feat-graph-construction]]']
+  '[[adr-004-graph-persistence-tbd]]', '[[adr-008-canonical-graph-lenses]]', '[[adr-009-provenance-incremental-updates]]',
+  '[[adr-010-multi-agent-orchestration]]', '[[comp-config]]', '[[comp-parsers]]',
+  '[[con-determinism]]', '[[con-local-execution]]', '[[con-no-distributed-graph]]',
+  '[[data-edge-types]]', '[[data-graph-lenses]]', '[[data-node-file]]', '[[data-node-function]]',
+  '[[data-node-jsonconfig]]', '[[data-node-repository]]', '[[data-node-sqlquery]]',
+  '[[feat-graph-construction]]']
 affects: ['[[comp-enrichment]]', '[[comp-query]]', '[[feat-graph-construction]]',
   '[[feat-graph-persistence]]', '[[feat-graph-validation]]', '[[feat-query-cli]]']
 last_verified: 2026-10-03

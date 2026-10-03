@@ -1,37 +1,39 @@
 ---
 id: adr-004-graph-persistence-tbd
 type: decision
-title: Graph Persistence Format (Pending Decision)
-summary: Evaluate JSON file serialization vs SQLite storage for local graph persistence;
-  decision currently TBD.
-status: proposed
-tags: [architecture, storage, open-question, adr]
-affects: ['[[comp-graph]]', '[[feat-graph-persistence]]', '[[moc-open-questions]]']
-last_verified: 2026-10-03
-source: "_sources/architecture_documentation.md \xA7Phase 4"
+title: Canonical JSON Persistence with Optional SQLite Traversal Cache
+summary: Use deterministic sharded JSON as the canonical persistence format, with
+  an optional derived SQLite index for fast recursive traversal.
+status: accepted
+tags: [architecture, storage, json, sqlite, adr]
+code_refs: [repopeek/graph/]
 depends_on: []
+affects: ['[[comp-graph]]', '[[feat-graph-persistence]]', '[[moc-decisions]]', '[[moc-open-questions]]']
+last_verified: 2026-10-03
+source: "RepoPeek Owner Briefing \xA72 & \xA77"
 ---
-# ADR-004: Graph Persistence Format (Pending Decision)
+# ADR-004: Canonical JSON Persistence with Optional SQLite Traversal Cache
 
 ## Status
-Proposed (Pending Decision)
+Accepted (Owner Approved)
 
 ## Context
-When persisting the NetworkX property graph to disk, two main local formats are viable: a standardized JSON file (using NetworkX node-link format) or a lightweight single-file SQLite database.
+RepoPeek requires a persistent on-disk format for the canonical property graph and materialised lenses. The format must be fast, deterministic (identical code yields byte-identical artifacts for clean git diffs), inspectable, and support low-context reading without loading entire giant monolithic files into memory.
 
 ## Decision
-Decision is currently marked **TBD**. For initial Phase 1/4 prototypes, JSON serialization (`graph.json`) is the default baseline format, but SQLite remains an active candidate if JSON parsing overhead becomes prohibitive on larger repositories.
+1. **Canonical Format: Sharded JSON.** Machine data must use JSON (never YAML, which is slower to parse, memory-heavy, and type-ambiguous).
+2. **Determinism:** All JSON serializers must enforce sorted keys, stable array ordering, and omit timestamps from content-hashed blobs.
+3. **Layout:** Sharded hierarchy: one JSON file per source file containing its node cards and edges, plus lens index manifests.
+4. **Optional SQLite Cache:** A disposable SQLite index may be generated strictly as a derived cache for multi-hop recursive queries (e.g. transitive impact reachability). Canonical JSON remains the sole source of truth; the SQLite index can be purged or rebuilt at any time (and the owner reserves veto rights if JSON-only performance is sufficient).
 
 ## Alternatives considered
-- **JSON Node-Link Format:**
-  - *Pros:* Human-readable; trivially inspectable with jq or text editors; built-in NetworkX `node_link_data` / `node_link_graph` support.
-  - *Cons:* Must load the entire file into memory at once; slow for graphs with >100k nodes.
-- **SQLite Database:**
-  - *Pros:* Fast indexed queries; can read subsets without loading full graph; standard single-file format.
-  - *Cons:* Requires custom schema mapping and relational translation; not plain text inspectable.
+- **YAML:** Rejected due to high parsing overhead, ambiguous typing (e.g. `yes`/`no` booleans), and larger file footprint.
+- **Monolithic single `graph.json`:** Rejected because reading or modifying one node requires reading/writing the entire multi-megabyte file.
+- **SQLite as Sole Store:** Rejected as primary because binary databases prevent granular git diffs and human inspection.
 
 ## Consequences
-- Requires tracking as an open architectural question before final Phase 4 completion.
+- Clean git diffs when only specific files are modified.
+- Enables streaming low-context node cards without loading the entire graph into RAM.
 
 ## Notes
-[[feat-graph-persistence]], [[moc-open-questions]], [[moc-decisions]]
+[[feat-graph-persistence]], [[moc-decisions]]

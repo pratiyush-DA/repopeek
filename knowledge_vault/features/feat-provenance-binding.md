@@ -7,9 +7,10 @@ summary: Attach verifiable code origin metadata, line numbers, deterministic nod
 status: planned
 tags: [phase5, provenance, verification]
 code_refs: [repopeek/enrichment/]
-depends_on: ['[[comp-enrichment]]', '[[con-no-hallucination]]', '[[data-edge-types]]',
-  '[[data-node-businessprocess]]', '[[data-node-function]]', '[[data-node-story]]',
-  '[[feat-semantic-enrichment]]', '[[req-provenance]]', '[[req-semantic-enrichment]]']
+depends_on: ['[[adr-009-provenance-incremental-updates]]', '[[comp-enrichment]]',
+  '[[con-no-hallucination]]', '[[data-edge-types]]', '[[data-node-businessprocess]]',
+  '[[data-node-function]]', '[[data-node-story]]', '[[feat-semantic-enrichment]]',
+  '[[req-provenance]]', '[[req-semantic-enrichment]]']
 affects: ['[[data-edge-types]]', '[[data-node-businessprocess]]', '[[data-node-story]]']
 last_verified: 2026-10-03
 source: "_sources/mvp_requirements.md \xA7Provenance"

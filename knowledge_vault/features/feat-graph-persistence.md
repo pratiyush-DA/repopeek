@@ -7,8 +7,8 @@ summary: Serialize and deserialize the in-memory property graph to and from loca
 status: planned
 tags: [phase4, storage, persistence]
 code_refs: [repopeek/graph/]
-depends_on: ['[[adr-004-graph-persistence-tbd]]', '[[comp-graph]]', '[[feat-graph-construction]]',
-  '[[feat-graph-validation]]']
+depends_on: ['[[adr-004-graph-persistence-tbd]]', '[[comp-graph]]', '[[data-graph-lenses]]',
+  '[[feat-graph-construction]]', '[[feat-graph-validation]]']
 affects: ['[[comp-query]]', '[[feat-query-cli]]']
 last_verified: 2026-10-03
 source: "_sources/task_list.md \xA7Phase 4"

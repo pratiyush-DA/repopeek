@@ -10,7 +10,7 @@ code_refs: [repopeek/parsers/]
 depends_on: ['[[adr-002-sqlglot-oracle-dialect]]', '[[adr-005-python-parser-tbd]]',
   '[[comp-discovery]]', '[[con-determinism]]', '[[con-local-execution]]', '[[con-scope-languages]]',
   '[[data-node-function]]', '[[data-node-jsonconfig]]', '[[data-node-sqlquery]]',
-  '[[req-deterministic-extraction]]']
+  '[[req-deterministic-extraction]]', '[[res-parsing-stack]]']
 affects: ['[[comp-graph]]', '[[feat-json-parser]]', '[[feat-python-parser]]', '[[feat-sql-parser]]']
 last_verified: 2026-10-03
 source: "_sources/task_list.md \xA7Phase 3"

@@ -2,15 +2,16 @@
 id: plan-phase-2
 type: plan
 title: Phase 2 Execution Plan and Architectural Decisions
-summary: Implementation plan for Phase 2 kickoff, synthesizing owner constraints, research benchmarks, and PR sequence.
+summary: Implementation plan for Phase 2 kickoff, synthesizing owner constraints,
+  research benchmarks, and PR sequence.
 status: active
 tags: [phase2, planning, architecture]
 code_refs: []
-depends_on: ["[[moc-architecture]]", "[[moc-features]]", "[[moc-decisions]]"]
-affects: []
+depends_on: ['[[moc-architecture]]', '[[moc-decisions]]', '[[moc-features]]']
+affects: ['[[log]]', '[[res-groq-capabilities]]', '[[res-parsing-stack]]', '[[res-prior-art]]',
+  '[[res-story-cost-control]]']
 last_verified: 2026-10-03
 ---
-
 # Phase 2 Execution Plan and Architectural Decisions
 
 ## 1. Executive Summary & Phase 1 Baseline

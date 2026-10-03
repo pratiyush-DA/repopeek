@@ -2,38 +2,36 @@
 id: moc-open-questions
 type: moc
 title: "Open Questions \u2014 Map of Content"
-summary: All TBDs and ambiguities from source documents that require a human decision
-  before implementation.
+summary: Collected record of resolved architectural decisions and active implementation
+  questions.
 last_verified: 2026-10-03
 affects: []
 depends_on: ['[[adr-004-graph-persistence-tbd]]', '[[adr-005-python-parser-tbd]]']
 ---
 # Open Questions — Map of Content
 
-> Every unresolved ambiguity from the source docs lives here. Update status when resolved.
+> Tracks architectural questions from inception to resolution.
 
-## Q1 — Graph persistence format
-- **Status:** TBD
-- **Note:** [[adr-004-graph-persistence-tbd]]
-- **Source:** `_sources/mvp_requirements.md` §Graph persistence/output
-- **Question:** Should the graph be exported as a JSON dump or SQLite database?
-- **Impact:** Affects [[comp-graph]], [[feat-graph-persistence]], and how [[feat-query-cli]] reads data.
+## Resolved Questions (Owner Briefing)
 
-## Q2 — Python parser library
-- **Status:** TBD
-- **Note:** [[adr-005-python-parser-tbd]]
-- **Source:** `_sources/mvp_requirements.md` §Python parsing
-- **Question:** Use `tree-sitter` (richer AST, external dependency) or stdlib `ast` (simpler, built-in)?
-- **Impact:** Affects [[comp-parsers]], [[feat-python-parser]].
+### Q1 — Graph persistence format
+- **Status:** Resolved (Accepted in [[adr-004-graph-persistence-tbd]])
+- **Resolution:** Canonical format is sharded deterministic JSON. An optional SQLite index cache is permitted for fast recursive impact queries, subject to owner veto if JSON-only proves fast enough.
 
-## Q3 — Provenance commit field
-- **Status:** TBD
-- **Source:** `_sources/architecture_documentation.md` §4 Provenance
-- **Question:** The `provenance_commit` field on semantic nodes is listed as TBD. How should git commit hashes be obtained and stored?
-- **Impact:** Affects [[data-node-businessprocess]], [[data-node-story]], [[feat-provenance-binding]].
+### Q2 — Python & multi-language parser library
+- **Status:** Resolved (Accepted in [[adr-005-python-parser-tbd]])
+- **Resolution:** Hybrid stack: tree-sitter for multi-language AST/CST and syntax-error tolerance, stdlib `ast` for high-fidelity Python passes, and `sqlglot` for SQL lineage. Benchmarks recorded in [[res-parsing-stack]].
 
-## Q4 — LLM connection
-- **Status:** TBD
-- **Source:** Not specified in any source document
-- **Question:** Which LLM / SDK is used for semantic enrichment? How is the API key configured?
-- **Impact:** Affects [[comp-enrichment]], [[feat-semantic-enrichment]].
+### Q3 — Provenance commit field
+- **Status:** Resolved (Accepted in [[adr-009-provenance-incremental-updates]])
+- **Resolution:** Bind `repo_commit` (`git rev-parse HEAD`), dirty checkout flag, and per-file blob SHAs, with non-git fallback to content hashes.
+
+### Q4 — LLM provider & API configuration
+- **Status:** Resolved (Accepted in [[adr-006-llm-provider-abstraction]])
+- **Resolution:** Initial provider is Groq via OpenAI-compatible endpoint, encapsulated behind the `LLMProvider` abstraction. Configured with abstract tiers (`fast`, `balanced`, `strong`).
+
+---
+
+## Active Phase 2 Investigation Items
+1. **Benchmark Traversal Latency:** Measure whether SQLite index cache provides >5x speedup over streaming JSON on medium/large repos to decide if SQLite cache is retained or vetoed.
+2. **Name Resolution Accuracy:** Benchmark Jedi vs tree-sitter symbol indexer for cross-file call target linking.

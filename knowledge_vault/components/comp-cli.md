@@ -7,7 +7,8 @@ summary: Module repopeek/cli.py providing command-line argument parsing and the 
 status: active
 tags: [phase1, component, cli]
 code_refs: [repopeek/cli.py]
-depends_on: ['[[comp-config]]', '[[comp-query]]', '[[con-no-cloud-saas]]', '[[feat-query-cli]]']
+depends_on: ['[[adr-010-multi-agent-orchestration]]', '[[comp-config]]', '[[comp-query]]',
+  '[[con-no-cloud-saas]]', '[[feat-query-cli]]']
 affects: ['[[comp-query]]', '[[feat-query-cli]]']
 last_verified: 2026-10-03
 source: "_sources/task_list.md \xA7Phase 1"

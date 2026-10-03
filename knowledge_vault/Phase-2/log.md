@@ -2,15 +2,15 @@
 id: log-phase-2
 type: log
 title: Phase 2 Decision and Execution Log
-summary: Running chronological log of decisions, research findings, dead ends, and open questions during Phase 2.
+summary: Running chronological log of decisions, research findings, dead ends, and
+  open questions during Phase 2.
 status: active
 tags: [phase2, log, decisions]
 code_refs: []
-depends_on: ["[[plan-phase-2]]"]
+depends_on: ['[[plan]]']
 affects: []
 last_verified: 2026-10-03
 ---
-
 # Phase 2 Decision and Execution Log
 
 ## 2026-10-03: Phase 2 Kickoff & Scope Alignment

@@ -2,39 +2,59 @@
 id: moc-architecture
 type: moc
 title: "Architecture \u2014 Map of Content"
-summary: Hub for all architectural components and pipeline flows in Repopeek.
+summary: Hub for all architectural components, multi-agent pipeline stages, and data
+  flows in Repopeek.
 last_verified: 2026-10-03
-affects: []
+affects: ['[[plan]]']
 depends_on: []
 ---
 # Architecture — Map of Content
 
-> Hub note only. No content of its own.
+> Hub note for Repopeek multi-agent architecture and pipeline flow.
 
-## Pipeline stages
+## High-Level Architecture Pipeline
 
-- [[comp-discovery]] — file traversal and classification entry point
-- [[comp-parsers]] — Python / SQL / JSON deterministic AST parsers
-- [[comp-graph]] — in-memory graph construction, validation, persistence
-- [[comp-enrichment]] — LLM semantic enrichment and provenance binding
-- [[comp-query]] — graph inspection and impact traversal CLI
+```mermaid
+graph TD
+    Repo[Local Repository] --> Scanner[1. Scanner Agent]
+    Scanner --> Parsers[2. Language Parsers: Tree-Sitter / AST / SQLGlot]
+    Parsers --> Resolver[3. Cross-File Symbol Resolver]
+    Resolver --> Builder[4. Graph Builder]
+    Builder --> Canonical[(Canonical Property Graph)]
+    Canonical --> Analyzer[5. Graph Analyzer: Impact / Hotspots]
+    Canonical --> Storyteller[6. Storyteller: 5-Tier Cascade]
+    Storyteller --> Verifier[7. Fact Verifier & Schema Validator]
+    Verifier --> Packager[8. Packager: Sharded JSON & Lenses]
+    Packager --> Lenses[(Materialised Lens Graphs)]
+    Lenses --> Retrieval[9. Low-Context Query & Context-Pack Service]
+    Retrieval --> CLI[CLI Interface: repopeek]
+    Retrieval --> MCP[MCP Server: repopeek serve-mcp]
+```
 
-## Supporting components
+## Core Agent & Component Pipeline Stages
 
-- [[comp-config]] — runtime configuration model (`RepopeekConfig`)
-- [[comp-cli]] — top-level argument parser and entry point
+1. **Scanner Stage:** [[comp-discovery]] — crawls repository, respects `.repopeekignore`, computes content & git blob SHAs.
+2. **Deterministic Parsers:** [[comp-parsers]] — Python (AST + tree-sitter), SQL (SQLGlot Oracle/Postgres), Shell (tree-sitter-bash), JSON, YAML.
+3. **Symbol Resolver:** Connects cross-file imports, method calls, and cross-language bridges (Python -> SQL tables, Shell -> Python scripts).
+4. **Graph Builder:** [[comp-graph]] — builds in-memory NetworkX directed multigraph with stable URIs.
+5. **Enrichment & Storyteller:** [[comp-enrichment]] — 5-tier cascade under cost governor, generating node card stories (see [[run-swap-llm-provider]] for provider guide).
+6. **Query & Context-Pack Service:** [[comp-query]] — `lookup`, `neighbors`, `impact`, `data_trace`, and `context_pack`.
+7. **Infrastructure & Interfaces:** [[comp-config]], [[comp-cli]], and [[adr-011-mcp-interface]].
 
-## Cross-cutting concerns
+## Cross-Cutting Architecture Decisions
+- In-memory Property Graph: [[adr-001-networkx-local-graph]]
+- Sharded JSON Persistence: [[adr-004-graph-persistence-tbd]]
+- Hybrid Parser Stack: [[adr-005-python-parser-tbd]]
+- Pluggable LLM Provider & Groq: [[adr-006-llm-provider-abstraction]]
+- Story Cost Cascade: [[adr-007-story-cost-cascade]]
+- Canonical Graph & 11 Lenses: [[adr-008-canonical-graph-lenses]]
+- Git Provenance & Incremental Updates: [[adr-009-provenance-incremental-updates]]
+- Asyncio Orchestration: [[adr-010-multi-agent-orchestration]]
+- MCP Interface: [[adr-011-mcp-interface]]
+- Secret Redaction & Privacy: [[adr-012-secrets-and-privacy]]
 
-- [[con-determinism]] — identical input → identical output rule
-- [[con-no-hallucination]] — no invented behavior
-- [[con-local-execution]] — no external services except configured LLM
-
-## Decisions
-
-- [[moc-decisions]]
-
-## See also
-
-- [[moc-data-models]] — graph node and edge schemas
-- [[moc-features]] — agent-facing capabilities
+## Maps of Content
+- Decisions: [[moc-decisions]]
+- Data Models & Lenses: [[moc-data-models]]
+- Features: [[moc-features]]
+- Implementation Plan: [[plan-phase-2]]

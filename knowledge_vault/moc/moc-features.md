@@ -4,7 +4,7 @@ type: moc
 title: "Features \u2014 Map of Content"
 summary: Hub for all end-user and agent-facing capabilities in Repopeek.
 last_verified: 2026-10-03
-affects: []
+affects: ['[[plan]]']
 depends_on: []
 ---
 # Features — Map of Content

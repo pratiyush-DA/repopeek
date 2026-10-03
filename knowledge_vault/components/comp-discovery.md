@@ -7,8 +7,9 @@ summary: Module repopeek/discovery/ responsible for file tree traversal, ignore 
 status: planned
 tags: [phase2, component, discovery]
 code_refs: [repopeek/discovery/]
-depends_on: ['[[comp-config]]', '[[con-determinism]]', '[[con-local-execution]]',
-  '[[con-scope-languages]]', '[[feat-file-discovery]]', '[[req-local-repo-analysis]]']
+depends_on: ['[[adr-009-provenance-incremental-updates]]', '[[comp-config]]', '[[con-determinism]]',
+  '[[con-local-execution]]', '[[con-scope-languages]]', '[[feat-file-discovery]]',
+  '[[req-local-repo-analysis]]']
 affects: ['[[comp-parsers]]', '[[feat-file-classification]]', '[[feat-file-discovery]]']
 last_verified: 2026-10-03
 source: "_sources/task_list.md \xA7Phase 2"

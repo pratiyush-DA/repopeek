@@ -27,6 +27,8 @@
 | `term-` | glossary term | `glossary/` |
 | `run-` | runbook | `runbooks/` |
 | `les-` | lesson / gotcha | `lessons/` |
+| `res-` | research finding | `research/` |
+| `plan-` | phase plan / log | `Phase-2/` |
 | `moc-` | map of content | `moc/` |
 
 ## Definition of Done (code task)

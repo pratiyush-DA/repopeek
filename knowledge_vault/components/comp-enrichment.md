@@ -7,8 +7,10 @@ summary: Module repopeek/enrichment/ executing LLM-based semantic enrichment and
 status: planned
 tags: [phase5, component, enrichment, llm]
 code_refs: [repopeek/enrichment/]
-depends_on: ['[[comp-config]]', '[[comp-graph]]', '[[con-no-hallucination]]', '[[data-node-businessprocess]]',
-  '[[data-node-story]]', '[[feat-semantic-enrichment]]']
+depends_on: ['[[adr-006-llm-provider-abstraction]]', '[[adr-007-story-cost-cascade]]',
+  '[[comp-config]]', '[[comp-graph]]', '[[con-no-hallucination]]', '[[data-node-businessprocess]]',
+  '[[data-node-story]]', '[[feat-semantic-enrichment]]', '[[res-groq-capabilities]]',
+  '[[res-story-cost-control]]', '[[run-swap-llm-provider]]']
 affects: ['[[comp-query]]', '[[feat-provenance-binding]]', '[[feat-semantic-enrichment]]']
 last_verified: 2026-10-03
 source: "_sources/task_list.md \xA7Phase 5"

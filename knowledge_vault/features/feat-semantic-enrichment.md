@@ -7,9 +7,9 @@ summary: Utilize an LLM pipeline to synthesize business processes, user stories,
 status: planned
 tags: [phase5, enrichment, llm]
 code_refs: [repopeek/enrichment/]
-depends_on: ['[[comp-enrichment]]', '[[con-no-hallucination]]', '[[data-node-businessprocess]]',
-  '[[data-node-story]]', '[[feat-graph-construction]]', '[[feat-graph-validation]]',
-  '[[req-semantic-enrichment]]']
+depends_on: ['[[adr-007-story-cost-cascade]]', '[[comp-enrichment]]', '[[con-no-hallucination]]',
+  '[[data-node-businessprocess]]', '[[data-node-story]]', '[[feat-graph-construction]]',
+  '[[feat-graph-validation]]', '[[req-semantic-enrichment]]']
 affects: ['[[comp-enrichment]]', '[[data-node-businessprocess]]', '[[data-node-story]]',
   '[[feat-provenance-binding]]']
 last_verified: 2026-10-03

@@ -7,8 +7,8 @@ summary: Module repopeek/query/ providing graph traversal algorithms, impact rad
 status: planned
 tags: [phase6, component, query]
 code_refs: [repopeek/query/]
-depends_on: ['[[comp-cli]]', '[[comp-enrichment]]', '[[comp-graph]]', '[[feat-graph-persistence]]',
-  '[[feat-query-cli]]', '[[req-queryable-graph]]']
+depends_on: ['[[comp-cli]]', '[[comp-enrichment]]', '[[comp-graph]]', '[[data-node-card-spec]]',
+  '[[feat-graph-persistence]]', '[[feat-query-cli]]', '[[req-queryable-graph]]']
 affects: ['[[comp-cli]]', '[[feat-query-cli]]']
 last_verified: 2026-10-03
 source: "_sources/task_list.md \xA7Phase 6"
