@@ -23,3 +23,12 @@ def compute_file_hashes(file_path: Path) -> Tuple[str, str]:
     """Read a local file and compute its SHA-256 and Git blob SHA."""
     content = file_path.read_bytes()
     return compute_hashes_from_bytes(content)
+
+
+def hash_content(content: str | bytes) -> str:
+    """Compute deterministic SHA-256 hex digest for string or byte content."""
+    if isinstance(content, str):
+        raw = content.encode("utf-8")
+    else:
+        raw = content
+    return hashlib.sha256(raw).hexdigest()

@@ -35,3 +35,13 @@ last_verified: 2026-10-03
 - **CLI Connection:** Connected scanner agent to `repopeek` CLI command.
 - **Testing:** 20/20 unit tests green.
 
+## 2026-10-03: PR 3 — Python Parser Agent Implemented
+- **Base Parser:** Implemented `BaseParser` and `ParseResult` dataclass in `repopeek/parsers/base.py`.
+- **Python AST Engine:** Implemented `PythonParser` in `repopeek/parsers/python.py`:
+  - AST-driven fact extraction: parameters, returns, cyclomatic complexity, reads, writes, raises, calls.
+  - Line span boundaries (`Span`) and SHA-256 source slice hashing.
+  - Embedded SQL query extraction via SQL regex detection producing `sql_query` NodeCards and `EMBEDS_SQL` edges.
+  - Class inheritance extraction with `INHERITS` and `DEFINED_IN` edges.
+- **Resilient Fallback:** Implemented fallback regex scanner for broken syntax (`SyntaxError`), recovering partial function, class, and import definitions with `Confidence.UNRESOLVED` without crashing.
+- **Testing:** 25/25 unit tests green across complete test suite.
+
