@@ -1,13 +1,3 @@
-# Graph Schema Specification
-
-#schema #json #graph #nodes #edges
-
-## Schema Overview
-This note defines the structural contract for the unified Repository Intelligence Graph. All nodes and edges generated across [[Deterministic_Substrate]] and [[Semantic_Overlay]] conform to this schema.
-
-## JSON Schema Definition
-
-```json
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Repository Intelligence Graph Schema",
@@ -61,10 +51,3 @@ This note defines the structural contract for the unified Repository Intelligenc
     ]
   }
 }
-```
-
-## Related Concepts
-- [[00_Index]]
-- [[Deterministic_Substrate]]
-- [[Semantic_Overlay]]
-- [[Provenance_Engine]]

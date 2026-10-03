@@ -1,5 +1,6 @@
 {
   "useMarkdownLinks": false,
   "newLinkFormat": "shortest",
-  "showLineNumber": true
+  "showLineNumber": true,
+  "showFrontmatter": true
 }
