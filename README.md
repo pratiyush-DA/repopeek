@@ -17,4 +17,4 @@ Foundational specifications are located in the `docs/` directory:
 
 ## Knowledge Vault
 Learnings, decisions, and structural metadata are persistently tracked in the Obsidian vault at:
-`/data/datafiles/mzp/uline_us_site/process/repo_intelligence_vault`
+`./knowledge_vault`
