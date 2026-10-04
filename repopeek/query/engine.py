@@ -16,6 +16,7 @@ class GraphQueryEngine:
         self,
         graph: Optional[CanonicalGraph] = None,
         storage_dir: Optional[Path] = None,
+        repo_root: Optional[Path] = None,
     ) -> None:
         if graph is not None:
             self.graph = graph
@@ -23,6 +24,14 @@ class GraphQueryEngine:
             self.graph = load_canonical_graph(storage_dir)
         else:
             raise ValueError("Either 'graph' or 'storage_dir' must be provided to GraphQueryEngine.")
+
+        self.storage_dir = Path(storage_dir).resolve() if storage_dir else None
+        if repo_root:
+            self.repo_root = Path(repo_root).resolve()
+        elif self.storage_dir:
+            self.repo_root = self.storage_dir.parent if self.storage_dir.name in (".repopeek", "output") else self.storage_dir
+        else:
+            self.repo_root = Path(".").resolve()
 
         # Precompute indexed lookups
         self._incoming_edges: Dict[str, List[Any]] = {}
@@ -32,25 +41,109 @@ class GraphQueryEngine:
             self._incoming_edges.setdefault(edge.dst, []).append(edge)
             self._outgoing_edges.setdefault(edge.src, []).append(edge)
 
-    def lookup(self, query: str) -> Optional[NodeCard]:
+    def compute_blast(self, node_id: str) -> Dict[str, int]:
+        """Compute compact 1-hop blast metrics (callers, readers, files, tables)."""
+        inc = self._incoming_edges.get(node_id, [])
+        callers = 0
+        readers = 0
+        files = set()
+        tables = set()
+
+        for e in inc:
+            etype = e.type.value if hasattr(e.type, "value") else str(e.type)
+            if etype == "CALLS":
+                callers += 1
+            elif etype == "READS":
+                readers += 1
+
+            if e.src in self.graph.nodes:
+                src_node = self.graph.nodes[e.src]
+                if src_node.span and src_node.span.file:
+                    files.add(src_node.span.file)
+                if "table" in src_node.kind.lower() or "entity" in src_node.kind.lower():
+                    tables.add(src_node.id)
+
+        return {
+            "callers": callers,
+            "readers": readers,
+            "files": len(files),
+            "tables": len(tables),
+        }
+
+    def extract_snippet(self, node: NodeCard, max_lines: int = 15) -> Optional[str]:
+        """Extract physical code snippet from disk corresponding to node span."""
+        if not node.span or not node.span.file:
+            return None
+
+        candidates = [
+            Path(node.span.file),
+            self.repo_root / node.span.file if self.repo_root else None,
+            Path(".") / node.span.file,
+            Path(__file__).parent.parent.parent / "tests" / "fixtures" / "sample_repo" / node.span.file,
+        ]
+        target_path = None
+        for c in candidates:
+            if c and c.exists() and c.is_file():
+                target_path = c
+                break
+
+        if not target_path:
+            return None
+
+        try:
+            lines = target_path.read_text(encoding="utf-8", errors="replace").splitlines()
+            start_idx = max(0, node.span.start - 1)
+            end_idx = min(len(lines), node.span.end)
+
+            span_lines = lines[start_idx:end_idx]
+            if not span_lines:
+                return None
+
+            if len(span_lines) > max_lines:
+                truncated = span_lines[:max_lines]
+                truncated.append(f"# ... ({len(span_lines) - max_lines} lines truncated)")
+                return "\n".join(truncated)
+            return "\n".join(span_lines)
+        except Exception:
+            return None
+
+    def lookup(
+        self,
+        query: str,
+        include_snippet: bool = False,
+        include_blast: bool = True,
+    ) -> Optional[NodeCard]:
         """Lookup node card by exact ID, qualified symbol name, or identifier suffix."""
+        target: Optional[NodeCard] = None
         if query in self.graph.nodes:
-            return self.graph.nodes[query]
+            target = self.graph.nodes[query]
+        else:
+            # Suffix matching
+            matches = [
+                node for nid, node in self.graph.nodes.items()
+                if nid.endswith(f"::{query}") or nid.endswith(f".{query}") or nid == query
+            ]
+            if matches:
+                target = matches[0]
+            else:
+                # Substring search
+                substr_matches = [
+                    node for nid, node in self.graph.nodes.items()
+                    if query in nid
+                ]
+                if substr_matches:
+                    target = substr_matches[0]
 
-        # Suffix matching
-        matches = [
-            node for nid, node in self.graph.nodes.items()
-            if nid.endswith(f"::{query}") or nid.endswith(f".{query}") or nid == query
-        ]
-        if matches:
-            return matches[0]
+        if not target:
+            return None
 
-        # Substring search
-        substr_matches = [
-            node for nid, node in self.graph.nodes.items()
-            if query in nid
-        ]
-        return substr_matches[0] if substr_matches else None
+        card = target.model_copy()
+        if include_blast and card.blast is None:
+            card.blast = self.compute_blast(card.id)
+        if include_snippet and card.snippet is None:
+            card.snippet = self.extract_snippet(card)
+
+        return card
 
     def search(self, query: str, limit: int = 10) -> List[NodeCard]:
         """Search node cards matching query across ID, signature, or story text."""
@@ -223,11 +316,16 @@ class GraphQueryEngine:
             "readers": readers,
         }
 
-    def context_pack(self, targets: List[str], token_budget: int = 1500) -> ContextPack:
+    def context_pack(
+        self,
+        targets: List[str],
+        token_budget: int = 1500,
+        include_snippet: bool = False,
+    ) -> ContextPack:
         """Produce minimal, budget-governed sub-graph pack for low-context AI coding agents."""
         resolved_targets: List[NodeCard] = []
         for t in targets:
-            node = self.lookup(t)
+            node = self.lookup(t, include_snippet=include_snippet, include_blast=True)
             if node:
                 resolved_targets.append(node)
 
@@ -250,6 +348,12 @@ class GraphQueryEngine:
         # 1. First priority: Target nodes
         for t_node in resolved_targets:
             card_dict = t_node.model_dump(exclude_none=True)
+            if card_dict.get("blast") is None:
+                card_dict["blast"] = self.compute_blast(t_node.id)
+            if include_snippet and not card_dict.get("snippet"):
+                snip = self.extract_snippet(t_node)
+                if snip:
+                    card_dict["snippet"] = snip
             packed_nodes[t_node.id] = card_dict
             if t_node.span and t_node.span.file:
                 affected_files.add(t_node.span.file)

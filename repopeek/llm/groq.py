@@ -145,8 +145,22 @@ class GroqProvider(LLMProvider):
                 elif status == 429:
                     if attempt > self.max_retries:
                         raise LLMRateLimitError(f"Groq API rate limit exceeded after {self.max_retries} retries: {err_body}")
-                    time.sleep(backoff)
-                    backoff *= 2.0
+                    sleep_time = backoff
+                    if hasattr(err, "headers") and err.headers and err.headers.get("Retry-After"):
+                        try:
+                            sleep_time = max(float(err.headers.get("Retry-After")), 0.5)
+                        except Exception:
+                            pass
+                    else:
+                        import re
+                        m = re.search(r"try again in ([\d\.]+)s", err_body)
+                        if m:
+                            try:
+                                sleep_time = max(float(m.group(1)) + 0.1, 0.5)
+                            except Exception:
+                                pass
+                    time.sleep(sleep_time)
+                    backoff = max(backoff * 1.5, sleep_time)
                 elif 500 <= status < 600:
                     if attempt > self.max_retries:
                         raise LLMProviderError(f"Groq server error ({status}) after {self.max_retries} retries: {err_body}")

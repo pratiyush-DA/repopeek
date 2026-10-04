@@ -124,6 +124,17 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Path to the Obsidian vault directory for reading (default: ./obsidian_vault)",
     )
+    parser.add_argument(
+        "--snippet",
+        action="store_true",
+        help="Include source code snippet in lookup or context pack for zero-file-read edits",
+    )
+    parser.add_argument(
+        "--update",
+        type=Path,
+        default=None,
+        help="Incrementally update graph for a single modified file (<50ms)",
+    )
     return parser
 
 
@@ -157,6 +168,7 @@ def main(argv=None) -> int:
         or args.view
         or args.export_obsidian
         or args.read_obsidian
+        or args.update
     )
     if not is_query_mode:
         print(f"Repopeek v{__version__} - Repository Intelligence Engine")
@@ -188,11 +200,11 @@ def main(argv=None) -> int:
             storage_dir = resolved_repo / ".repopeek"
 
         if (storage_dir / "graph.json").exists():
-            engine = GraphQueryEngine(storage_dir=storage_dir)
+            engine = GraphQueryEngine(storage_dir=storage_dir, repo_root=resolved_repo)
         else:
             from repopeek.graph.builder import GraphBuilder
             graph = GraphBuilder().build_from_directory(resolved_repo)
-            engine = GraphQueryEngine(graph=graph)
+            engine = GraphQueryEngine(graph=graph, repo_root=resolved_repo)
 
         if args.read_obsidian:
             vault_dir = args.vault_path or Path("./obsidian_vault")
@@ -250,7 +262,7 @@ def main(argv=None) -> int:
             return 0
 
         if args.lookup:
-            card = engine.lookup(args.lookup)
+            card = engine.lookup(args.lookup, include_snippet=args.snippet)
             if card:
                 print(json.dumps(card.model_dump(exclude_none=True), indent=2))
                 return 0
@@ -268,8 +280,35 @@ def main(argv=None) -> int:
             return 0
 
         if args.pack:
-            pack = engine.context_pack(args.pack)
+            pack = engine.context_pack(args.pack, include_snippet=args.snippet)
             print(pack.to_markdown())
+            return 0
+
+        if args.update:
+            import time
+            from repopeek.graph.builder import GraphBuilder
+            from repopeek.storage import update_file_shard, update_sqlite_file
+
+            target_file = args.update.resolve()
+            if not target_file.exists():
+                print(f"Error: Target file to update '{target_file}' does not exist.", file=sys.stderr)
+                return 1
+
+            start_t = time.perf_counter()
+            builder = GraphBuilder()
+            updated_graph = builder.update_file(target_file, engine.graph, repo_root=resolved_repo)
+
+            # Update shard (which also syncs graph.json & manifest.json)
+            rel_path = str(target_file.relative_to(resolved_repo)).replace("\\", "/")
+            update_file_shard(storage_dir, rel_path, updated_graph)
+
+            # Update sqlite cache if exists
+            db_path = storage_dir / "cache.db"
+            if db_path.exists():
+                update_sqlite_file(rel_path, updated_graph, db_path)
+
+            elapsed_ms = (time.perf_counter() - start_t) * 1000
+            print(f"Updated graph for '{rel_path}' in {elapsed_ms:.1f}ms. Total nodes: {len(updated_graph.nodes)}, edges: {len(updated_graph.edges)}.")
             return 0
 
     from repopeek.discovery import discover_repository

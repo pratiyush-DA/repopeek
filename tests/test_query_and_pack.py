@@ -175,3 +175,66 @@ def test_cli_query_flags(capsys):
     assert code_pack == 0
     captured_pack = capsys.readouterr()
     assert "# RepoPeek Context Pack" in captured_pack.out
+
+
+def test_node_card_blast_radius(sample_engine):
+    """Verify precomputed 1-hop blast radius in NodeCard."""
+    card = sample_engine.lookup("InvoiceParser.parse")
+    assert card is not None
+    assert card.blast is not None
+    assert "callers" in card.blast
+    assert "readers" in card.blast
+    assert "files" in card.blast
+    assert "tables" in card.blast
+
+
+def test_node_card_snippet_extraction(sample_engine):
+    """Verify on-demand source snippet extraction for zero-file-read edits."""
+    card = sample_engine.lookup("InvoiceParser.parse", include_snippet=True)
+    assert card is not None
+    assert card.snippet is not None
+    assert "def parse" in card.snippet
+
+
+def test_context_pack_facts_truncation():
+    """Verify that large reads/writes lists are cleanly truncated to preserve low token context."""
+    from repopeek.models.schema import NodeCard, NodeFacts, NodeSpan
+
+    card = NodeCard(
+        id="test:node",
+        kind="function",
+        sig="def test_fn()",
+        span=NodeSpan(file="test.py", start=1, end=10),
+        facts=NodeFacts(
+            reads=[f"read_var_{i}" for i in range(10)],
+            writes=[f"write_var_{i}" for i in range(8)],
+        ),
+        content_hash="abc123hash",
+    )
+    pack = ContextPack(
+        targets=["test:node"],
+        nodes=[card.model_dump()],
+        relationships=[],
+        affected_files=["test.py"],
+        affected_tables=[],
+    )
+    md = pack.to_markdown()
+    assert "(+6 more)" in md
+    assert "(+4 more)" in md
+
+
+def test_cli_snippet_and_incremental_update(tmp_path, capsys):
+    """Verify CLI --snippet and --update flags."""
+    # 1. Test CLI lookup with --snippet
+    code = main(["--repo-path", str(FIXTURE_REPO), "--lookup", "InvoiceParser.parse", "--snippet"])
+    assert code == 0
+    out = capsys.readouterr().out
+    assert '"snippet":' in out
+
+    # 2. Test incremental single-file update
+    invoice_file = FIXTURE_REPO / "src" / "billing" / "invoice.py"
+    code_update = main(["--repo-path", str(FIXTURE_REPO), "--update", str(invoice_file)])
+    assert code_update == 0
+    out_update = capsys.readouterr().out
+    assert "Updated graph for" in out_update
+

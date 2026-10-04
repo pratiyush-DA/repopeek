@@ -14,12 +14,14 @@ from repopeek.storage.json_store import (
     load_manifest,
     save_canonical_graph,
     serialize_graph_to_dict,
+    update_file_shard,
 )
 from repopeek.storage.sqlite_cache import (
     build_sqlite_cache,
     query_sqlite_edges,
     query_sqlite_impact,
     query_sqlite_nodes,
+    update_sqlite_file,
 )
 from repopeek.storage.obsidian_exporter import (
     export_to_obsidian_vault,
@@ -40,10 +42,12 @@ __all__ = [
     "load_manifest",
     "save_canonical_graph",
     "serialize_graph_to_dict",
+    "update_file_shard",
     "build_sqlite_cache",
     "query_sqlite_edges",
     "query_sqlite_impact",
     "query_sqlite_nodes",
+    "update_sqlite_file",
     "export_to_obsidian_vault",
     "find_default_obsidian_vault",
     "open_in_obsidian",

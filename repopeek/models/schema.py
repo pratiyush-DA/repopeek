@@ -45,6 +45,9 @@ class Span(BaseModel):
         return self
 
 
+NodeSpan = Span
+
+
 class NodeFacts(BaseModel):
     """Deterministic AST and syntactic facts extracted from code."""
     calls: int = Field(default=0, description="Total count of calls made by this node")
@@ -86,6 +89,8 @@ class NodeCard(BaseModel):
     span: Optional[Span] = Field(default=None, description="Physical code boundary")
     facts: NodeFacts = Field(default_factory=NodeFacts, description="AST facts summary")
     story: Optional[NodeStory] = Field(default=None, description="One-line story")
+    snippet: Optional[str] = Field(default=None, description="Target source code slice for zero-file-read edits")
+    blast: Optional[Dict[str, int]] = Field(default=None, description="Precomputed 1-hop blast radius metrics")
     content_hash: str = Field(description="SHA-256 of normalized body or file content")
     provenance: Optional[NodeProvenance] = Field(default=None, description="Git provenance")
 

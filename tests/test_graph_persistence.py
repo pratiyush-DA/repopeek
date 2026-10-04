@@ -31,12 +31,14 @@ from repopeek.storage.json_store import (
     load_manifest,
     save_canonical_graph,
     serialize_graph_to_dict,
+    update_file_shard,
 )
 from repopeek.storage.sqlite_cache import (
     build_sqlite_cache,
     query_sqlite_edges,
     query_sqlite_impact,
     query_sqlite_nodes,
+    update_sqlite_file,
 )
 
 
@@ -263,3 +265,35 @@ def test_end_to_end_persistence_sample_repo(tmp_path: Path):
     # The source should include the invoice parser or embedded query
     sources = {r["src"] for r in impact}
     assert any("invoice.py" in s for s in sources)
+
+
+def test_incremental_update_file(tmp_path: Path):
+    """Verify incremental single-file update keeps graph, shards, and SQLite cache in sync."""
+    fixture_path = Path(__file__).parent / "fixtures" / "sample_repo"
+    builder = GraphBuilder()
+    graph = builder.build_from_directory(fixture_path)
+
+    storage_dir = tmp_path / ".repopeek"
+    manifest = save_canonical_graph(graph, storage_dir)
+    db_path = storage_dir / "cache.db"
+    build_sqlite_cache(graph, db_path)
+
+    invoice_file = fixture_path / "src" / "billing" / "invoice.py"
+    rel_path = "src/billing/invoice.py"
+
+    # Perform single-file update
+    updated_graph = builder.update_file(invoice_file, graph, repo_root=fixture_path)
+    assert len(updated_graph.nodes) > 0
+
+    # Save shard and sync graph.json / manifest
+    shard_file = update_file_shard(storage_dir, rel_path, updated_graph)
+    assert shard_file.exists()
+
+    # Update SQLite cache
+    update_sqlite_file(rel_path, updated_graph, db_path)
+
+    # Verify updated nodes in SQLite cache
+    nodes = query_sqlite_nodes(db_path, file=rel_path)
+    assert len(nodes) > 0
+    assert any("InvoiceParser" in n["id"] for n in nodes)
+

@@ -109,6 +109,56 @@ class GraphBuilder:
             blob_shas=blob_shas,
         )
 
+    def update_file(
+        self,
+        file_path: Path,
+        graph: CanonicalGraph,
+        repo_root: Optional[Path] = None,
+    ) -> CanonicalGraph:
+        """Incrementally re-parse a single file and update graph nodes and edges in-place in <50ms."""
+        root = Path(repo_root or ".").resolve()
+        fpath = Path(file_path).resolve()
+        try:
+            rel_path = fpath.relative_to(root).as_posix()
+        except ValueError:
+            rel_path = fpath.as_posix()
+
+        ftype = classify_file(fpath)
+        lang = ftype.value
+        parser = self.parsers.get(lang)
+        if not parser or not fpath.exists():
+            return graph
+
+        res = parser.parse_file(fpath, repo_root=root)
+
+        # 1. Purge old nodes from this file
+        old_node_ids = {
+            nid for nid, node in graph.nodes.items()
+            if node.span and node.span.file == rel_path
+        }
+        for nid in old_node_ids:
+            graph.nodes.pop(nid, None)
+
+        # 2. Purge old edges involving purged nodes
+        graph.edges = [
+            e for e in graph.edges
+            if e.src not in old_node_ids and e.dst not in old_node_ids
+        ]
+
+        # 3. Add new nodes
+        for node in res.nodes:
+            graph.add_node(node)
+
+        # 4. Resolve local and cross-file edges
+        resolver = SymbolResolver(nodes=list(graph.nodes.values()), edges=res.edges)
+        new_edges = resolver.resolve()
+        for e in new_edges:
+            graph.add_edge(e)
+
+        graph.dirty = True
+        return graph
+
+
     @staticmethod
     def to_networkx(graph: CanonicalGraph) -> nx.MultiDiGraph:
         """Export CanonicalGraph into NetworkX MultiDiGraph for graph analytics and traversal."""

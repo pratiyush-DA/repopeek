@@ -36,22 +36,43 @@ class ContextPack:
             kind = n.get("kind", "")
             span = n.get("span")
             span_str = f"{span['file']}:{span['start']}-{span['end']}" if span else "global"
-            story = n.get("story", {}).get("text", "No narrative available.")
+            story_obj = n.get("story") or {}
+            story = story_obj.get("text", "No narrative available.") if isinstance(story_obj, dict) else "No narrative available."
             sig = n.get("sig")
-            facts = n.get("facts", {})
+            facts = n.get("facts") or {}
 
             lines.append(f"### `{nid}` ({kind}) [{span_str}]")
             if sig:
                 lines.append(f"- **Signature:** `{sig}`")
             lines.append(f"- **Story:** {story}")
 
+            blast = n.get("blast")
+            if blast:
+                lines.append(
+                    f"- **Blast:** {blast.get('callers', 0)} callers, "
+                    f"{blast.get('readers', 0)} readers across {blast.get('files', 0)} files"
+                )
+
+            if n.get("snippet"):
+                lines.append("```python")
+                lines.append(n["snippet"].rstrip())
+                lines.append("```")
+
             fact_details = []
             if facts.get("calls"):
                 fact_details.append(f"calls={facts['calls']}")
             if facts.get("reads"):
-                fact_details.append(f"reads={facts['reads']}")
+                reads = facts["reads"]
+                if isinstance(reads, list) and len(reads) > 4:
+                    fact_details.append(f"reads={reads[:4]} (+{len(reads)-4} more)")
+                else:
+                    fact_details.append(f"reads={reads}")
             if facts.get("writes"):
-                fact_details.append(f"writes={facts['writes']}")
+                writes = facts["writes"]
+                if isinstance(writes, list) and len(writes) > 4:
+                    fact_details.append(f"writes={writes[:4]} (+{len(writes)-4} more)")
+                else:
+                    fact_details.append(f"writes={writes}")
             if facts.get("returns"):
                 fact_details.append(f"returns={facts['returns']}")
             if fact_details:

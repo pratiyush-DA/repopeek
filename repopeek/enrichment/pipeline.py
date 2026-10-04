@@ -72,11 +72,17 @@ class StoryPipeline:
             else:
                 others.append(node)
 
+        total_items = len(methods_and_funcs) + len(classes) + len(modules) + len(others)
+        done = 0
+
         # 2. Process functions and methods first
         for node in methods_and_funcs:
             story = self.generator.generate_story(node)
             node.story = story
             self._tally_report(story, report)
+            done += 1
+            if done % 100 == 0:
+                print(f"  Enriched {done}/{total_items} nodes ({report.llm_stories} LLM, {report.deterministic_stories} deterministic, {report.cached_hits} cached)...")
 
         # 3. Process classes with child method stories
         for node in classes:
@@ -89,6 +95,9 @@ class StoryPipeline:
             story = self.generator.generate_story(node, child_stories=child_stories)
             node.story = story
             self._tally_report(story, report)
+            done += 1
+            if done % 100 == 0:
+                print(f"  Enriched {done}/{total_items} nodes ({report.llm_stories} LLM, {report.deterministic_stories} deterministic, {report.cached_hits} cached)...")
 
         # 4. Process modules with child class & function stories
         for node in modules:
@@ -100,12 +109,18 @@ class StoryPipeline:
             story = self.generator.generate_story(node, child_stories=child_stories)
             node.story = story
             self._tally_report(story, report)
+            done += 1
+            if done % 100 == 0:
+                print(f"  Enriched {done}/{total_items} nodes ({report.llm_stories} LLM, {report.deterministic_stories} deterministic, {report.cached_hits} cached)...")
 
         # 5. Process remaining nodes (tables, queries, configs, scripts)
         for node in others:
             story = self.generator.generate_story(node)
             node.story = story
             self._tally_report(story, report)
+            done += 1
+            if done % 100 == 0:
+                print(f"  Enriched {done}/{total_items} nodes ({report.llm_stories} LLM, {report.deterministic_stories} deterministic, {report.cached_hits} cached)...")
 
         # Save cache state to disk if path configured
         self.cache.save()

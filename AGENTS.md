@@ -15,3 +15,10 @@
 - Enforce the Decision Ladder: YAGNI -> Existing codebase -> Stdlib -> Existing dependencies -> Smallest correct implementation.
 - No unrequested abstractions, speculative frameworks, or stylistic wrappers.
 - Correctness boundary: Never compromise input validation, syntax error tolerance, malformed input recovery, security, or test coverage. Minimum necessary code, not minimum code at any cost.
+
+## Git & PR Operating Protocol
+- After completing and verifying a code modification task (tests passing and knowledge vault verified):
+  1. Stage all modified and verified files (`git add ...`).
+  2. Commit with a concise descriptive commit message following conventional commits (e.g. `feat: ...`, `fix: ...`).
+  3. Push to `origin/main` (or active feature branch / PR) ensuring no uncommitted modifications remain in the working tree.
+

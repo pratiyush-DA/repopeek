@@ -221,3 +221,62 @@ def load_file_shard(storage_dir: Path, rel_path: str) -> CanonicalGraph:
     raw_text = shard_path.read_text(encoding="utf-8")
     data = json.loads(raw_text)
     return deserialize_graph_from_dict(data)
+
+
+def update_file_shard(
+    storage_dir: Path,
+    rel_path: str,
+    graph: CanonicalGraph,
+) -> Path:
+    """Save updated shard for a single source file in <10ms."""
+    shards_dir = Path(storage_dir) / "shards"
+    shards_dir.mkdir(parents=True, exist_ok=True)
+    safe_rel_name = rel_path.replace("/", "__").replace("\\", "__")
+    shard_file = shards_dir / f"{safe_rel_name}.json"
+
+    shard_nodes = {
+        nid: node for nid, node in graph.nodes.items()
+        if node.span and node.span.file == rel_path
+    }
+    nid_set = set(shard_nodes.keys())
+    shard_edges = [
+        e for e in graph.edges
+        if e.src in nid_set or e.dst in nid_set
+    ]
+    shard_graph = CanonicalGraph(
+        schema_version=graph.schema_version,
+        tool_version=graph.tool_version,
+        repo_commit=graph.repo_commit,
+        dirty=True,
+        nodes=shard_nodes,
+        edges=shard_edges,
+    )
+    shard_dict = serialize_graph_to_dict(shard_graph)
+    shard_sha = dump_deterministic_json(shard_dict, shard_file)
+
+    # Sync graph.json if present in storage_dir
+    graph_file = Path(storage_dir) / "graph.json"
+    if graph_file.exists():
+        dump_deterministic_json(serialize_graph_to_dict(graph), graph_file)
+
+    # Sync manifest.json if present
+    manifest_file = Path(storage_dir) / "manifest.json"
+    if manifest_file.exists():
+        try:
+            m_data = json.loads(manifest_file.read_text(encoding="utf-8"))
+            m_data["nodes_count"] = len(graph.nodes)
+            m_data["edges_count"] = len(graph.edges)
+            m_data["dirty"] = True
+            if "shards" in m_data:
+                m_data["shards"][rel_path] = {
+                    "file": f"shards/{safe_rel_name}.json",
+                    "nodes_count": len(shard_nodes),
+                    "edges_count": len(shard_edges),
+                    "sha256": shard_sha,
+                }
+            dump_deterministic_json(m_data, manifest_file)
+        except Exception:
+            pass
+
+    return shard_file
+

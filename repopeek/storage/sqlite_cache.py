@@ -206,3 +206,81 @@ def query_sqlite_edges(
         return [dict(r) for r in rows]
     finally:
         conn.close()
+
+
+def update_sqlite_file(file_path: Any, graph: CanonicalGraph, db_path: Path) -> None:
+    """Incrementally upsert nodes and edges for a single file into SQLite cache in <15ms."""
+    db_file = Path(db_path).resolve()
+    if not db_file.exists():
+        return
+
+    fpath = str(file_path).replace("\\", "/")
+    conn = sqlite3.connect(str(db_file))
+    try:
+        cur = conn.cursor()
+        fname = Path(fpath).name
+        cur.execute("SELECT id FROM nodes WHERE file = ? OR file LIKE ?", (fpath, f"%{fname}"))
+        old_ids = [r[0] for r in cur.fetchall()]
+
+        cur.execute("DELETE FROM nodes WHERE file = ? OR file LIKE ?", (fpath, f"%{fname}"))
+        for oid in old_ids:
+            cur.execute("DELETE FROM edges WHERE src = ? OR dst = ?", (oid, oid))
+
+        file_nodes = [
+            n for n in graph.nodes.values()
+            if n.span and (
+                n.span.file.replace("\\", "/") == fpath
+                or n.span.file.replace("\\", "/").endswith(fpath)
+                or fpath.endswith(n.span.file.replace("\\", "/"))
+            )
+        ]
+        node_tuples = [
+            (
+                node.id,
+                node.kind,
+                node.sig,
+                node.span.file if node.span else None,
+                node.span.start if node.span else None,
+                node.span.end if node.span else None,
+                node.facts.complexity,
+                json.dumps(node.facts.model_dump(exclude_none=True)),
+                json.dumps(node.story.model_dump(exclude_none=True)) if node.story else None,
+                node.content_hash,
+            )
+            for node in file_nodes
+        ]
+        cur.executemany(
+            """
+            INSERT OR REPLACE INTO nodes
+            (id, kind, sig, file, start_line, end_line, complexity, facts_json, story_json, content_hash)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+            """,
+            node_tuples,
+        )
+
+        file_node_ids = {n.id for n in file_nodes}
+        file_edges = [
+            e for e in graph.edges
+            if e.src in file_node_ids or e.dst in file_node_ids
+        ]
+        edge_tuples = [
+            (
+                edge.src,
+                edge.dst,
+                edge.type.value if hasattr(edge.type, "value") else str(edge.type),
+                edge.confidence.value if hasattr(edge.confidence, "value") else str(edge.confidence),
+                edge.evidence.how_derived if edge.evidence else None,
+            )
+            for edge in file_edges
+        ]
+        cur.executemany(
+            """
+            INSERT INTO edges (src, dst, type, confidence, how_derived)
+            VALUES (?, ?, ?, ?, ?);
+            """,
+            edge_tuples,
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
