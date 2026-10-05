@@ -205,3 +205,45 @@ export async function checkServerHealth() {
     assert len(invokes) >= 1
     assert any("checkServerHealth" in e.src and "registerRoutes" in e.dst for e in invokes)
 
+
+def test_python_route_decorator_edge_cases(tmp_path: Path):
+    """Test Python parser route decorators with custom attributes, bare names, and complex funcs."""
+    source_py = """\"\"\"Route decorator edge cases.\"\"\"
+def get(path):
+    def dec(fn): return fn
+    return dec
+
+def route(path):
+    def dec(fn): return fn
+    return dec
+
+class Api:
+    def custom_endpoint(self, path):
+        def dec(fn): return fn
+        return dec
+
+api = Api()
+
+@get('/bare/get')
+def fn_bare_get():
+    pass
+
+@route('/bare/route')
+def fn_bare_route():
+    pass
+
+@api.custom_endpoint('/custom/endpoint')
+def fn_custom():
+    pass
+"""
+    f = tmp_path / "edge_routes.py"
+    f.write_text(source_py, encoding="utf-8")
+
+    res = PythonParser().parse_file(f, repo_root=tmp_path)
+    nodes_by_name = {n.id.split(":")[-1]: n for n in res.nodes}
+
+    assert "ROUTE:GET:/bare/get" in nodes_by_name["fn_bare_get"].facts.reads
+    assert "ROUTE:ANY:/bare/route" in nodes_by_name["fn_bare_route"].facts.reads
+    assert "ROUTE:CUSTOM_ENDPOINT:/custom/endpoint" in nodes_by_name["fn_custom"].facts.reads
+
+

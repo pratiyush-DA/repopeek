@@ -434,9 +434,13 @@ class PythonParser(BaseParser):
                                 else:
                                     facts.reads.append(f"ROUTE:GET:{path_val}")
                             else:
-                                facts.reads.append(f"ROUTE:{m_name}:{path_val}")
+                                facts.reads.append(f"ROUTE:{attr}:{path_val}")
+                        elif isinstance(dec.func, ast.Name):
+                            fn_name = dec.func.id.upper()
+                            m = fn_name if fn_name in ("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD") else "ANY"
+                            facts.reads.append(f"ROUTE:{m}:{path_val}")
                         else:
-                            facts.reads.append(f"ROUTE:{m_name}:{path_val}")
+                            facts.reads.append(f"ROUTE:ANY:{path_val}")
 
         # Docstring and story
         fn_doc = ast.get_docstring(fn_node)
