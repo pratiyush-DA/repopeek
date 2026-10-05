@@ -27,6 +27,7 @@
 2026-10-05 | feat-agent-mcp, feat-watch-daemon, feat-query-cli, feat-context-compiler, feat-traversal-confidence, feat-graph-persistence, feat-graph-construction, moc-features, Phase-3/plan, Phase-3/log, _meta/changelog | PR 18 Agent MCP Suite & Incremental Watch Daemon (Phase 3 Complete)
 2026-10-05 | feat-evaluation-benchmarking, moc-features, Phase-3/plan, Phase-3/log, _meta/changelog | PR 19 Agent Evaluation & Benchmarking Subsystem (4 levels, 50 frozen tasks, calibration, and token reduction)
 2026-10-05 | feat-intent-retrieval, feat-traversal-confidence, feat-evaluation-benchmarking, _meta/changelog | PR 20 Reliability overhaul: linguistic stemming, 6-casing variants, multi-component ranking, hard negative pruning, inverted index acceleration, Recall@5 26%->80%, MRR 0.22->0.75
+2026-10-05 | feat-real-world-validation, feat-evaluation-benchmarking, moc-features, Phase-3/log, _meta/changelog | Real-world 12-task validation experiment on da-assistant (70% token savings, 8 issues cataloged)
 
 
 

@@ -7,7 +7,7 @@ status: verified
 tags: [evaluation, benchmark, metrics, retrieval, calibration, context]
 code_refs: [repopeek/evaluation/models.py, repopeek/evaluation/metrics.py, repopeek/evaluation/dataset.py, repopeek/evaluation/retrieval.py, repopeek/evaluation/graph.py, repopeek/evaluation/temporal.py, repopeek/evaluation/context.py, repopeek/evaluation/benchmark.py, repopeek/evaluation/report.py, repopeek/cli.py, tests/test_evaluation.py, tests/test_retrieval_reliability.py]
 depends_on: ['[[plan-phase-3]]', '[[moc-features]]']
-affects: ['[[log-phase-3]]']
+affects: ['[[log-phase-3]]', '[[feat-real-world-validation]]']
 last_verified: 2026-10-05
 ---
 

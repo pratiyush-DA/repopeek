@@ -6,7 +6,7 @@ summary: Running chronological log of decisions, architectural findings, and imp
 status: active
 tags: [phase3, log, decisions]
 code_refs: []
-depends_on: ['[[plan-phase-3]]', '[[feat-intent-retrieval]]', '[[feat-traversal-confidence]]', '[[feat-context-compiler]]', '[[feat-typescript-parser]]', '[[feat-git-temporal]]', '[[feat-http-bridge]]', '[[feat-agent-mcp]]', '[[feat-watch-daemon]]', '[[feat-evaluation-benchmarking]]']
+depends_on: ['[[plan-phase-3]]', '[[feat-intent-retrieval]]', '[[feat-traversal-confidence]]', '[[feat-context-compiler]]', '[[feat-typescript-parser]]', '[[feat-git-temporal]]', '[[feat-http-bridge]]', '[[feat-agent-mcp]]', '[[feat-watch-daemon]]', '[[feat-evaluation-benchmarking]]', '[[feat-real-world-validation]]']
 affects: []
 last_verified: 2026-10-05
 ---
@@ -81,5 +81,12 @@ last_verified: 2026-10-05
 - Built `AgentRunner` adapter interface with honest unverified Level 4 reporting.
 - Added `repopeek evaluate` CLI command producing `benchmark-results.json` and `benchmark-report.md`.
 - Created comprehensive unit and integration test suite `tests/test_evaluation.py` (26 tests passing). Full suite (159 tests) passing.
+
+## 2026-10-05: Real-World Validation Experiment on da-assistant Completed
+- Executed controlled 12-task empirical evaluation on `da-assistant` (Next.js, Django, Neo4j, Celery, LangChain; 263 files, 1,598 nodes, 10,181 edges).
+- Measured 69.9% token reduction (196k down to 59k tokens) and 64.6% exploration reduction (14.7 down to 5.2 tool turns per task).
+- Achieved 86.1% context recall (100% on 10/12 tasks) and uncovered critical precision bottleneck (0.57% precision).
+- Identified 8 key defects (P0: graph collision/explosion `RP-003`; P1: Django route blindspot `RP-001`, wrapped API miss `RP-002`, precision collapse `RP-005`).
+- Produced `FINAL-REPORT.md`, `REPOPEEK-ISSUES.md`, and `comparison.md` in `testing/da-assistant/`.
 
 
