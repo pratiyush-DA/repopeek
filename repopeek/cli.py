@@ -141,6 +141,31 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Resolve a natural language task to candidate symbols via hybrid retrieval (AST + BM25 + RRF)",
     )
+    parser.add_argument(
+        "--context",
+        type=str,
+        default=None,
+        help="Compile task-driven context package with blast radius and constraints",
+    )
+    parser.add_argument(
+        "--plan",
+        type=str,
+        default=None,
+        help="Generate risk-assessed, step-by-step engineering change plan",
+    )
+    parser.add_argument(
+        "--level",
+        type=int,
+        default=2,
+        choices=[1, 2, 3],
+        help="Progressive disclosure level for context package (1: brief, 2: standard, 3: full with snippets)",
+    )
+    parser.add_argument(
+        "--budget",
+        type=int,
+        default=1500,
+        help="Token budget for context compilation (default: 1500)",
+    )
     return parser
 
 
@@ -176,6 +201,8 @@ def main(argv=None) -> int:
         or args.read_obsidian
         or args.update
         or args.resolve
+        or args.context
+        or args.plan
     )
     if not is_query_mode:
         print(f"Repopeek v{__version__} - Repository Intelligence Engine")
@@ -294,6 +321,21 @@ def main(argv=None) -> int:
         if args.resolve:
             candidates = engine.resolve_task(args.resolve)
             print(json.dumps(candidates, indent=2))
+            return 0
+
+        if args.context:
+            pkg = engine.compile_context(
+                args.context,
+                budget=args.budget,
+                level=args.level,
+                include_snippets=args.snippet,
+            )
+            print(pkg.to_markdown(level=args.level))
+            return 0
+
+        if args.plan:
+            plan = engine.change_plan(args.plan)
+            print(plan.to_markdown())
             return 0
 
         if args.update:

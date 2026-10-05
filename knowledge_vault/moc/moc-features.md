@@ -38,6 +38,7 @@ depends_on: []
 - [[feat-query-cli]] — inspect nodes, traverse CALLS/READS chains, find impact trees
 - [[feat-intent-retrieval]] — resolve natural language tasks to candidate symbols via AST + FTS5 BM25 + RRF
 - [[feat-traversal-confidence]] — mathematical traversal confidence, multi-path reinforcement, and blast radius partitioning
+- [[feat-context-compiler]] — task-driven context compilation, constraint extraction, and change plans
 
 ## Related
 

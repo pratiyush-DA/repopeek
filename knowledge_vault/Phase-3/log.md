@@ -6,7 +6,7 @@ summary: Running chronological log of decisions, architectural findings, and imp
 status: active
 tags: [phase3, log, decisions]
 code_refs: []
-depends_on: ['[[plan-phase-3]]', '[[feat-intent-retrieval]]', '[[feat-traversal-confidence]]']
+depends_on: ['[[plan-phase-3]]', '[[feat-intent-retrieval]]', '[[feat-traversal-confidence]]', '[[feat-context-compiler]]']
 affects: []
 last_verified: 2026-10-05
 ---
@@ -35,3 +35,9 @@ last_verified: 2026-10-05
 - Partitioned blast radius into `direct`, `indirect`, and `excluded` sets with explicit citations (`file:start-end`) and hop chains.
 - Integrated `blast_radius()` and enriched `impact()` in `GraphQueryEngine` with 100% backward compatibility.
 - Created unit and integration test suite `tests/test_blast_radius.py` (7 tests passing). Full suite passing.
+
+## 2026-10-05: PR 14 — Context Compiler, Constraint Extractor & Change Plan Generator Delivered
+- Implemented `repopeek/context/compiler.py` providing `ContextCompiler`, `ContextPackage`, `ConstraintSet`, and `ChangePlan`.
+- Added 3-tier progressive disclosure markdown rendering (brief, standard, full with snippets) and token economics calculations.
+- Integrated `compile_context()` and `change_plan()` in `GraphQueryEngine` and CLI flags `--context`, `--plan`, `--level`, `--budget`.
+- Created unit and integration test suite `tests/test_context_compiler.py` (5 tests passing).

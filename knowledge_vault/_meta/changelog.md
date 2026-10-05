@@ -20,6 +20,4 @@
 2026-10-05 | Phase-3/plan, Phase-3/log, 00-index, _meta/changelog | Phase 3 Context Compiler & Blast Radius Engine roadmap initialization
 2026-10-05 | feat-intent-retrieval, moc-features, Phase-3/plan, Phase-3/log, _meta/changelog | PR 12 Intent-to-Symbol Task Matcher, SQLite FTS5 BM25 Index, and RRF rank fusion
 2026-10-05 | feat-traversal-confidence, moc-features, Phase-3/plan, Phase-3/log, _meta/changelog | PR 13 Mathematical Traversal Confidence, Multi-Path Reinforcement, and Blast Radius Partitioning
-
-
-
+2026-10-05 | feat-context-compiler, moc-features, Phase-3/plan, Phase-3/log, _meta/changelog | PR 14 Context Compiler, Constraint Extractor & Change Plan Generator

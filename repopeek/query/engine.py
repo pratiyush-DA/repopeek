@@ -458,3 +458,22 @@ class GraphQueryEngine:
 
         return results
 
+    def compile_context(
+        self,
+        task: str,
+        budget: int = 1500,
+        level: int = 2,
+        include_snippets: bool = True,
+    ) -> Any:
+        """Compile a natural language engineering task into a ContextPackage."""
+        from repopeek.context import ContextCompiler
+        compiler = ContextCompiler(self)
+        return compiler.compile(task=task, budget=budget, level=level, include_snippets=include_snippets)
+
+    def change_plan(self, task: str) -> Any:
+        """Generate a risk-assessed, step-by-step engineering change plan."""
+        from repopeek.context import ContextCompiler
+        compiler = ContextCompiler(self)
+        pkg = compiler.compile(task=task)
+        return pkg.change_plan
+
