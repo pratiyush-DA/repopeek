@@ -21,6 +21,7 @@ depends_on: []
 - [[feat-python-parser]] — AST extraction: functions, calls, imports
 - [[feat-sql-parser]] — SQL query and table extraction (Oracle PL/SQL capable)
 - [[feat-json-parser]] — config key structure extraction
+- [[feat-typescript-parser]] — TypeScript and JavaScript AST extraction (classes, methods, functions, interfaces, types, imports, calls)
 
 ## Graph
 

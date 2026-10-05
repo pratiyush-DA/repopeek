@@ -14,12 +14,15 @@ depends_on: []
 # Supported Language Scope Restriction
 
 ## Rule
-For the MVP release, Repopeek supports only three file formats:
-1. Python (`.py`)
+Repopeek officially supports:
+1. Python (`.py`, `.pyi`)
 2. SQL (`.sql`, default Oracle dialect)
-3. JSON (`.json`)
+3. Shell (`.sh`, `.bash`)
+4. Configs (`.json`, `.yaml`, `.yml`)
+5. TypeScript (`.ts`, `.tsx`, `.mts`, `.cts`)
+6. JavaScript (`.js`, `.jsx`, `.mjs`, `.cjs`)
 
-All other programming languages (JavaScript, TypeScript, Java, C++, Go, HTML, CSS, YAML, Markdown, etc.) must be safely ignored during discovery and classification without triggering errors.
+All other programming languages (Java, C++, Go, HTML, CSS, Markdown, etc.) are safely ignored during discovery and classification without triggering errors.
 
 ## Rationale
 Maintains razor-sharp focus on the target enterprise pipeline stack (Python ETL + Oracle PL/SQL + JSON configs) without premature multi-language parsing complexity.

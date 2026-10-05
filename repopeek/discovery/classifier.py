@@ -12,6 +12,8 @@ class FileType(str, Enum):
     SHELL = "shell"
     JSON = "json"
     YAML = "yaml"
+    TYPESCRIPT = "typescript"
+    JAVASCRIPT = "javascript"
     OTHER = "other"
 
 
@@ -24,6 +26,14 @@ EXTENSION_MAP = {
     ".json": FileType.JSON,
     ".yaml": FileType.YAML,
     ".yml": FileType.YAML,
+    ".ts": FileType.TYPESCRIPT,
+    ".tsx": FileType.TYPESCRIPT,
+    ".mts": FileType.TYPESCRIPT,
+    ".cts": FileType.TYPESCRIPT,
+    ".js": FileType.JAVASCRIPT,
+    ".jsx": FileType.JAVASCRIPT,
+    ".mjs": FileType.JAVASCRIPT,
+    ".cjs": FileType.JAVASCRIPT,
 }
 
 SUPPORTED_TYPES: Set[FileType] = {
@@ -32,6 +42,8 @@ SUPPORTED_TYPES: Set[FileType] = {
     FileType.SHELL,
     FileType.JSON,
     FileType.YAML,
+    FileType.TYPESCRIPT,
+    FileType.JAVASCRIPT,
 }
 
 
@@ -55,6 +67,8 @@ def check_shebang(file_path: Path) -> Optional[FileType]:
                     return FileType.SHELL
                 if "python" in first_line:
                     return FileType.PYTHON
+                if "node" in first_line:
+                    return FileType.JAVASCRIPT
     except Exception:
         pass
     return None

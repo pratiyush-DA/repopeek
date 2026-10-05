@@ -5,9 +5,9 @@ title: Phase 3 Execution Plan — Context Compiler & Change-Impact Engine
 summary: Implementation roadmap for Phase 3 transitioning RepoPeek into a task-driven context compiler and blast-radius engine.
 status: active
 tags: [phase3, planning, architecture, context-compiler]
-code_refs: [repopeek/retrieval/intent.py, repopeek/storage/sqlite_cache.py, repopeek/query/engine.py, repopeek/cli.py, repopeek/graph/blast_radius.py, repopeek/context/compiler.py]
+code_refs: [repopeek/retrieval/intent.py, repopeek/storage/sqlite_cache.py, repopeek/query/engine.py, repopeek/cli.py, repopeek/graph/blast_radius.py, repopeek/context/compiler.py, repopeek/parsers/typescript.py]
 depends_on: ['[[moc-architecture]]', '[[moc-features]]']
-affects: ['[[log-phase-3]]', '[[feat-intent-retrieval]]', '[[feat-traversal-confidence]]', '[[feat-context-compiler]]']
+affects: ['[[log-phase-3]]', '[[feat-intent-retrieval]]', '[[feat-traversal-confidence]]', '[[feat-context-compiler]]', '[[feat-typescript-parser]]']
 last_verified: 2026-10-05
 ---
 

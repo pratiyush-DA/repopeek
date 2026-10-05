@@ -6,13 +6,13 @@ summary: Module repopeek/parsers/ providing deterministic AST and dialect parser
   for Python, SQL, and JSON files.
 status: active
 tags: [phase3, component, parsers]
-code_refs: [repopeek/parsers/base.py, repopeek/parsers/python.py, repopeek/parsers/sql.py, repopeek/parsers/shell.py, repopeek/parsers/config.py, repopeek/parsers/__init__.py]
+code_refs: [repopeek/parsers/base.py, repopeek/parsers/python.py, repopeek/parsers/sql.py, repopeek/parsers/shell.py, repopeek/parsers/config.py, repopeek/parsers/typescript.py, repopeek/parsers/__init__.py]
 depends_on: ['[[adr-002-sqlglot-oracle-dialect]]', '[[adr-005-python-parser-tbd]]',
   '[[comp-discovery]]', '[[con-determinism]]', '[[con-local-execution]]', '[[con-scope-languages]]',
   '[[data-node-function]]', '[[data-node-jsonconfig]]', '[[data-node-sqlquery]]',
   '[[req-deterministic-extraction]]', '[[res-parsing-stack]]']
-affects: ['[[comp-graph]]', '[[feat-json-parser]]', '[[feat-python-parser]]', '[[feat-sql-parser]]']
-last_verified: 2026-10-03
+affects: ['[[comp-graph]]', '[[feat-json-parser]]', '[[feat-python-parser]]', '[[feat-sql-parser]]', '[[feat-typescript-parser]]']
+last_verified: 2026-10-05
 source: "_sources/task_list.md §Phase 3"
 ---
 # Parsers Component

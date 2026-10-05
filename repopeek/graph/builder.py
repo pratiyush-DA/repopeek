@@ -13,6 +13,7 @@ from repopeek.parsers.config import JsonConfigParser, YamlConfigParser
 from repopeek.parsers.python import PythonParser
 from repopeek.parsers.shell import ShellParser
 from repopeek.parsers.sql import SqlParser
+from repopeek.parsers.typescript import TypeScriptParser
 from repopeek.graph.resolver import SymbolResolver
 from repopeek.storage.provenance import compute_repo_blob_shas, get_git_provenance
 
@@ -21,12 +22,15 @@ class GraphBuilder:
     """Builds and validates the canonical property graph from multi-language parse results."""
 
     def __init__(self) -> None:
+        ts_parser = TypeScriptParser()
         self.parsers: Dict[str, BaseParser] = {
             "python": PythonParser(),
             "sql": SqlParser(),
             "shell": ShellParser(),
             "json": JsonConfigParser(),
             "yaml": YamlConfigParser(),
+            "typescript": ts_parser,
+            "javascript": ts_parser,
         }
 
     def build(

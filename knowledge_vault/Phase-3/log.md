@@ -6,7 +6,7 @@ summary: Running chronological log of decisions, architectural findings, and imp
 status: active
 tags: [phase3, log, decisions]
 code_refs: []
-depends_on: ['[[plan-phase-3]]', '[[feat-intent-retrieval]]', '[[feat-traversal-confidence]]', '[[feat-context-compiler]]']
+depends_on: ['[[plan-phase-3]]', '[[feat-intent-retrieval]]', '[[feat-traversal-confidence]]', '[[feat-context-compiler]]', '[[feat-typescript-parser]]']
 affects: []
 last_verified: 2026-10-05
 ---
@@ -41,3 +41,10 @@ last_verified: 2026-10-05
 - Added 3-tier progressive disclosure markdown rendering (brief, standard, full with snippets) and token economics calculations.
 - Integrated `compile_context()` and `change_plan()` in `GraphQueryEngine` and CLI flags `--context`, `--plan`, `--level`, `--budget`.
 - Created unit and integration test suite `tests/test_context_compiler.py` (5 tests passing).
+
+## 2026-10-05: PR 15 — Polyglot Expansion: TypeScript & JavaScript Parser Delivered
+- Implemented `repopeek/parsers/typescript.py` with `TypeScriptParser` supporting `.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`, `.mjs`, `.cjs`.
+- Added multi-pass deterministic lexical and structural extraction: classes, constructors, methods, standalone and arrow functions, interfaces, types, imports, and calls.
+- Enriched `SymbolResolver` to support TS/JS extensions and relative path import resolution (`./`, `../`).
+- Updated file classifier and graph builder to discover and parse TS/JS files automatically.
+- Created unit and integration tests in `tests/test_typescript_parser.py` (6 tests passing). Full suite (117 tests) passing.

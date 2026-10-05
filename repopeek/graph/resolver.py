@@ -39,8 +39,10 @@ class SymbolResolver:
                 self.file_nodes[fpath] = nid
                 # Convert path to dotted module notation (e.g. src/billing/invoice.py -> src.billing.invoice)
                 dotted = fpath.replace("/", ".").replace("\\", ".")
-                if dotted.endswith(".py"):
-                    dotted = dotted[:-3]
+                for ext in (".py", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"):
+                    if dotted.endswith(ext):
+                        dotted = dotted[:-len(ext)]
+                        break
                 self.module_to_file[dotted] = nid
                 # Also index suffix subpaths (e.g. tests.fixtures.sample_repo.src.billing.invoice)
                 parts = dotted.split(".")
@@ -247,18 +249,27 @@ class SymbolResolver:
 
     def _resolve_import(self, src_file: str, import_path: str) -> Optional[str]:
         """Resolve an import path to a concrete file or symbol node in the repository."""
-        # Try direct dotted module match
+        # 1. Try relative path resolution (e.g. ./api or ../utils)
+        if import_path.startswith(".") and src_file:
+            src_dir = Path(src_file).parent
+            rel_candidate = (src_dir / import_path).as_posix().lstrip("./")
+            for ext in ("", ".ts", ".tsx", ".js", ".jsx", ".py", "/index.ts", "/index.js"):
+                cand_path = rel_candidate + ext
+                if cand_path in self.file_nodes:
+                    return self.file_nodes[cand_path]
+
+        # 2. Try direct dotted module match
         if import_path in self.module_to_file:
             return self.module_to_file[import_path]
 
-        # Try stripping leading segments (e.g. tests.fixtures.sample_repo.src.billing.invoice)
+        # 3. Try stripping leading segments (e.g. tests.fixtures.sample_repo.src.billing.invoice)
         parts = import_path.split(".")
         for i in range(len(parts)):
             suffix = ".".join(parts[i:])
             if suffix in self.module_to_file:
                 return self.module_to_file[suffix]
 
-        # Try matching as symbol in a module (e.g. module.symbol)
+        # 4. Try matching as symbol in a module (e.g. module.symbol or ./api.fetchUser)
         if "." in import_path:
             mod_part, sym_part = import_path.rsplit(".", 1)
             file_id = self._resolve_import(src_file, mod_part)
@@ -287,7 +298,10 @@ class SymbolResolver:
         """Lookup node card by dotted path e.g. 'src.billing.validators.validate_invoice'."""
         if "." in dotted_path:
             mod_part, sym_part = dotted_path.rsplit(".", 1)
+            clean_mod = mod_part.lstrip("./").replace("/", ".").replace("\\", ".")
             for (fpath, qualname), nid in self.symbols_by_qualname.items():
-                if qualname == sym_part and (mod_part in fpath.replace("/", ".")):
-                    return nid
+                if qualname == sym_part:
+                    fpath_clean = fpath.replace("/", ".").replace("\\", ".")
+                    if clean_mod in fpath_clean or any(fpath.endswith(f"{clean_mod}{ext}") for ext in ("", ".ts", ".tsx", ".js", ".jsx", ".py")):
+                        return nid
         return None

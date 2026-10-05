@@ -10,8 +10,8 @@ depends_on: ['[[adr-001-networkx-local-graph]]', '[[comp-graph]]', '[[data-edge-
   '[[data-node-file]]', '[[data-node-repository]]', '[[feat-json-parser]]', '[[feat-python-parser]]',
   '[[feat-sql-parser]]', '[[req-deterministic-extraction]]']
 affects: ['[[comp-graph]]', '[[feat-graph-persistence]]', '[[feat-graph-validation]]',
-  '[[feat-query-cli]]', '[[feat-semantic-enrichment]]']
-last_verified: 2026-10-03
+  '[[feat-query-cli]]', '[[feat-semantic-enrichment]]', '[[feat-typescript-parser]]']
+last_verified: 2026-10-05
 source: "_sources/task_list.md §Phase 4"
 ---
 # Graph Construction
