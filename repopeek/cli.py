@@ -166,6 +166,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=1500,
         help="Token budget for context compilation (default: 1500)",
     )
+    parser.add_argument(
+        "--co-changes",
+        type=str,
+        default=None,
+        help="Query historical git co-change relationships and probabilities for a target file or symbol",
+    )
     return parser
 
 
@@ -203,6 +209,7 @@ def main(argv=None) -> int:
         or args.resolve
         or args.context
         or args.plan
+        or args.co_changes
     )
     if not is_query_mode:
         print(f"Repopeek v{__version__} - Repository Intelligence Engine")
@@ -336,6 +343,11 @@ def main(argv=None) -> int:
         if args.plan:
             plan = engine.change_plan(args.plan)
             print(plan.to_markdown())
+            return 0
+
+        if args.co_changes:
+            res = engine.co_changes(args.co_changes)
+            print(json.dumps(res, indent=2))
             return 0
 
         if args.update:

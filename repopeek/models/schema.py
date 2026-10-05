@@ -30,6 +30,7 @@ class EdgeType(str, Enum):
     TESTS_CODE = "TESTS_CODE"
     EMBEDS_SQL = "EMBEDS_SQL"
     RUNS_SCRIPT = "RUNS_SCRIPT"
+    CO_CHANGED_WITH = "CO_CHANGED_WITH"
 
 
 class Span(BaseModel):

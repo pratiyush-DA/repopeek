@@ -106,12 +106,24 @@ class GraphBuilder:
                 res = parser.parse_file(finfo.path, repo_root=root)
                 results.append(res)
 
-        return self.build(
+        graph = self.build(
             results,
             repo_commit=commit,
             dirty=dirty,
             blob_shas=blob_shas,
         )
+
+        # Augment with historical git co-change relationships
+        try:
+            from repopeek.temporal.miner import GitTemporalMiner
+            miner = GitTemporalMiner(repo_root=root)
+            co_edges = miner.build_graph_edges(graph)
+            for edge in co_edges:
+                graph.add_edge(edge)
+        except Exception:
+            pass
+
+        return graph
 
     def update_file(
         self,

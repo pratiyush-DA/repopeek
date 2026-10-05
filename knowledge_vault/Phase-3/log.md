@@ -6,7 +6,7 @@ summary: Running chronological log of decisions, architectural findings, and imp
 status: active
 tags: [phase3, log, decisions]
 code_refs: []
-depends_on: ['[[plan-phase-3]]', '[[feat-intent-retrieval]]', '[[feat-traversal-confidence]]', '[[feat-context-compiler]]', '[[feat-typescript-parser]]']
+depends_on: ['[[plan-phase-3]]', '[[feat-intent-retrieval]]', '[[feat-traversal-confidence]]', '[[feat-context-compiler]]', '[[feat-typescript-parser]]', '[[feat-git-temporal]]']
 affects: []
 last_verified: 2026-10-05
 ---
@@ -48,3 +48,10 @@ last_verified: 2026-10-05
 - Enriched `SymbolResolver` to support TS/JS extensions and relative path import resolution (`./`, `../`).
 - Updated file classifier and graph builder to discover and parse TS/JS files automatically.
 - Created unit and integration tests in `tests/test_typescript_parser.py` (6 tests passing). Full suite (117 tests) passing.
+
+## 2026-10-05: PR 16 — Git Temporal Intelligence & Co-Change Matrix Delivered
+- Implemented `repopeek/temporal/miner.py` with `GitTemporalMiner` extracting non-merge commit logs and computing exponential time decay with half-life $t_{1/2}=180$ days.
+- Derived pairwise conditional co-change probabilities $P(B|A) = \frac{\sum w_c(A \cap B)}{\sum w_c(A)}$ capped at 0.99.
+- Added `CO_CHANGED_WITH` to `EdgeType` and synthesized edges between file cards in `GraphBuilder.build_from_directory()`.
+- Exposed `co_changes()` method on `GraphQueryEngine` and CLI flag `--co-changes <target>`.
+- Created comprehensive unit and integration test suite `tests/test_temporal_cochange.py` (6 tests passing).

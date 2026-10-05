@@ -28,6 +28,7 @@ depends_on: []
 - [[feat-graph-construction]] — build unified NetworkX property graph
 - [[feat-graph-validation]] — validate graph against schema at build time
 - [[feat-graph-persistence]] — export graph to local JSON (or SQLite — TBD)
+- [[feat-git-temporal]] — git commit history mining, exponential time decay, and CO_CHANGED_WITH edges
 
 ## Semantic layer
 

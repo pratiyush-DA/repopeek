@@ -22,3 +22,4 @@
 2026-10-05 | feat-traversal-confidence, moc-features, Phase-3/plan, Phase-3/log, _meta/changelog | PR 13 Mathematical Traversal Confidence, Multi-Path Reinforcement, and Blast Radius Partitioning
 2026-10-05 | feat-context-compiler, moc-features, Phase-3/plan, Phase-3/log, _meta/changelog | PR 14 Context Compiler, Constraint Extractor & Change Plan Generator
 2026-10-05 | feat-typescript-parser, comp-parsers, feat-graph-construction, moc-features, con-scope-languages, Phase-3/plan, Phase-3/log, _meta/changelog | PR 15 Polyglot Expansion: TypeScript & JavaScript Parser
+2026-10-05 | feat-git-temporal, feat-graph-construction, moc-features, Phase-3/plan, Phase-3/log, _meta/changelog | PR 16 Git Temporal Intelligence & Co-Change Matrix

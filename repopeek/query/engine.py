@@ -477,3 +477,36 @@ class GraphQueryEngine:
         pkg = compiler.compile(task=task)
         return pkg.change_plan
 
+    def co_changes(self, target_query: str) -> List[Dict[str, Any]]:
+        """Query historical git co-change relationships for target file or symbol."""
+        from repopeek.temporal.miner import GitTemporalMiner
+        miner = GitTemporalMiner(repo_root=self.repo_root)
+        relations = miner.compute_co_changes()
+
+        target_file = None
+        target_card = self.lookup(target_query)
+        if target_card and target_card.span:
+            target_file = target_card.span.file
+        else:
+            norm_q = target_query.replace("\\", "/").lstrip("./")
+            for nid, node in self.graph.nodes.items():
+                if node.span and (node.span.file == norm_q or node.span.file.endswith(norm_q)):
+                    target_file = node.span.file
+                    break
+
+        if not target_file:
+            target_file = target_query.replace("\\", "/").lstrip("./")
+
+        results = []
+        for r in relations:
+            if r.file_a == target_file or target_file.endswith(r.file_a):
+                results.append({
+                    "target_file": r.file_a,
+                    "co_changed_file": r.file_b,
+                    "probability": r.probability,
+                    "co_commit_count": r.co_commit_count,
+                    "total_commits": r.total_commits_a,
+                    "last_co_commit_age_days": r.last_co_commit_age_days,
+                })
+        return results
+
