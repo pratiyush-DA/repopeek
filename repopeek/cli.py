@@ -172,6 +172,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Query historical git co-change relationships and probabilities for a target file or symbol",
     )
+    parser.add_argument(
+        "--routes",
+        action="store_true",
+        help="Discover server HTTP endpoints, client calls, and cross-boundary linkages",
+    )
     return parser
 
 
@@ -210,6 +215,7 @@ def main(argv=None) -> int:
         or args.context
         or args.plan
         or args.co_changes
+        or args.routes
     )
     if not is_query_mode:
         print(f"Repopeek v{__version__} - Repository Intelligence Engine")
@@ -347,6 +353,11 @@ def main(argv=None) -> int:
 
         if args.co_changes:
             res = engine.co_changes(args.co_changes)
+            print(json.dumps(res, indent=2))
+            return 0
+
+        if args.routes:
+            res = engine.http_routes()
             print(json.dumps(res, indent=2))
             return 0
 

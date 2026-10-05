@@ -8,8 +8,8 @@ tags: [phase3, parser, deterministic]
 code_refs: [repopeek/parsers/python.py, repopeek/parsers/base.py]
 depends_on: ['[[adr-005-python-parser-tbd]]', '[[comp-parsers]]', '[[data-node-file]]',
   '[[data-node-function]]', '[[feat-file-classification]]', '[[req-deterministic-extraction]]']
-affects: ['[[data-node-file]]', '[[data-node-function]]', '[[feat-graph-construction]]']
-last_verified: 2026-10-03
+affects: ['[[data-node-file]]', '[[data-node-function]]', '[[feat-graph-construction]]', '[[feat-http-bridge]]']
+last_verified: 2026-10-05
 source: "_sources/task_list.md §Phase 3"
 ---
 # Python Parser

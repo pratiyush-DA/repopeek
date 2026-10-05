@@ -84,8 +84,24 @@ JS_KEYWORDS = {
 THROW_RE = re.compile(r"\bthrow\s+(?:new\s+)?([a-zA-Z0-9_$]+)")
 COMPLEXITY_RE = re.compile(r"\b(if|else\s+if|for|while|switch|case|catch)\b|\?\s*[^:]+\s*:|&&|\|\|")
 HTTP_CALL_RE = re.compile(
-    r"\b(?:fetch|axios(?:\.(?:get|post|put|delete|patch))?|apiClient(?:\.(?:get|post|put|delete|patch))?)\s*\(\s*['\"`]([^'\"`]+)['\"`]"
+    r"\b(?:fetch\s*\(\s*['\"`]([^'\"`]+)['\"`]"
+    r"|(?:axios|apiClient)\.(get|post|put|delete|patch)\s*\(\s*['\"`]([^'\"`]+)['\"`]"
+    r"|(?:axios|apiClient)\s*\(\s*['\"`]([^'\"`]+)['\"`])",
+    re.IGNORECASE,
 )
+
+
+def _extract_http_calls(code: str) -> List[str]:
+    """Extract client HTTP requests with optional HTTP methods."""
+    reads = []
+    for m in HTTP_CALL_RE.finditer(code):
+        if m.group(1):
+            reads.append(f"HTTP:{m.group(1)}")
+        elif m.group(2) and m.group(3):
+            reads.append(f"HTTP:{m.group(2).upper()}:{m.group(3)}")
+        elif m.group(4):
+            reads.append(f"HTTP:{m.group(4)}")
+    return reads
 
 
 # ---------------------------------------------------------------------------
@@ -617,9 +633,7 @@ class TypeScriptParser(BaseParser):
                 )
 
                 # HTTP reads
-                http_reads = []
-                for hm in HTTP_CALL_RE.finditer(method_body):
-                    http_reads.append(f"HTTP:{hm.group(1)}")
+                http_reads = _extract_http_calls(method_body)
 
                 method_card = NodeCard(
                     id=method_id,
@@ -701,9 +715,7 @@ class TypeScriptParser(BaseParser):
                 norm_path,
             )
 
-            http_reads = []
-            for hm in HTTP_CALL_RE.finditer(func_body):
-                http_reads.append(f"HTTP:{hm.group(1)}")
+            http_reads = _extract_http_calls(func_body)
 
             func_card = NodeCard(
                 id=func_id,
@@ -801,9 +813,7 @@ class TypeScriptParser(BaseParser):
                 norm_path,
             )
 
-            http_reads = []
-            for hm in HTTP_CALL_RE.finditer(func_body):
-                http_reads.append(f"HTTP:{hm.group(1)}")
+            http_reads = _extract_http_calls(func_body)
 
             func_card = NodeCard(
                 id=func_id,
@@ -882,9 +892,7 @@ class TypeScriptParser(BaseParser):
                 norm_path,
             )
 
-            http_reads = []
-            for hm in HTTP_CALL_RE.finditer(func_body):
-                http_reads.append(f"HTTP:{hm.group(1)}")
+            http_reads = _extract_http_calls(func_body)
 
             func_card = NodeCard(
                 id=func_id,

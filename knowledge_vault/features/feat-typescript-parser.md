@@ -7,7 +7,7 @@ status: verified
 tags: [parser, typescript, javascript, polyglot, ast]
 code_refs: [repopeek/parsers/typescript.py, repopeek/discovery/classifier.py, repopeek/graph/builder.py, repopeek/graph/resolver.py]
 depends_on: ['[[comp-parsers]]', '[[feat-graph-construction]]', '[[plan-phase-3]]']
-affects: ['[[log-phase-3]]']
+affects: ['[[log-phase-3]]', '[[feat-http-bridge]]']
 last_verified: 2026-10-05
 ---
 

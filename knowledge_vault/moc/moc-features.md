@@ -29,6 +29,7 @@ depends_on: []
 - [[feat-graph-validation]] — validate graph against schema at build time
 - [[feat-graph-persistence]] — export graph to local JSON (or SQLite — TBD)
 - [[feat-git-temporal]] — git commit history mining, exponential time decay, and CO_CHANGED_WITH edges
+- [[feat-http-bridge]] — cross-language HTTP boundary bridging between frontend clients and backend routes
 
 ## Semantic layer
 

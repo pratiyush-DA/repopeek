@@ -6,7 +6,7 @@ summary: Running chronological log of decisions, architectural findings, and imp
 status: active
 tags: [phase3, log, decisions]
 code_refs: []
-depends_on: ['[[plan-phase-3]]', '[[feat-intent-retrieval]]', '[[feat-traversal-confidence]]', '[[feat-context-compiler]]', '[[feat-typescript-parser]]', '[[feat-git-temporal]]']
+depends_on: ['[[plan-phase-3]]', '[[feat-intent-retrieval]]', '[[feat-traversal-confidence]]', '[[feat-context-compiler]]', '[[feat-typescript-parser]]', '[[feat-git-temporal]]', '[[feat-http-bridge]]']
 affects: []
 last_verified: 2026-10-05
 ---
@@ -55,3 +55,14 @@ last_verified: 2026-10-05
 - Added `CO_CHANGED_WITH` to `EdgeType` and synthesized edges between file cards in `GraphBuilder.build_from_directory()`.
 - Exposed `co_changes()` method on `GraphQueryEngine` and CLI flag `--co-changes <target>`.
 - Created comprehensive unit and integration test suite `tests/test_temporal_cochange.py` (6 tests passing).
+
+## 2026-10-05: PR 17 — Cross-Language HTTP Boundary Bridge Delivered
+- Implemented `repopeek/bridges/http.py` with `HttpBoundaryBridge`, URL path parameter normalization (`normalize_route_path`), and segment/suffix matching (`paths_match`).
+- Enhanced Python parser to extract route decorators (`@app.get(...)`, `@router.post(...)`, `@bp.route(...)` with explicit `methods`) into `facts.reads`.
+- Enhanced TypeScript parser to extract client API calls (`fetch`, `axios`, `apiClient`) with methods into `facts.reads`.
+- Connected client nodes to server route handlers via canonical `INVOKES` edges with calibrated prior confidence 0.75.
+- Integrated HTTP boundary bridge into `GraphBuilder.build()` and `GraphBuilder.build_from_directory()`.
+- Updated `get_bridges_lens()` in `repopeek/graph/lenses.py` to include cross-language `INVOKES` edges.
+- Added `http_routes()` to `GraphQueryEngine` and CLI flag `--routes`.
+- Created unit and integration test suite `tests/test_http_bridge.py` (5 tests passing). Full suite (128 tests) passing.
+

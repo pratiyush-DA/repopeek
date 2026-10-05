@@ -81,6 +81,16 @@ class GraphBuilder:
         for edge in resolved_edges:
             graph.add_edge(edge)
 
+        # Cross-language HTTP boundary resolution
+        try:
+            from repopeek.bridges.http import HttpBoundaryBridge
+            bridge = HttpBoundaryBridge()
+            http_edges = bridge.resolve_and_link(graph)
+            for edge in http_edges:
+                graph.add_edge(edge)
+        except Exception:
+            pass
+
         return graph
 
     def build_from_directory(
@@ -170,6 +180,17 @@ class GraphBuilder:
         new_edges = resolver.resolve()
         for e in new_edges:
             graph.add_edge(e)
+
+        # Re-link HTTP boundaries
+        try:
+            from repopeek.bridges.http import HttpBoundaryBridge
+            bridge = HttpBoundaryBridge()
+            http_edges = bridge.resolve_and_link(graph)
+            for edge in http_edges:
+                if edge not in graph.edges:
+                    graph.add_edge(edge)
+        except Exception:
+            pass
 
         graph.dirty = True
         return graph

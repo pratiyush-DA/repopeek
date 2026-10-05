@@ -410,6 +410,34 @@ class PythonParser(BaseParser):
             returns=returns,
         )
 
+        # Check for route decorators (FastAPI, Flask, Starlette, etc.)
+        for dec in fn_node.decorator_list:
+            if isinstance(dec, ast.Call) and dec.args:
+                arg0 = dec.args[0]
+                if isinstance(arg0, ast.Constant) and isinstance(arg0.value, str):
+                    path_val = arg0.value
+                    if path_val.startswith("/") or "/" in path_val:
+                        if isinstance(dec.func, ast.Attribute):
+                            attr = dec.func.attr.upper()
+                            if attr in ("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"):
+                                facts.reads.append(f"ROUTE:{attr}:{path_val}")
+                            elif attr == "ROUTE":
+                                flask_methods = []
+                                for kw in dec.keywords:
+                                    if kw.arg == "methods" and isinstance(kw.value, (ast.List, ast.Tuple)):
+                                        for elt in kw.value.elts:
+                                            if isinstance(elt, ast.Constant) and isinstance(elt.value, str):
+                                                flask_methods.append(elt.value.upper())
+                                if flask_methods:
+                                    for fm in flask_methods:
+                                        facts.reads.append(f"ROUTE:{fm}:{path_val}")
+                                else:
+                                    facts.reads.append(f"ROUTE:GET:{path_val}")
+                            else:
+                                facts.reads.append(f"ROUTE:{m_name}:{path_val}")
+                        else:
+                            facts.reads.append(f"ROUTE:{m_name}:{path_val}")
+
         # Docstring and story
         fn_doc = ast.get_docstring(fn_node)
         if fn_doc:

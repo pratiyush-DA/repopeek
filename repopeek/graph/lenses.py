@@ -188,7 +188,7 @@ def get_bridges_lens(graph: CanonicalGraph) -> CanonicalGraph:
         is_bridge = False
         if edge.type in (EdgeType.EMBEDS_SQL, EdgeType.RUNS_SCRIPT):
             is_bridge = True
-        elif edge.type in (EdgeType.READS, EdgeType.WRITES):
+        elif edge.type in (EdgeType.READS, EdgeType.WRITES, EdgeType.INVOKES):
             src_lang = edge.src.split(":")[0] if ":" in edge.src else ""
             dst_lang = edge.dst.split(":")[0] if ":" in edge.dst else ""
             if src_lang and dst_lang and src_lang != dst_lang:

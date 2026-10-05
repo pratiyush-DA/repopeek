@@ -510,3 +510,55 @@ class GraphQueryEngine:
                 })
         return results
 
+    def http_routes(self) -> Dict[str, Any]:
+        """Discover server HTTP route endpoints, client calls, and cross-boundary linkages."""
+        from repopeek.bridges.http import HttpBoundaryBridge
+        bridge = HttpBoundaryBridge()
+        server_routes = bridge.extract_server_routes(self.graph)
+        client_calls = bridge.extract_client_calls(self.graph)
+        resolved_edges = bridge.resolve_and_link(self.graph)
+
+        routes_data = [
+            {
+                "method": r.method,
+                "path": r.raw_path,
+                "norm_path": r.norm_path,
+                "node_id": r.node_id,
+                "file": r.file,
+                "line": r.line,
+            }
+            for r in server_routes
+        ]
+
+        calls_data = [
+            {
+                "caller_node_id": c.caller_node_id,
+                "method": c.method,
+                "url": c.raw_url,
+                "norm_path": c.norm_path,
+                "file": c.file,
+                "line": c.line,
+            }
+            for c in client_calls
+        ]
+
+        links_data = [
+            {
+                "client_id": e.src,
+                "server_id": e.dst,
+                "evidence": e.evidence.how_derived if e.evidence else "",
+                "file": e.evidence.file if e.evidence else "",
+            }
+            for e in resolved_edges
+        ]
+
+        return {
+            "routes": routes_data,
+            "calls": calls_data,
+            "links": links_data,
+            "total_routes": len(routes_data),
+            "total_calls": len(calls_data),
+            "total_links": len(links_data),
+        }
+
+
