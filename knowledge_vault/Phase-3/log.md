@@ -6,7 +6,7 @@ summary: Running chronological log of decisions, architectural findings, and imp
 status: active
 tags: [phase3, log, decisions]
 code_refs: []
-depends_on: ['[[plan-phase-3]]', '[[feat-intent-retrieval]]']
+depends_on: ['[[plan-phase-3]]', '[[feat-intent-retrieval]]', '[[feat-traversal-confidence]]']
 affects: []
 last_verified: 2026-10-05
 ---
@@ -29,3 +29,9 @@ last_verified: 2026-10-05
 - Integrated `nodes_fts` FTS5 virtual table in `repopeek/storage/sqlite_cache.py` with BM25 weighted ranking and incremental file sync.
 - Wired `resolve_task()` method into `GraphQueryEngine` and exposed via CLI `--resolve`.
 - Created comprehensive test suite `tests/test_retrieval.py` (9 tests passing). Full test suite (99 tests) passing.
+
+## 2026-10-05: PR 13 — Mathematical Traversal Confidence & Evidence-Backed Blast Radius Delivered
+- Implemented `repopeek/graph/blast_radius.py` with edge prior calibration, exponential hop decay, multi-path combination, and distance decay ($GraphScore$).
+- Partitioned blast radius into `direct`, `indirect`, and `excluded` sets with explicit citations (`file:start-end`) and hop chains.
+- Integrated `blast_radius()` and enriched `impact()` in `GraphQueryEngine` with 100% backward compatibility.
+- Created unit and integration test suite `tests/test_blast_radius.py` (7 tests passing). Full suite passing.
