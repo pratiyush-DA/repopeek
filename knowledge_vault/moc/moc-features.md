@@ -4,7 +4,7 @@ type: moc
 title: "Features \u2014 Map of Content"
 summary: Hub for all end-user and agent-facing capabilities in Repopeek.
 last_verified: 2026-10-03
-affects: ['[[plan]]']
+affects: ['[[plan]]', '[[feat-evaluation-benchmarking]]']
 depends_on: []
 ---
 # Features — Map of Content
@@ -44,6 +44,7 @@ depends_on: []
 - [[feat-traversal-confidence]] — mathematical traversal confidence, multi-path reinforcement, and blast radius partitioning
 - [[feat-context-compiler]] — task-driven context compilation, constraint extraction, and change plans
 - [[feat-agent-mcp]] — standard Model Context Protocol (MCP) server exposing 10 agent intelligence tools
+- [[feat-evaluation-benchmarking]] — 4-level evaluation suite: Recall@K, graph accuracy, calibration, and token reduction
 
 ## Related
 

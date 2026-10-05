@@ -5,9 +5,9 @@ title: Phase 3 Execution Plan — Context Compiler & Change-Impact Engine
 summary: Implementation roadmap for Phase 3 transitioning RepoPeek into a task-driven context compiler and blast-radius engine.
 status: active
 tags: [phase3, planning, architecture, context-compiler]
-code_refs: [repopeek/retrieval/intent.py, repopeek/storage/sqlite_cache.py, repopeek/query/engine.py, repopeek/cli.py, repopeek/graph/blast_radius.py, repopeek/context/compiler.py, repopeek/parsers/typescript.py, repopeek/temporal/miner.py, repopeek/bridges/http.py, repopeek/query/mcp_server.py, repopeek/daemon/watcher.py]
+code_refs: [repopeek/retrieval/intent.py, repopeek/storage/sqlite_cache.py, repopeek/query/engine.py, repopeek/cli.py, repopeek/graph/blast_radius.py, repopeek/context/compiler.py, repopeek/parsers/typescript.py, repopeek/temporal/miner.py, repopeek/bridges/http.py, repopeek/query/mcp_server.py, repopeek/daemon/watcher.py, repopeek/evaluation/__init__.py]
 depends_on: ['[[moc-architecture]]', '[[moc-features]]']
-affects: ['[[log-phase-3]]', '[[feat-intent-retrieval]]', '[[feat-traversal-confidence]]', '[[feat-context-compiler]]', '[[feat-typescript-parser]]', '[[feat-git-temporal]]', '[[feat-http-bridge]]', '[[feat-agent-mcp]]', '[[feat-watch-daemon]]']
+affects: ['[[log-phase-3]]', '[[feat-intent-retrieval]]', '[[feat-traversal-confidence]]', '[[feat-context-compiler]]', '[[feat-typescript-parser]]', '[[feat-git-temporal]]', '[[feat-http-bridge]]', '[[feat-agent-mcp]]', '[[feat-watch-daemon]]', '[[feat-evaluation-benchmarking]]']
 last_verified: 2026-10-05
 ---
 
@@ -32,6 +32,7 @@ Phase 2 delivered the polyglot code property graph (Python, SQL, Shell, JSON/YAM
 - **PR 16: Git Temporal Intelligence & Co-Change Matrix (Delivered):** Git commit history miner, exponential time decay, and `CO_CHANGED_WITH` relational edges.
 - **PR 17: Cross-Language HTTP Boundary (Delivered):** TypeScript client calls (`fetch`/Axios) to FastAPI route handler bridge with `:param` normalization.
 - **PR 18: Agent MCP Suite & Incremental Watch Daemon (Delivered):** Agent-facing MCP tools (`repopeek_context`, `repopeek_plan`, `repopeek_impact`, `repopeek_routes`) and background `repopeek --watch` daemon.
+- **PR 19: Agent Evaluation & Benchmarking (Delivered):** Reproducible 4-level evaluation framework measuring task retrieval Recall@K, graph accuracy, confidence calibration, temporal intelligence, and context reduction.
 
 ## 4. Execution Tracking
 All decisions, benchmarks, and progress are logged in [[log-phase-3]].

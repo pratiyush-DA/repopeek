@@ -6,7 +6,7 @@ summary: Running chronological log of decisions, architectural findings, and imp
 status: active
 tags: [phase3, log, decisions]
 code_refs: []
-depends_on: ['[[plan-phase-3]]', '[[feat-intent-retrieval]]', '[[feat-traversal-confidence]]', '[[feat-context-compiler]]', '[[feat-typescript-parser]]', '[[feat-git-temporal]]', '[[feat-http-bridge]]', '[[feat-agent-mcp]]', '[[feat-watch-daemon]]']
+depends_on: ['[[plan-phase-3]]', '[[feat-intent-retrieval]]', '[[feat-traversal-confidence]]', '[[feat-context-compiler]]', '[[feat-typescript-parser]]', '[[feat-git-temporal]]', '[[feat-http-bridge]]', '[[feat-agent-mcp]]', '[[feat-watch-daemon]]', '[[feat-evaluation-benchmarking]]']
 affects: []
 last_verified: 2026-10-05
 ---
@@ -71,6 +71,15 @@ last_verified: 2026-10-05
 - Implemented `repopeek/daemon/watcher.py` (`RepoPeekWatcher`) using Python standard library filesystem APIs for real-time incremental file watching.
 - Achieved sub-50ms incremental updates for modified files updating property graph, storage shards, and SQLite search cache.
 - Added `--watch` and `--watch-interval` arguments to CLI runner.
-- Created unit and integration test suites `tests/test_mcp_suite.py` and `tests/test_watch_daemon.py` (4 tests passing). Full suite (133 tests) passing.
+## 2026-10-05: PR 19 — Agent Evaluation & Benchmarking Subsystem Delivered
+- Implemented `repopeek/evaluation/` subsystem with models, metrics, dataset loader, retrieval benchmarks, graph accuracy, temporal intelligence, context compiler evaluation, and benchmark reporting.
+- Authored frozen 50-task benchmark suite `benchmarks/v1/tasks.yaml` spanning local edits, dependency impact, cross-language, history, negative retrieval, and multi-hop tasks.
+- Evaluated task retrieval (Recall@K, MRR) and compared strategies (AST search vs RRF vs trigram embeddings).
+- Evaluated graph traversal accuracy (Precision, Recall, F1) across depths 1..4 and probabilistic confidence calibration with Brier scores and 10 bins.
+- Enforced chronological cutoff evaluation for Git co-change intelligence preventing future commit leakage across half-lives (30, 90, 180, 365 days).
+- Measured context compilation quality, token reduction (98.0%), determinism, and negative retrieval precision.
+- Built `AgentRunner` adapter interface with honest unverified Level 4 reporting.
+- Added `repopeek evaluate` CLI command producing `benchmark-results.json` and `benchmark-report.md`.
+- Created comprehensive unit and integration test suite `tests/test_evaluation.py` (26 tests passing). Full suite (159 tests) passing.
 
 

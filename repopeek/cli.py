@@ -188,11 +188,46 @@ def build_parser() -> argparse.ArgumentParser:
         default=1.0,
         help="Poll interval in seconds for the watch daemon (default: 1.0s)",
     )
+    parser.add_argument(
+        "--evaluate",
+        action="store_true",
+        help="Run comprehensive evaluation and benchmark suite",
+    )
+    parser.add_argument(
+        "--dataset",
+        type=Path,
+        default=Path("benchmarks/v1/tasks.yaml"),
+        help="Path to benchmark tasks YAML or JSON file (default: benchmarks/v1/tasks.yaml)",
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=Path("benchmark-results.json"),
+        help="Output path for machine-readable JSON results (default: benchmark-results.json)",
+    )
+    parser.add_argument(
+        "--report",
+        type=Path,
+        default=Path("benchmark-report.md"),
+        help="Output path for human-readable Markdown report (default: benchmark-report.md)",
+    )
+    parser.add_argument(
+        "--eval-level",
+        type=str,
+        default="all",
+        choices=["all", "retrieval", "graph", "temporal", "context", "agent"],
+        help="Evaluation level to run (default: all)",
+    )
     return parser
 
 
 def main(argv=None) -> int:
     """Main CLI entry point function."""
+    if argv is None:
+        argv = sys.argv[1:]
+    if argv and argv[0] == "evaluate":
+        argv = ["--evaluate"] + argv[1:]
+
     parser = build_parser()
     args = parser.parse_args(argv)
 
@@ -228,6 +263,7 @@ def main(argv=None) -> int:
         or args.co_changes
         or args.routes
         or args.watch
+        or args.evaluate
     )
     if not is_query_mode:
         print(f"Repopeek v{__version__} - Repository Intelligence Engine")
@@ -409,6 +445,41 @@ def main(argv=None) -> int:
                 poll_interval=args.watch_interval,
             )
             watcher.run()
+            return 0
+
+        if args.evaluate:
+            from repopeek.evaluation.benchmark import BenchmarkRunner
+            from repopeek.evaluation.dataset import BenchmarkDataset
+            from repopeek.evaluation.report import generate_json_report, generate_markdown_report
+
+            dataset_path = args.dataset
+            if not dataset_path.exists():
+                alt_path = Path(__file__).parent.parent / dataset_path
+                if alt_path.exists():
+                    dataset_path = alt_path
+
+            print(f"Loading evaluation dataset from: {dataset_path}")
+            dataset = BenchmarkDataset.load_file(dataset_path)
+            print(f"Loaded {len(dataset)} benchmark tasks across {len(dataset.categories)} categories.")
+
+            runner = BenchmarkRunner(engine=engine, dataset=dataset)
+            print("Executing RepoPeek benchmark suite across Levels 1-4...")
+            report = runner.run_all(run_agent_eval=(args.eval_level in ("all", "agent")))
+
+            json_out = args.output
+            generate_json_report(report, json_out)
+            print(f"Machine-readable JSON saved to: {json_out}")
+
+            md_out = args.report
+            generate_markdown_report(report, md_out)
+            print(f"Human-readable report saved to: {md_out}")
+
+            print("\n--- Executive Summary ---")
+            print(f"Tasks: {report.total_tasks}")
+            print(f"Retrieval MRR: {report.retrieval.mrr:.4f} | Recall@5: {report.retrieval.recall_at_5 * 100:.1f}%")
+            print(f"Token Reduction: {report.context.token_reduction_pct:.1f}% | Negative Precision: {report.context.negative_precision * 100:.1f}%")
+            print(f"Determinism: {'PASS' if report.determinism_passed else 'FAIL'}")
+            print(f"Agent Status: {report.agent.status_message}")
             return 0
 
     from repopeek.discovery import discover_repository

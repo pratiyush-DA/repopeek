@@ -1,0 +1,600 @@
+version: "v1"
+tasks:
+  # ── Category A: Local Behavior (9 tasks) ──
+  - id: local_001
+    category: "A. Local behavior"
+    repository: "sample_repo"
+    task: "Change invoice validation in InvoiceParser.parse to support raw XML buffers"
+    gold:
+      symbols:
+        - "InvoiceParser.parse"
+      files:
+        - "src/billing/invoice.py"
+      related_symbols:
+        - "validate_invoice"
+      constraints:
+        - "Preserve ParseError raising on invalid payload"
+      excluded:
+        - "scripts/"
+
+  - id: local_002
+    category: "A. Local behavior"
+    repository: "sample_repo"
+    task: "Update default status in Invoice entity from PENDING to PROCESSING"
+    gold:
+      symbols:
+        - "Invoice"
+      files:
+        - "src/billing/invoice.py"
+      related_symbols:
+        - "AuditableEntity"
+      constraints:
+        - "Maintain status field default type str"
+
+  - id: local_003
+    category: "A. Local behavior"
+    repository: "sample_repo"
+    task: "Modify validate_invoice validator function to verify minimum payload length of 16 bytes"
+    gold:
+      symbols:
+        - "validate_invoice"
+      files:
+        - "src/billing/validators.py"
+      related_symbols:
+        - "InvoiceParser.parse"
+
+  - id: local_004
+    category: "A. Local behavior"
+    repository: "repopeek"
+    task: "Change RRF k constant from 60 to 45 in reciprocal_rank_fusion"
+    gold:
+      symbols:
+        - "reciprocal_rank_fusion"
+      files:
+        - "repopeek/retrieval/intent.py"
+      constraints:
+        - "Preserve list order and reciprocal rank calculation"
+
+  - id: local_005
+    category: "A. Local behavior"
+    repository: "repopeek"
+    task: "Add PUT and DELETE HTTP verbs to normalize_route_path parser"
+    gold:
+      symbols:
+        - "normalize_route_path"
+      files:
+        - "repopeek/bridges/http.py"
+
+  - id: local_006
+    category: "A. Local behavior"
+    repository: "repopeek"
+    task: "Increase default half life days from 180 to 240 in GitTemporalMiner"
+    gold:
+      symbols:
+        - "GitTemporalMiner"
+      files:
+        - "repopeek/temporal/miner.py"
+
+  - id: local_007
+    category: "A. Local behavior"
+    repository: "repopeek"
+    task: "Change default token budget from 1500 to 2000 in ContextCompiler"
+    gold:
+      symbols:
+        - "ContextCompiler"
+      files:
+        - "repopeek/context/compiler.py"
+
+  - id: local_008
+    category: "A. Local behavior"
+    repository: "repopeek"
+    task: "Add check for YAML config extensions in extract_task_identifiers"
+    gold:
+      symbols:
+        - "extract_task_identifiers"
+      files:
+        - "repopeek/retrieval/intent.py"
+
+  - id: local_009
+    category: "A. Local behavior"
+    repository: "sample_repo"
+    task: "Update database dialect lookup in InvoiceParser __init__"
+    gold:
+      symbols:
+        - "InvoiceParser"
+      files:
+        - "src/billing/invoice.py"
+
+  # ── Category B: Dependency Impact (9 tasks) ──
+  - id: dep_010
+    category: "B. Dependency impact"
+    repository: "sample_repo"
+    task: "Rename validate_invoice to check_invoice_payload and update callers"
+    gold:
+      symbols:
+        - "validate_invoice"
+        - "InvoiceParser.parse"
+      files:
+        - "src/billing/validators.py"
+        - "src/billing/invoice.py"
+      dependencies:
+        - src: "InvoiceParser.parse"
+          dst: "validate_invoice"
+          type: "CALLS"
+
+  - id: dep_011
+    category: "B. Dependency impact"
+    repository: "repopeek"
+    task: "Change return signature of compute_blast_radius to return typed dataclass"
+    gold:
+      symbols:
+        - "compute_blast_radius"
+      files:
+        - "repopeek/graph/blast_radius.py"
+      related_symbols:
+        - "calculate_path_confidence"
+        - "calculate_combined_confidence"
+
+  - id: dep_012
+    category: "B. Dependency impact"
+    repository: "repopeek"
+    task: "Modify calculate_path_confidence formula to adjust exponential depth decay factor"
+    gold:
+      symbols:
+        - "calculate_path_confidence"
+      files:
+        - "repopeek/graph/blast_radius.py"
+      related_symbols:
+        - "compute_blast_radius"
+
+  - id: dep_013
+    category: "B. Dependency impact"
+    repository: "sample_repo"
+    task: "Change AuditableEntity base class schema and observe inherited entities"
+    gold:
+      symbols:
+        - "AuditableEntity"
+        - "Invoice"
+      files:
+        - "src/models/base.py"
+        - "src/billing/invoice.py"
+      dependencies:
+        - src: "Invoice"
+          dst: "AuditableEntity"
+          type: "INHERITS"
+
+  - id: dep_014
+    category: "B. Dependency impact"
+    repository: "repopeek"
+    task: "Refactor resolve_task_to_symbols to return extra confidence reasons"
+    gold:
+      symbols:
+        - "resolve_task_to_symbols"
+      files:
+        - "repopeek/retrieval/intent.py"
+      related_symbols:
+        - "SymbolCandidate"
+
+  - id: dep_015
+    category: "B. Dependency impact"
+    repository: "repopeek"
+    task: "Update EdgeType enum in schema.py and propagate to blast radius prior tables"
+    gold:
+      symbols:
+        - "EdgeType"
+      files:
+        - "repopeek/models/schema.py"
+      related_symbols:
+        - "EDGE_CONFIDENCE_PRIORS"
+
+  - id: dep_016
+    category: "B. Dependency impact"
+    repository: "repopeek"
+    task: "Modify query_fts5_bm25 signature in sqlite_cache to support phrase queries"
+    gold:
+      symbols:
+        - "query_fts5_bm25"
+      files:
+        - "repopeek/storage/sqlite_cache.py"
+
+  - id: dep_017
+    category: "B. Dependency impact"
+    repository: "repopeek"
+    task: "Update ContextPackage dataclass fields in compiler.py and propagate to markdown rendering"
+    gold:
+      symbols:
+        - "ContextPackage"
+        - "ContextCompiler"
+      files:
+        - "repopeek/context/compiler.py"
+
+  - id: dep_018
+    category: "B. Dependency impact"
+    repository: "sample_repo"
+    task: "Refactor run_pipeline.sh execution script and identify affected python modules"
+    gold:
+      symbols:
+        - "run_pipeline.sh"
+      files:
+        - "scripts/run_pipeline.sh"
+        - "src/billing/invoice.py"
+
+  # ── Category C: Cross-Language (8 tasks) ──
+  - id: cross_019
+    category: "C. Cross-language"
+    repository: "repopeek"
+    task: "Update FastAPI route in Python backend and detect matching TypeScript client fetch"
+    gold:
+      symbols:
+        - "HttpBoundaryBridge"
+      files:
+        - "repopeek/bridges/http.py"
+      related_symbols:
+        - "paths_match"
+
+  - id: cross_020
+    category: "C. Cross-language"
+    repository: "repopeek"
+    task: "Rename route parameter in normalize_route_path and verify client URL template resolution"
+    gold:
+      symbols:
+        - "normalize_route_path"
+      files:
+        - "repopeek/bridges/http.py"
+
+  - id: cross_021
+    category: "C. Cross-language"
+    repository: "repopeek"
+    task: "Extract TypeScript AST interface signatures in TypeScriptParser"
+    gold:
+      symbols:
+        - "TypeScriptParser"
+      files:
+        - "repopeek/parsers/typescript.py"
+
+  - id: cross_022
+    category: "C. Cross-language"
+    repository: "sample_repo"
+    task: "Trace SQL query embedded in InvoiceParser.parse against table.invoices in db/queries.sql"
+    gold:
+      symbols:
+        - "InvoiceParser.parse"
+      files:
+        - "src/billing/invoice.py"
+        - "db/queries.sql"
+      dependencies:
+        - src: "InvoiceParser.parse"
+          dst: "table.invoices"
+          type: "READS"
+
+  - id: cross_023
+    category: "C. Cross-language"
+    repository: "repopeek"
+    task: "Modify client axios call extractor in HttpBoundaryBridge"
+    gold:
+      symbols:
+        - "HttpBoundaryBridge"
+      files:
+        - "repopeek/bridges/http.py"
+
+  - id: cross_024
+    category: "C. Cross-language"
+    repository: "repopeek"
+    task: "Parse TypeScript React component call to backend endpoint /api/users"
+    gold:
+      symbols:
+        - "TypeScriptParser"
+      files:
+        - "repopeek/parsers/typescript.py"
+
+  - id: cross_025
+    category: "C. Cross-language"
+    repository: "sample_repo"
+    task: "Check shell script invocation in run_pipeline.sh calling python invoice parser"
+    gold:
+      symbols:
+        - "InvoiceParser"
+      files:
+        - "scripts/run_pipeline.sh"
+        - "src/billing/invoice.py"
+
+  - id: cross_026
+    category: "C. Cross-language"
+    repository: "repopeek"
+    task: "Bridge Express router routes to frontend fetch callers via INVOKES edges"
+    gold:
+      symbols:
+        - "HttpBoundaryBridge"
+      files:
+        - "repopeek/bridges/http.py"
+
+  # ── Category D: Historical Behavior (8 tasks) ──
+  - id: hist_027
+    category: "D. Historical behavior"
+    repository: "repopeek"
+    task: "Predict co-changing files for repopeek/temporal/miner.py using commit history"
+    gold:
+      symbols:
+        - "GitTemporalMiner"
+      files:
+        - "repopeek/temporal/miner.py"
+
+  - id: hist_028
+    category: "D. Historical behavior"
+    repository: "repopeek"
+    task: "Evaluate co-change link between schema.py and builder.py"
+    gold:
+      symbols:
+        - "CanonicalGraph"
+      files:
+        - "repopeek/models/schema.py"
+        - "repopeek/graph/builder.py"
+
+  - id: hist_029
+    category: "D. Historical behavior"
+    repository: "repopeek"
+    task: "Mine commit records without merges using GitTemporalMiner.mine_commits"
+    gold:
+      symbols:
+        - "GitTemporalMiner.mine_commits"
+      files:
+        - "repopeek/temporal/miner.py"
+
+  - id: hist_030
+    category: "D. Historical behavior"
+    repository: "repopeek"
+    task: "Verify 180 day half life decay constant formula in miner.py"
+    gold:
+      symbols:
+        - "GitTemporalMiner"
+      files:
+        - "repopeek/temporal/miner.py"
+
+  - id: hist_031
+    category: "D. Historical behavior"
+    repository: "repopeek"
+    task: "Compute co-change probability P(B|A) with chronological cutoff time"
+    gold:
+      symbols:
+        - "GitTemporalMiner.compute_co_changes"
+      files:
+        - "repopeek/temporal/miner.py"
+
+  - id: hist_032
+    category: "D. Historical behavior"
+    repository: "repopeek"
+    task: "Create CO_CHANGED_WITH graph edges between historically correlated files"
+    gold:
+      symbols:
+        - "GitTemporalMiner.build_graph_edges"
+      files:
+        - "repopeek/temporal/miner.py"
+
+  - id: hist_033
+    category: "D. Historical behavior"
+    repository: "repopeek"
+    task: "Examine co-commit frequency filter threshold min_commits in GitTemporalMiner"
+    gold:
+      symbols:
+        - "GitTemporalMiner"
+      files:
+        - "repopeek/temporal/miner.py"
+
+  - id: hist_034
+    category: "D. Historical behavior"
+    repository: "repopeek"
+    task: "Identify files historically edited alongside tests/test_blast_radius.py"
+    gold:
+      symbols:
+        - "compute_blast_radius"
+      files:
+        - "repopeek/graph/blast_radius.py"
+
+  # ── Category E: Negative Retrieval (8 tasks) ──
+  - id: neg_035
+    category: "E. Negative retrieval"
+    repository: "sample_repo"
+    task: "Update invoice status in InvoiceParser without touching pipeline script or yaml config"
+    gold:
+      symbols:
+        - "InvoiceParser"
+      files:
+        - "src/billing/invoice.py"
+      excluded:
+        - "scripts/run_pipeline.sh"
+        - "config/pipeline.yaml"
+
+  - id: neg_036
+    category: "E. Negative retrieval"
+    repository: "sample_repo"
+    task: "Modify validate_invoice function without including database queries or sql files"
+    gold:
+      symbols:
+        - "validate_invoice"
+      files:
+        - "src/billing/validators.py"
+      excluded:
+        - "db/queries.sql"
+
+  - id: neg_037
+    category: "E. Negative retrieval"
+    repository: "repopeek"
+    task: "Change task text normalization in normalize_task_text without modifying blast radius engine"
+    gold:
+      symbols:
+        - "normalize_task_text"
+      files:
+        - "repopeek/retrieval/intent.py"
+      excluded:
+        - "repopeek/graph/blast_radius.py"
+
+  - id: neg_038
+    category: "E. Negative retrieval"
+    repository: "repopeek"
+    task: "Update TypeScript AST parser without touching Python parser or SQL dialect options"
+    gold:
+      symbols:
+        - "TypeScriptParser"
+      files:
+        - "repopeek/parsers/typescript.py"
+      excluded:
+        - "repopeek/parsers/python.py"
+
+  - id: neg_039
+    category: "E. Negative retrieval"
+    repository: "repopeek"
+    task: "Adjust Brier score calculation in metrics without changing MCP server tools"
+    gold:
+      symbols:
+        - "brier_score"
+      files:
+        - "repopeek/evaluation/metrics.py"
+      excluded:
+        - "repopeek/query/mcp.py"
+
+  - id: neg_040
+    category: "E. Negative retrieval"
+    repository: "sample_repo"
+    task: "Change Invoice amount precision without altering AuditableEntity base class"
+    gold:
+      symbols:
+        - "Invoice"
+      files:
+        - "src/billing/invoice.py"
+      excluded:
+        - "src/models/base.py"
+
+  - id: neg_041
+    category: "E. Negative retrieval"
+    repository: "repopeek"
+    task: "Modify token budget calculation in ContextCompiler without altering git miner"
+    gold:
+      symbols:
+        - "ContextCompiler"
+      files:
+        - "repopeek/context/compiler.py"
+      excluded:
+        - "repopeek/temporal/miner.py"
+
+  - id: neg_042
+    category: "E. Negative retrieval"
+    repository: "repopeek"
+    task: "Update SQLite cache FTS query syntax without touching HTTP boundary bridge"
+    gold:
+      symbols:
+        - "query_fts5_bm25"
+      files:
+        - "repopeek/storage/sqlite_cache.py"
+      excluded:
+        - "repopeek/bridges/http.py"
+
+  # ── Category F: Multi-Hop Tasks (8 tasks) ──
+  - id: multi_043
+    category: "F. Multi-hop tasks"
+    repository: "sample_repo"
+    task: "Trace change to validate_invoice through InvoiceParser.parse, invoice database record, and pipeline shell execution"
+    gold:
+      symbols:
+        - "validate_invoice"
+        - "InvoiceParser.parse"
+      files:
+        - "src/billing/validators.py"
+        - "src/billing/invoice.py"
+        - "db/queries.sql"
+        - "scripts/run_pipeline.sh"
+      dependencies:
+        - src: "InvoiceParser.parse"
+          dst: "validate_invoice"
+          type: "CALLS"
+        - src: "InvoiceParser.parse"
+          dst: "table.invoices"
+          type: "READS"
+
+  - id: multi_044
+    category: "F. Multi-hop tasks"
+    repository: "repopeek"
+    task: "Modify Edge schema and trace propagation through GraphBuilder, blast radius computation, and ContextCompiler"
+    gold:
+      symbols:
+        - "Edge"
+        - "GraphBuilder"
+        - "compute_blast_radius"
+        - "ContextCompiler"
+      files:
+        - "repopeek/models/schema.py"
+        - "repopeek/graph/builder.py"
+        - "repopeek/graph/blast_radius.py"
+        - "repopeek/context/compiler.py"
+
+  - id: multi_045
+    category: "F. Multi-hop tasks"
+    repository: "repopeek"
+    task: "Flow change from extract_task_identifiers into resolve_task_to_symbols and context compiler entrypoint selection"
+    gold:
+      symbols:
+        - "extract_task_identifiers"
+        - "resolve_task_to_symbols"
+        - "ContextCompiler"
+      files:
+        - "repopeek/retrieval/intent.py"
+        - "repopeek/context/compiler.py"
+
+  - id: multi_046
+    category: "F. Multi-hop tasks"
+    repository: "repopeek"
+    task: "Trace HTTP boundary bridge edge creation from route extraction to GraphQueryEngine query resolution"
+    gold:
+      symbols:
+        - "HttpBoundaryBridge"
+        - "GraphQueryEngine"
+      files:
+        - "repopeek/bridges/http.py"
+        - "repopeek/query/engine.py"
+
+  - id: multi_047
+    category: "F. Multi-hop tasks"
+    repository: "repopeek"
+    task: "Trace git commit mining output through co-change probability calculation into graph edge generation"
+    gold:
+      symbols:
+        - "GitTemporalMiner.mine_commits"
+        - "GitTemporalMiner.compute_co_changes"
+        - "GitTemporalMiner.build_graph_edges"
+      files:
+        - "repopeek/temporal/miner.py"
+
+  - id: multi_048
+    category: "F. Multi-hop tasks"
+    repository: "sample_repo"
+    task: "Update AuditableEntity id attribute and verify impact across Invoice, InvoiceParser, and cache"
+    gold:
+      symbols:
+        - "AuditableEntity"
+        - "Invoice"
+        - "InvoiceParser"
+      files:
+        - "src/models/base.py"
+        - "src/billing/invoice.py"
+
+  - id: multi_049
+    category: "F. Multi-hop tasks"
+    repository: "repopeek"
+    task: "Follow blast radius path confidence through multi-path combination into distance-decayed graph score"
+    gold:
+      symbols:
+        - "calculate_path_confidence"
+        - "calculate_combined_confidence"
+        - "calculate_graph_score"
+      files:
+        - "repopeek/graph/blast_radius.py"
+
+  - id: multi_050
+    category: "F. Multi-hop tasks"
+    repository: "repopeek"
+    task: "Compile context for multi-step billing migration and verify change plan phase sequence"
+    gold:
+      symbols:
+        - "ContextCompiler"
+        - "ChangePlan"
+      files:
+        - "repopeek/context/compiler.py"
