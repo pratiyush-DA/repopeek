@@ -30,6 +30,7 @@ depends_on: []
 - [[feat-graph-persistence]] — export graph to local JSON (or SQLite — TBD)
 - [[feat-git-temporal]] — git commit history mining, exponential time decay, and CO_CHANGED_WITH edges
 - [[feat-http-bridge]] — cross-language HTTP boundary bridging between frontend clients and backend routes
+- [[feat-watch-daemon]] — real-time incremental file watching and background sync daemon (<50ms)
 
 ## Semantic layer
 
@@ -42,6 +43,7 @@ depends_on: []
 - [[feat-intent-retrieval]] — resolve natural language tasks to candidate symbols via AST + FTS5 BM25 + RRF
 - [[feat-traversal-confidence]] — mathematical traversal confidence, multi-path reinforcement, and blast radius partitioning
 - [[feat-context-compiler]] — task-driven context compilation, constraint extraction, and change plans
+- [[feat-agent-mcp]] — standard Model Context Protocol (MCP) server exposing 10 agent intelligence tools
 
 ## Related
 

@@ -6,7 +6,7 @@ summary: Running chronological log of decisions, architectural findings, and imp
 status: active
 tags: [phase3, log, decisions]
 code_refs: []
-depends_on: ['[[plan-phase-3]]', '[[feat-intent-retrieval]]', '[[feat-traversal-confidence]]', '[[feat-context-compiler]]', '[[feat-typescript-parser]]', '[[feat-git-temporal]]', '[[feat-http-bridge]]']
+depends_on: ['[[plan-phase-3]]', '[[feat-intent-retrieval]]', '[[feat-traversal-confidence]]', '[[feat-context-compiler]]', '[[feat-typescript-parser]]', '[[feat-git-temporal]]', '[[feat-http-bridge]]', '[[feat-agent-mcp]]', '[[feat-watch-daemon]]']
 affects: []
 last_verified: 2026-10-05
 ---
@@ -65,4 +65,12 @@ last_verified: 2026-10-05
 - Updated `get_bridges_lens()` in `repopeek/graph/lenses.py` to include cross-language `INVOKES` edges.
 - Added `http_routes()` to `GraphQueryEngine` and CLI flag `--routes`.
 - Created unit and integration test suite `tests/test_http_bridge.py` (5 tests passing). Full suite (128 tests) passing.
+
+## 2026-10-05: PR 18 — Agent MCP Suite & Incremental Watch Daemon Delivered (Phase 3 Complete)
+- Expanded `repopeek/query/mcp_server.py` with 10 tools (`repopeek_context`, `repopeek_plan`, `repopeek_impact`, `repopeek_routes`, `repopeek_co_changes`, `repopeek_resolve`, `repopeek_lookup`, `repopeek_neighbors`, `repopeek_data_trace`, `repopeek_context_pack`).
+- Implemented `repopeek/daemon/watcher.py` (`RepoPeekWatcher`) using Python standard library filesystem APIs for real-time incremental file watching.
+- Achieved sub-50ms incremental updates for modified files updating property graph, storage shards, and SQLite search cache.
+- Added `--watch` and `--watch-interval` arguments to CLI runner.
+- Created unit and integration test suites `tests/test_mcp_suite.py` and `tests/test_watch_daemon.py` (4 tests passing). Full suite (133 tests) passing.
+
 

@@ -9,8 +9,8 @@ code_refs: [repopeek/query/engine.py, repopeek/query/pack.py, repopeek/query/mcp
 depends_on: ['[[adr-011-mcp-interface]]', '[[comp-cli]]', '[[comp-graph]]', '[[comp-query]]',
   '[[data-node-card-spec]]', '[[feat-graph-construction]]', '[[feat-graph-persistence]]',
   '[[req-queryable-graph]]']
-affects: ['[[comp-cli]]', '[[comp-query]]']
-last_verified: 2026-10-04
+affects: ['[[comp-cli]]', '[[comp-query]]', '[[feat-agent-mcp]]']
+last_verified: 2026-10-05
 source: "_sources/task_list.md §Phase 6"
 ---
 # Query CLI and Low-Context Retrieval Service

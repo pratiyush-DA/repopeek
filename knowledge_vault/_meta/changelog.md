@@ -24,4 +24,6 @@
 2026-10-05 | feat-typescript-parser, comp-parsers, feat-graph-construction, moc-features, con-scope-languages, Phase-3/plan, Phase-3/log, _meta/changelog | PR 15 Polyglot Expansion: TypeScript & JavaScript Parser
 2026-10-05 | feat-git-temporal, feat-graph-construction, moc-features, Phase-3/plan, Phase-3/log, _meta/changelog | PR 16 Git Temporal Intelligence & Co-Change Matrix
 2026-10-05 | feat-http-bridge, feat-python-parser, feat-typescript-parser, feat-graph-construction, moc-features, Phase-3/plan, Phase-3/log, _meta/changelog | PR 17 Cross-Language HTTP Boundary Bridge
+2026-10-05 | feat-agent-mcp, feat-watch-daemon, feat-query-cli, feat-context-compiler, feat-traversal-confidence, feat-graph-persistence, feat-graph-construction, moc-features, Phase-3/plan, Phase-3/log, _meta/changelog | PR 18 Agent MCP Suite & Incremental Watch Daemon (Phase 3 Complete)
+
 

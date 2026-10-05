@@ -41,11 +41,83 @@ class RepoPeekMCPServer:
                 "result": {
                     "tools": [
                         {
-                            "name": "repopeek_lookup",
-                            "description": "Lookup node card by symbol or URI (<80 tokens)",
+                            "name": "repopeek_context",
+                            "description": "Compile natural language task into a budget-governed ContextPackage with progressive disclosure, constraints, and blast radius",
                             "inputSchema": {
                                 "type": "object",
-                                "properties": {"query": {"type": "string"}},
+                                "properties": {
+                                    "task": {"type": "string", "description": "Natural language engineering task"},
+                                    "budget": {"type": "integer", "default": 1500, "description": "Token budget cap"},
+                                    "level": {"type": "integer", "enum": [1, 2, 3], "default": 2, "description": "Progressive disclosure level (1: brief, 2: standard, 3: full)"},
+                                    "format": {"type": "string", "enum": ["markdown", "json"], "default": "markdown", "description": "Output rendering format"},
+                                },
+                                "required": ["task"],
+                            },
+                        },
+                        {
+                            "name": "repopeek_plan",
+                            "description": "Generate a risk-assessed, step-by-step engineering change plan with estimated blast radius and affected files",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "task": {"type": "string", "description": "Natural language engineering task"},
+                                },
+                                "required": ["task"],
+                            },
+                        },
+                        {
+                            "name": "repopeek_impact",
+                            "description": "Compute mathematical traversal confidence blast radius answering 'If I change X, what breaks?'",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "target": {"type": "string", "description": "Target symbol or node ID"},
+                                    "max_depth": {"type": "integer", "default": 5, "description": "Max hop traversal depth"},
+                                    "direction": {"type": "string", "enum": ["both", "upstream", "downstream"], "default": "both"},
+                                    "threshold": {"type": "number", "default": 0.20, "description": "Confidence inclusion threshold"},
+                                },
+                                "required": ["target"],
+                            },
+                        },
+                        {
+                            "name": "repopeek_routes",
+                            "description": "Discover server HTTP route endpoints, client API calls (fetch/axios), and cross-boundary fullstack linkages",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {},
+                            },
+                        },
+                        {
+                            "name": "repopeek_co_changes",
+                            "description": "Query historical git commit co-change patterns, conditional probabilities P(B|A), and temporal coupling",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "target": {"type": "string", "description": "Target file path or symbol"},
+                                },
+                                "required": ["target"],
+                            },
+                        },
+                        {
+                            "name": "repopeek_resolve",
+                            "description": "Resolve a natural language engineering task into candidate symbols via AST + SQLite FTS5 BM25 + Reciprocal Rank Fusion",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "task": {"type": "string", "description": "Natural language task description"},
+                                },
+                                "required": ["task"],
+                            },
+                        },
+                        {
+                            "name": "repopeek_lookup",
+                            "description": "Lookup node card by symbol or ID (<80 tokens) with optional source snippet",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "query": {"type": "string", "description": "Symbol name, function name, or node ID"},
+                                    "include_snippet": {"type": "boolean", "default": False, "description": "Include exact source code span snippet"},
+                                },
                                 "required": ["query"],
                             },
                         },
@@ -55,22 +127,10 @@ class RepoPeekMCPServer:
                             "inputSchema": {
                                 "type": "object",
                                 "properties": {
-                                    "node_id": {"type": "string"},
-                                    "direction": {"type": "string", "enum": ["both", "incoming", "outgoing"]},
+                                    "node_id": {"type": "string", "description": "Target node ID"},
+                                    "direction": {"type": "string", "enum": ["both", "incoming", "outgoing"], "default": "both"},
                                 },
                                 "required": ["node_id"],
-                            },
-                        },
-                        {
-                            "name": "repopeek_impact",
-                            "description": "Compute upstream blast radius answering 'If I change X, what breaks?'",
-                            "inputSchema": {
-                                "type": "object",
-                                "properties": {
-                                    "target": {"type": "string"},
-                                    "max_depth": {"type": "integer", "default": 5},
-                                },
-                                "required": ["target"],
                             },
                         },
                         {
@@ -78,18 +138,21 @@ class RepoPeekMCPServer:
                             "description": "Trace variable def-use and data entity flows across language boundaries",
                             "inputSchema": {
                                 "type": "object",
-                                "properties": {"entity": {"type": "string"}},
+                                "properties": {
+                                    "entity": {"type": "string", "description": "Variable name or database table name"},
+                                },
                                 "required": ["entity"],
                             },
                         },
                         {
                             "name": "repopeek_context_pack",
-                            "description": "Produce the minimal sufficient context pack (<500 tokens) for safe edits",
+                            "description": "Produce the minimal sufficient context pack (<500 tokens) for safe target edits",
                             "inputSchema": {
                                 "type": "object",
                                 "properties": {
-                                    "targets": {"type": "array", "items": {"type": "string"}},
-                                    "token_budget": {"type": "integer", "default": 1500},
+                                    "targets": {"type": "array", "items": {"type": "string"}, "description": "Target symbol names"},
+                                    "token_budget": {"type": "integer", "default": 1500, "description": "Max token budget"},
+                                    "include_snippet": {"type": "boolean", "default": False, "description": "Include exact source snippet"},
                                 },
                                 "required": ["targets"],
                             },
@@ -113,26 +176,71 @@ class RepoPeekMCPServer:
     def _execute_tool(self, req_id: Any, tool_name: str, args: Dict[str, Any]) -> Dict[str, Any]:
         """Dispatch tool calls to GraphQueryEngine."""
         try:
-            if tool_name == "repopeek_lookup":
-                card = self.engine.lookup(args.get("query", ""))
+            if tool_name == "repopeek_context":
+                task_str = args.get("task", "")
+                budget = int(args.get("budget", 1500))
+                level = int(args.get("level", 2))
+                fmt = args.get("format", "markdown")
+                pkg = self.engine.compile_context(task=task_str, budget=budget, level=level)
+                if fmt == "json":
+                    res_text = json.dumps(pkg.to_dict(), indent=2)
+                else:
+                    res_text = pkg.to_markdown(level=level)
+
+            elif tool_name == "repopeek_plan":
+                task_str = args.get("task", "")
+                plan = self.engine.change_plan(task=task_str)
+                res_text = plan.to_markdown()
+
+            elif tool_name == "repopeek_impact":
+                target = args.get("target", "")
+                max_depth = int(args.get("max_depth", 5))
+                direction = args.get("direction", "both")
+                threshold = float(args.get("threshold", 0.20))
+                res = self.engine.impact(
+                    target,
+                    max_depth=max_depth,
+                    direction=direction,
+                    confidence_threshold=threshold,
+                )
+                res_text = json.dumps(res, indent=2)
+
+            elif tool_name == "repopeek_routes":
+                res = self.engine.http_routes()
+                res_text = json.dumps(res, indent=2)
+
+            elif tool_name == "repopeek_co_changes":
+                target = args.get("target", "")
+                res = self.engine.co_changes(target)
+                res_text = json.dumps(res, indent=2)
+
+            elif tool_name == "repopeek_resolve":
+                task_str = args.get("task", "")
+                res = self.engine.resolve_task(task_str)
+                res_text = json.dumps(res, indent=2)
+
+            elif tool_name == "repopeek_lookup":
+                query = args.get("query", "")
+                include_snip = bool(args.get("include_snippet", False))
+                card = self.engine.lookup(query, include_snippet=include_snip)
                 res_text = json.dumps(card.model_dump(exclude_none=True), indent=2) if card else "Node not found."
 
             elif tool_name == "repopeek_neighbors":
-                res = self.engine.neighbors(args.get("node_id", ""), direction=args.get("direction", "both"))
-                res_text = json.dumps(res, indent=2)
-
-            elif tool_name == "repopeek_impact":
-                res = self.engine.impact(args.get("target", ""), max_depth=args.get("max_depth", 5))
+                node_id = args.get("node_id", "")
+                direction = args.get("direction", "both")
+                res = self.engine.neighbors(node_id, direction=direction)
                 res_text = json.dumps(res, indent=2)
 
             elif tool_name == "repopeek_data_trace":
-                res = self.engine.data_trace(args.get("entity", ""))
+                entity = args.get("entity", "")
+                res = self.engine.data_trace(entity)
                 res_text = json.dumps(res, indent=2)
 
             elif tool_name == "repopeek_context_pack":
                 targets = args.get("targets", [])
-                budget = args.get("token_budget", 1500)
-                pack = self.engine.context_pack(targets, token_budget=budget)
+                budget = int(args.get("token_budget", 1500))
+                include_snip = bool(args.get("include_snippet", False))
+                pack = self.engine.context_pack(targets, token_budget=budget, include_snippet=include_snip)
                 res_text = pack.to_markdown()
 
             else:

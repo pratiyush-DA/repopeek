@@ -5,9 +5,9 @@ title: Phase 3 Execution Plan — Context Compiler & Change-Impact Engine
 summary: Implementation roadmap for Phase 3 transitioning RepoPeek into a task-driven context compiler and blast-radius engine.
 status: active
 tags: [phase3, planning, architecture, context-compiler]
-code_refs: [repopeek/retrieval/intent.py, repopeek/storage/sqlite_cache.py, repopeek/query/engine.py, repopeek/cli.py, repopeek/graph/blast_radius.py, repopeek/context/compiler.py, repopeek/parsers/typescript.py, repopeek/temporal/miner.py, repopeek/bridges/http.py]
+code_refs: [repopeek/retrieval/intent.py, repopeek/storage/sqlite_cache.py, repopeek/query/engine.py, repopeek/cli.py, repopeek/graph/blast_radius.py, repopeek/context/compiler.py, repopeek/parsers/typescript.py, repopeek/temporal/miner.py, repopeek/bridges/http.py, repopeek/query/mcp_server.py, repopeek/daemon/watcher.py]
 depends_on: ['[[moc-architecture]]', '[[moc-features]]']
-affects: ['[[log-phase-3]]', '[[feat-intent-retrieval]]', '[[feat-traversal-confidence]]', '[[feat-context-compiler]]', '[[feat-typescript-parser]]', '[[feat-git-temporal]]', '[[feat-http-bridge]]']
+affects: ['[[log-phase-3]]', '[[feat-intent-retrieval]]', '[[feat-traversal-confidence]]', '[[feat-context-compiler]]', '[[feat-typescript-parser]]', '[[feat-git-temporal]]', '[[feat-http-bridge]]', '[[feat-agent-mcp]]', '[[feat-watch-daemon]]']
 last_verified: 2026-10-05
 ---
 
@@ -25,13 +25,13 @@ Phase 2 delivered the polyglot code property graph (Python, SQL, Shell, JSON/YAM
 6. **Polyglot Boundary Bridge:** Tree-sitter TypeScript AST matcher connecting client `fetch()` / Axios calls to Python FastAPI endpoints.
 
 ## 3. Pull Request Delivery Sequence
-- **PR 12: Intent-to-Symbol Task Matcher & SQLite FTS5 Index:** AST identifier extractor, FTS5 virtual table, and RRF rank fusion.
-- **PR 13: Mathematical Traversal Confidence & Evidence-Backed Blast Radius:** Multi-hop confidence decay, exact `file:line` citations, and direct/indirect/excluded partitioning.
-- **PR 14: Context Compiler, Constraint Extractor & Change Plan Generator:** Canonical JSON `ContextPackage`, progressive disclosure Markdown, constraint parser, and `cc context` / `cc plan` CLI.
-- **PR 15: Polyglot Expansion: TypeScript & JavaScript Parser:** `.ts`, `.tsx`, `.js`, `.jsx` AST parser extracting classes, functions, imports, and calls.
-- **PR 16: Git Temporal Intelligence & Co-Change Matrix:** Git commit history miner, exponential time decay, and `CO_CHANGED_WITH` relational edges.
-- **PR 17: Cross-Language HTTP Boundary:** TypeScript client calls (`fetch`/Axios) to FastAPI route handler bridge with `:param` normalization.
-- **PR 18: Agent MCP Suite & Incremental Watch Daemon:** Agent-facing MCP tools (`repopeek_context`, `repopeek_plan`, `repopeek_impact`) and background `repopeek watch` daemon.
+- **PR 12: Intent-to-Symbol Task Matcher & SQLite FTS5 Index (Delivered):** AST identifier extractor, FTS5 virtual table, and RRF rank fusion.
+- **PR 13: Mathematical Traversal Confidence & Evidence-Backed Blast Radius (Delivered):** Multi-hop confidence decay, exact `file:line` citations, and direct/indirect/excluded partitioning.
+- **PR 14: Context Compiler, Constraint Extractor & Change Plan Generator (Delivered):** Canonical JSON `ContextPackage`, progressive disclosure Markdown, constraint parser, and `cc context` / `cc plan` CLI.
+- **PR 15: Polyglot Expansion: TypeScript & JavaScript Parser (Delivered):** `.ts`, `.tsx`, `.js`, `.jsx` AST parser extracting classes, functions, imports, and calls.
+- **PR 16: Git Temporal Intelligence & Co-Change Matrix (Delivered):** Git commit history miner, exponential time decay, and `CO_CHANGED_WITH` relational edges.
+- **PR 17: Cross-Language HTTP Boundary (Delivered):** TypeScript client calls (`fetch`/Axios) to FastAPI route handler bridge with `:param` normalization.
+- **PR 18: Agent MCP Suite & Incremental Watch Daemon (Delivered):** Agent-facing MCP tools (`repopeek_context`, `repopeek_plan`, `repopeek_impact`, `repopeek_routes`) and background `repopeek --watch` daemon.
 
 ## 4. Execution Tracking
 All decisions, benchmarks, and progress are logged in [[log-phase-3]].

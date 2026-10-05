@@ -7,7 +7,7 @@ status: active
 tags: [phase3, blast-radius, confidence, graph-traversal, evidence]
 code_refs: [repopeek/graph/blast_radius.py, repopeek/graph/__init__.py, repopeek/query/engine.py, tests/test_blast_radius.py]
 depends_on: ['[[plan-phase-3]]', '[[comp-graph]]', '[[comp-query]]', '[[feat-query-cli]]', '[[moc-features]]']
-affects: ['[[log-phase-3]]']
+affects: ['[[log-phase-3]]', '[[feat-agent-mcp]]']
 last_verified: 2026-10-05
 ---
 # Mathematical Traversal Confidence & Evidence-Backed Blast Radius

@@ -177,6 +177,17 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Discover server HTTP endpoints, client calls, and cross-boundary linkages",
     )
+    parser.add_argument(
+        "--watch",
+        action="store_true",
+        help="Start background incremental watch daemon for real-time graph synchronization",
+    )
+    parser.add_argument(
+        "--watch-interval",
+        type=float,
+        default=1.0,
+        help="Poll interval in seconds for the watch daemon (default: 1.0s)",
+    )
     return parser
 
 
@@ -216,6 +227,7 @@ def main(argv=None) -> int:
         or args.plan
         or args.co_changes
         or args.routes
+        or args.watch
     )
     if not is_query_mode:
         print(f"Repopeek v{__version__} - Repository Intelligence Engine")
@@ -386,6 +398,17 @@ def main(argv=None) -> int:
 
             elapsed_ms = (time.perf_counter() - start_t) * 1000
             print(f"Updated graph for '{rel_path}' in {elapsed_ms:.1f}ms. Total nodes: {len(updated_graph.nodes)}, edges: {len(updated_graph.edges)}.")
+            return 0
+
+        if args.watch:
+            from repopeek.daemon.watcher import RepoPeekWatcher
+            watcher = RepoPeekWatcher(
+                repo_root=resolved_repo,
+                output_dir=storage_dir,
+                graph=engine.graph,
+                poll_interval=args.watch_interval,
+            )
+            watcher.run()
             return 0
 
     from repopeek.discovery import discover_repository
