@@ -36,6 +36,7 @@ depends_on: []
 ## Agent interface
 
 - [[feat-query-cli]] — inspect nodes, traverse CALLS/READS chains, find impact trees
+- [[feat-intent-retrieval]] — resolve natural language tasks to candidate symbols via AST + FTS5 BM25 + RRF
 
 ## Related
 

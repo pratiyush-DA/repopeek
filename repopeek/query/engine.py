@@ -422,3 +422,83 @@ class GraphQueryEngine:
         )
         final_pack.estimated_tokens = ContextPack.estimate_tokens_from_text(final_pack.to_markdown())
         return final_pack
+
+    def _build_node_index(self) -> Dict[str, Dict[str, Any]]:
+        """Build a lightweight index dict for AST identifier search."""
+        index: Dict[str, Dict[str, Any]] = {}
+        for node_id, node in self.graph.nodes.items():
+            index[node_id] = {
+                "sig": node.sig,
+                "story_text": node.story.text if node.story else None,
+                "kind": node.kind,
+                "file": node.span.file if node.span else None,
+            }
+        return index
+
+    def resolve_task(
+        self,
+        task: str,
+        limit: int = 20,
+    ) -> List[Dict[str, Any]]:
+        """Resolve a natural language engineering task to ranked candidate symbols.
+
+        Uses three-stage hybrid retrieval:
+        1. AST identifier extraction and variant matching (always available)
+        2. SQLite FTS5 BM25 retrieval (if cache.db exists with FTS5 table)
+        3. Reciprocal Rank Fusion (k=60) combining both sources
+
+        Args:
+            task: Natural language task description.
+            limit: Maximum number of candidates to return.
+
+        Returns:
+            List of dicts with keys: node_id, score, reasons, node_card (serialized).
+        """
+        from repopeek.retrieval.intent import (
+            SymbolCandidate,
+            extract_task_identifiers,
+            resolve_task_to_symbols,
+            _build_fts_query,
+        )
+
+        # Build lightweight index for AST search
+        node_index = self._build_node_index()
+
+        # Attempt FTS5 BM25 retrieval if SQLite cache is available
+        fts_results = None
+        if self.storage_dir:
+            db_path = self.storage_dir / "cache.db"
+            if db_path.exists():
+                from repopeek.storage.sqlite_cache import query_fts5_bm25
+
+                intent = extract_task_identifiers(task)
+                fts_query = _build_fts_query(intent)
+                if fts_query:
+                    fts_results = query_fts5_bm25(db_path, fts_query, limit=50)
+
+        # Run the full resolution pipeline
+        candidates = resolve_task_to_symbols(
+            task=task,
+            node_index=node_index,
+            fts_results=fts_results,
+            limit=limit,
+        )
+
+        # Enrich with node card data
+        results: List[Dict[str, Any]] = []
+        for candidate in candidates:
+            node = self.graph.nodes.get(candidate.node_id)
+            result: Dict[str, Any] = {
+                "node_id": candidate.node_id,
+                "score": candidate.score,
+                "reasons": candidate.reasons,
+            }
+            if node:
+                result["kind"] = node.kind
+                result["sig"] = node.sig
+                result["file"] = node.span.file if node.span else None
+                result["story"] = node.story.text if node.story else None
+            results.append(result)
+
+        return results
+

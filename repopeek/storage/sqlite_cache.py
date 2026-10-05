@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 import sqlite3
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from repopeek.models.schema import CanonicalGraph
 
@@ -55,6 +55,16 @@ def build_sqlite_cache(graph: CanonicalGraph, db_path: Path) -> None:
             CREATE INDEX idx_edges_dst ON edges(dst, type);
             CREATE INDEX idx_nodes_kind ON nodes(kind);
             CREATE INDEX idx_nodes_file ON nodes(file);
+
+            CREATE VIRTUAL TABLE IF NOT EXISTS nodes_fts USING fts5(
+                node_id,
+                qualified_name,
+                symbol_name,
+                sig,
+                file_path,
+                story_text,
+                tokenize='unicode61'
+            );
             """
         )
 
@@ -113,6 +123,25 @@ def build_sqlite_cache(graph: CanonicalGraph, db_path: Path) -> None:
             VALUES (?, ?, ?, ?, ?);
             """,
             edge_rows,
+        )
+
+        # Populate FTS5 index
+        fts_rows = []
+        for node in graph.nodes.values():
+            nid = node.id
+            # Extract qualified name and short symbol name from ID
+            qualified = nid.split("::")[-1] if "::" in nid else nid
+            parts = qualified.rsplit(".", 1)
+            symbol_name = parts[-1] if parts else qualified
+            sig = node.sig or ""
+            file_path = node.span.file if node.span else ""
+            story_text = node.story.text if node.story else ""
+            fts_rows.append((nid, qualified, symbol_name, sig, file_path, story_text))
+
+        cur.executemany(
+            "INSERT INTO nodes_fts(node_id, qualified_name, symbol_name, sig, file_path, story_text) "
+            "VALUES (?, ?, ?, ?, ?, ?);",
+            fts_rows,
         )
 
         conn.commit()
@@ -208,6 +237,53 @@ def query_sqlite_edges(
         conn.close()
 
 
+def query_fts5_bm25(
+    db_path: Path,
+    query: str,
+    limit: int = 50,
+) -> List[Tuple[str, float]]:
+    """Run FTS5 BM25 ranked retrieval against the nodes_fts index.
+
+    Weighted column ranking: qualified_name=5.0, symbol_name=5.0, sig=4.0,
+    file_path=2.5, story_text=1.5, node_id=2.0.
+
+    Returns list of (node_id, bm25_score) tuples sorted by relevance.
+    """
+    db_file = Path(db_path).resolve()
+    if not db_file.exists():
+        return []
+
+    if not query or not query.strip():
+        return []
+
+    conn = sqlite3.connect(str(db_file))
+    try:
+        cur = conn.cursor()
+        # Check FTS5 table exists
+        cur.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='nodes_fts';"
+        )
+        if not cur.fetchone():
+            return []
+
+        # BM25 weights: node_id, qualified_name, symbol_name, sig, file_path, story_text
+        # Lower bm25 values = more relevant (negative scores), so we negate for ranking
+        sql = (
+            "SELECT node_id, bm25(nodes_fts, 2.0, 5.0, 5.0, 4.0, 2.5, 1.5) AS score "
+            "FROM nodes_fts "
+            "WHERE nodes_fts MATCH ? "
+            "ORDER BY score ASC "
+            "LIMIT ?;"
+        )
+        rows = cur.execute(sql, (query, limit)).fetchall()
+        # Negate BM25 scores so higher = better
+        return [(row[0], -row[1]) for row in rows]
+    except Exception:
+        return []
+    finally:
+        conn.close()
+
+
 def update_sqlite_file(file_path: Any, graph: CanonicalGraph, db_path: Path) -> None:
     """Incrementally upsert nodes and edges for a single file into SQLite cache in <15ms."""
     db_file = Path(db_path).resolve()
@@ -280,6 +356,30 @@ def update_sqlite_file(file_path: Any, graph: CanonicalGraph, db_path: Path) -> 
             """,
             edge_tuples,
         )
+        # Sync FTS5 index for affected nodes
+        try:
+            cur.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='nodes_fts';"
+            )
+            if cur.fetchone():
+                for oid in old_ids:
+                    cur.execute("DELETE FROM nodes_fts WHERE node_id = ?;", (oid,))
+                for node in file_nodes:
+                    nid = node.id
+                    qualified = nid.split("::")[-1] if "::" in nid else nid
+                    parts = qualified.rsplit(".", 1)
+                    symbol_name = parts[-1] if parts else qualified
+                    sig = node.sig or ""
+                    fp = node.span.file if node.span else ""
+                    st = node.story.text if node.story else ""
+                    cur.execute(
+                        "INSERT INTO nodes_fts(node_id, qualified_name, symbol_name, sig, file_path, story_text) "
+                        "VALUES (?, ?, ?, ?, ?, ?);",
+                        (nid, qualified, symbol_name, sig, fp, st),
+                    )
+        except Exception:
+            pass  # FTS5 sync is best-effort for incremental updates
+
         conn.commit()
     finally:
         conn.close()

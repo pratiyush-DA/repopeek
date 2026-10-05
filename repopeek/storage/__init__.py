@@ -18,6 +18,7 @@ from repopeek.storage.json_store import (
 )
 from repopeek.storage.sqlite_cache import (
     build_sqlite_cache,
+    query_fts5_bm25,
     query_sqlite_edges,
     query_sqlite_impact,
     query_sqlite_nodes,
@@ -44,6 +45,7 @@ __all__ = [
     "serialize_graph_to_dict",
     "update_file_shard",
     "build_sqlite_cache",
+    "query_fts5_bm25",
     "query_sqlite_edges",
     "query_sqlite_impact",
     "query_sqlite_nodes",

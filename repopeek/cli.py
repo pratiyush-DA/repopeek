@@ -135,6 +135,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Incrementally update graph for a single modified file (<50ms)",
     )
+    parser.add_argument(
+        "--resolve",
+        type=str,
+        default=None,
+        help="Resolve a natural language task to candidate symbols via hybrid retrieval (AST + BM25 + RRF)",
+    )
     return parser
 
 
@@ -169,6 +175,7 @@ def main(argv=None) -> int:
         or args.export_obsidian
         or args.read_obsidian
         or args.update
+        or args.resolve
     )
     if not is_query_mode:
         print(f"Repopeek v{__version__} - Repository Intelligence Engine")
@@ -282,6 +289,11 @@ def main(argv=None) -> int:
         if args.pack:
             pack = engine.context_pack(args.pack, include_snippet=args.snippet)
             print(pack.to_markdown())
+            return 0
+
+        if args.resolve:
+            candidates = engine.resolve_task(args.resolve)
+            print(json.dumps(candidates, indent=2))
             return 0
 
         if args.update:

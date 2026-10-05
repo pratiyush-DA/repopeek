@@ -17,6 +17,8 @@
 2026-10-04 | feat-graph-persistence, feat-query-cli, _meta/changelog | Interactive graph viewer and Obsidian Markdown vault exporter/reader
 2026-10-04 | feat-graph-persistence, feat-query-cli, _meta/changelog | Obsidian vault auto-detection (%APPDATA%), obsidian:// URI dispatch via --open, and .gitignore exclusions
 2026-10-04 | feat-query-cli, feat-graph-persistence, data-node-card-spec, _meta/changelog | Ultra-low context optimizations: in-card snippet extraction (--snippet), facts truncation, 1-hop blast radius, and incremental single-file update (--update)
+2026-10-05 | Phase-3/plan, Phase-3/log, 00-index, _meta/changelog | Phase 3 Context Compiler & Blast Radius Engine roadmap initialization
+2026-10-05 | feat-intent-retrieval, moc-features, Phase-3/plan, Phase-3/log, _meta/changelog | PR 12 Intent-to-Symbol Task Matcher, SQLite FTS5 BM25 Index, and RRF rank fusion
 
 
 

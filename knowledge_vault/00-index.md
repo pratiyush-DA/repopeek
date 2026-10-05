@@ -29,6 +29,7 @@ last_verified: 2026-10-03
 - **Vault Rules & Workflow:** [[conventions]]
 - **Recent Updates:** [[changelog]]
 - **Phase 2 Implementation Plan:** [[plan-phase-2]] (and [[log-phase-2]])
+- **Phase 3 Implementation Plan:** [[plan-phase-3]] (and [[log-phase-3]])
 - **Target Repository Analysis Requirements:** [[req-local-repo-analysis]]
 - **Deterministic Code Extraction Core:** [[req-deterministic-extraction]]
 - **Semantic LLM Grounding & Provenance:** [[req-semantic-enrichment]], [[req-provenance]]
