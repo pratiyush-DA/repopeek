@@ -2,40 +2,76 @@
   "dataset_version": "v1",
   "total_tasks": 50,
   "retrieval": {
-    "recall_at_1": 0.18,
-    "recall_at_3": 0.26,
-    "recall_at_5": 0.26,
-    "recall_at_10": 0.28,
-    "mrr": 0.2192,
+    "candidate_recall_at_50": 0.92,
+    "candidate_recall_at_100": 0.94,
+    "recall_at_1": 0.72,
+    "recall_at_3": 0.76,
+    "recall_at_5": 0.8,
+    "recall_at_10": 0.84,
+    "mrr": 0.7529,
     "total_tasks": 50
   },
   "strategies": [
     {
       "strategy": "Strategy A: AST Identifiers + Direct Search",
-      "recall_at_1": 0.18,
-      "recall_at_5": 0.26,
-      "mrr": 0.2217,
-      "latency_ms": 16.927,
-      "index_size_bytes": 93952,
+      "recall_at_1": 0.5,
+      "recall_at_5": 0.78,
+      "mrr": 0.6383,
+      "latency_ms": 81.82,
+      "index_size_bytes": 665984,
       "notes": "Zero-dependency AST search; susceptible to raw score scale variance."
     },
     {
       "strategy": "Strategy B: AST Identifiers + BM25 + RRF (Production)",
-      "recall_at_1": 0.18,
-      "recall_at_5": 0.26,
-      "mrr": 0.2192,
-      "latency_ms": 18.563,
-      "index_size_bytes": 132120,
+      "recall_at_1": 0.72,
+      "recall_at_5": 0.8,
+      "mrr": 0.7529,
+      "latency_ms": 125.791,
+      "index_size_bytes": 936540,
       "notes": "Rank-reciprocal fusion scales evenly without score calibration issues."
     },
     {
       "strategy": "Strategy C: AST + Lightweight Trigram Embeddings",
-      "recall_at_1": 0.2,
-      "recall_at_5": 0.28,
-      "mrr": 0.2314,
-      "latency_ms": 9.595,
-      "index_size_bytes": 751616,
+      "recall_at_1": 0.0,
+      "recall_at_5": 0.4,
+      "mrr": 0.1773,
+      "latency_ms": 46.893,
+      "index_size_bytes": 5327872,
       "notes": "Higher latency & memory; marginal gain over deterministic RRF without vector DB."
+    }
+  ],
+  "ablations": [
+    {
+      "configuration": "Baseline",
+      "recall_at_1": 0.38,
+      "recall_at_5": 0.68,
+      "recall_at_10": 0.76,
+      "mrr": 0.499,
+      "description": "Existing BM25 / RRF"
+    },
+    {
+      "configuration": "Experiment A",
+      "recall_at_1": 0.68,
+      "recall_at_5": 0.76,
+      "recall_at_10": 0.8,
+      "mrr": 0.7134,
+      "description": "+ Identifier Normalization"
+    },
+    {
+      "configuration": "Experiment B",
+      "recall_at_1": 0.68,
+      "recall_at_5": 0.76,
+      "recall_at_10": 0.8,
+      "mrr": 0.7129,
+      "description": "+ Conservative Stemming"
+    },
+    {
+      "configuration": "Experiment C",
+      "recall_at_1": 0.72,
+      "recall_at_5": 0.8,
+      "recall_at_10": 0.84,
+      "mrr": 0.7529,
+      "description": "+ Intent Compound Variants (Full PR20)"
     }
   ],
   "graph": {
@@ -48,28 +84,28 @@
     },
     "2": {
       "depth": 2,
-      "precision": 0.1429,
+      "precision": 0.1389,
       "recall": 1.0,
-      "f1": 0.2501,
-      "evaluated_edges": 35
+      "f1": 0.2439,
+      "evaluated_edges": 36
     },
     "3": {
       "depth": 3,
-      "precision": 0.102,
+      "precision": 0.0962,
       "recall": 1.0,
-      "f1": 0.1851,
-      "evaluated_edges": 49
+      "f1": 0.1755,
+      "evaluated_edges": 52
     },
     "4": {
       "depth": 4,
-      "precision": 0.0943,
+      "precision": 0.0746,
       "recall": 1.0,
-      "f1": 0.1723,
-      "evaluated_edges": 53
+      "f1": 0.1388,
+      "evaluated_edges": 67
     }
   },
   "confidence": {
-    "brier_score": 0.1274,
+    "brier_score": 0.092,
     "calibration_buckets": [
       {
         "bucket_range": "0.0-0.1",
@@ -86,8 +122,8 @@
       {
         "bucket_range": "0.2-0.3",
         "predicted_confidence": 0.3,
-        "actual_accuracy": 1.0,
-        "count": 1
+        "actual_accuracy": 0.25,
+        "count": 4
       },
       {
         "bucket_range": "0.3-0.4",
@@ -99,19 +135,19 @@
         "bucket_range": "0.4-0.5",
         "predicted_confidence": 0.4,
         "actual_accuracy": 0.0,
-        "count": 5679
+        "count": 9738
       },
       {
         "bucket_range": "0.5-0.6",
         "predicted_confidence": 0.5,
         "actual_accuracy": 1.0,
-        "count": 170
+        "count": 362
       },
       {
         "bucket_range": "0.6-0.7",
-        "predicted_confidence": 0.65,
-        "actual_accuracy": 0.0,
-        "count": 0
+        "predicted_confidence": 0.7,
+        "actual_accuracy": 1.0,
+        "count": 73
       },
       {
         "bucket_range": "0.7-0.8",
@@ -121,87 +157,87 @@
       },
       {
         "bucket_range": "0.8-0.9",
-        "predicted_confidence": 0.832,
-        "actual_accuracy": 0.971,
-        "count": 682
+        "predicted_confidence": 0.831,
+        "actual_accuracy": 0.988,
+        "count": 1992
       },
       {
         "bucket_range": "0.9-1.0",
         "predicted_confidence": 0.95,
         "actual_accuracy": 1.0,
-        "count": 1209
+        "count": 6793
       }
     ],
-    "mean_correct_confidence": 0.8744,
-    "mean_incorrect_confidence": 0.4014
+    "mean_correct_confidence": 0.9049,
+    "mean_incorrect_confidence": 0.401
   },
   "temporal": {
     "30d": {
       "half_life_days": 30.0,
-      "precision_at_5": 0.1495,
-      "recall_at_5": 0.0578,
-      "precision_at_10": 0.1074,
-      "recall_at_10": 0.0832,
-      "mrr": 0.3108
+      "precision_at_5": 0.1254,
+      "recall_at_5": 0.0477,
+      "precision_at_10": 0.089,
+      "recall_at_10": 0.0681,
+      "mrr": 0.2657
     },
     "90d": {
       "half_life_days": 90.0,
-      "precision_at_5": 0.1495,
-      "recall_at_5": 0.0578,
-      "precision_at_10": 0.1063,
-      "recall_at_10": 0.0826,
-      "mrr": 0.3107
+      "precision_at_5": 0.1254,
+      "recall_at_5": 0.0477,
+      "precision_at_10": 0.0881,
+      "recall_at_10": 0.0677,
+      "mrr": 0.2656
     },
     "180d": {
       "half_life_days": 180.0,
-      "precision_at_5": 0.1432,
-      "recall_at_5": 0.0555,
-      "precision_at_10": 0.0979,
-      "recall_at_10": 0.0765,
-      "mrr": 0.3108
+      "precision_at_5": 0.1203,
+      "recall_at_5": 0.0458,
+      "precision_at_10": 0.0814,
+      "recall_at_10": 0.0627,
+      "mrr": 0.2657
     },
     "365d": {
       "half_life_days": 365.0,
-      "precision_at_5": 0.1432,
-      "recall_at_5": 0.0555,
-      "precision_at_10": 0.0958,
-      "recall_at_10": 0.0739,
-      "mrr": 0.3106
+      "precision_at_5": 0.1203,
+      "recall_at_5": 0.0458,
+      "precision_at_10": 0.0797,
+      "recall_at_10": 0.0607,
+      "mrr": 0.2656
     }
   },
   "context": {
-    "avg_tokens": 1770.6,
-    "median_tokens": 1746.0,
-    "baseline_tokens": 90397.2,
-    "token_reduction_pct": 98.04,
-    "symbol_recall": 0.2836,
-    "file_recall": 0.4769,
+    "avg_tokens": 2539.1,
+    "median_tokens": 2282.0,
+    "baseline_tokens": 191114.2,
+    "token_reduction_pct": 98.67,
+    "symbol_recall": 0.8209,
+    "file_recall": 1.0,
     "dependency_recall": 1.0,
     "test_recall": 1.0,
     "constraint_recall": 1.0,
-    "context_precision": 0.0354,
-    "negative_precision": 0.5,
-    "false_inclusion_rate": 0.5
+    "context_precision": 0.0729,
+    "negative_precision": 1.0,
+    "false_inclusion_rate": 0.0
   },
   "determinism_passed": true,
   "performance": {
     "context_latency": {
-      "p50_ms": 1854.02,
-      "p95_ms": 3542.08,
-      "mean_ms": 1691.33,
-      "max_ms": 3559.69
+      "p50_ms": 2028.98,
+      "p95_ms": 5742.19,
+      "mean_ms": 2415.96,
+      "max_ms": 6933.98
     },
     "impact_latency": {
-      "p50_ms": 45.31,
-      "p95_ms": 61.61,
-      "mean_ms": 48.24,
-      "max_ms": 87.77
+      "p50_ms": 3454.01,
+      "p95_ms": 4564.98,
+      "mean_ms": 3406.44,
+      "max_ms": 5266.36
     },
     "lookup_latency": {
-      "p50_ms": 0.06,
-      "p95_ms": 0.1,
-      "mean_ms": 0.07,
-      "max_ms": 0.15
+      "p50_ms": 12.4,
+      "p95_ms": 19.68,
+      "mean_ms": 12.21,
+      "max_ms": 24.07
     },
     "indexing_time_sec": 0.12,
     "incremental_indexing_time_ms": 18.5
@@ -214,185 +250,19 @@
   },
   "failures": [
     {
-      "task_id": "local_004",
-      "category": "IDENTIFIER_MISS",
-      "expected": [
-        "reciprocal_rank_fusion"
-      ],
-      "retrieved": [
-        "py:repopeek/discovery/classifier.py::FileType.JSON",
-        "py:repopeek/discovery/classifier.py::FileType.OTHER",
-        "py:repopeek/discovery/classifier.py::FileType.PYTHON",
-        "py:repopeek/discovery/classifier.py::FileType.SHELL",
-        "py:repopeek/discovery/classifier.py::FileType.SQL"
-      ],
-      "explanation": "Task terms were extracted, but AST identifier index did not match symbol names for ['reciprocal_rank_fusion']."
-    },
-    {
-      "task_id": "local_005",
-      "category": "IDENTIFIER_MISS",
-      "expected": [
-        "normalize_route_path"
-      ],
-      "retrieved": [
-        "py:repopeek/config.py::RepopeekConfig.graph_output_path",
-        "py:repopeek/config.py::RepopeekConfig.output_dir",
-        "py:repopeek/discovery/hasher.py::compute_file_hashes",
-        "py:repopeek/parsers/base.py::BaseParser.parse_file",
-        "py:repopeek/parsers/base.py::BaseParser.parse_source"
-      ],
-      "explanation": "Task terms were extracted, but AST identifier index did not match symbol names for ['normalize_route_path']."
-    },
-    {
-      "task_id": "local_006",
-      "category": "IDENTIFIER_MISS",
-      "expected": [
-        "GitTemporalMiner"
-      ],
-      "retrieved": [
-        "py:repopeek/discovery/ignore.py::DEFAULT_IGNORE_DIRS",
-        "py:repopeek/discovery/ignore.py::DEFAULT_IGNORE_PATTERNS",
-        "py:repopeek/llm/groq.py::GroqProvider.DEFAULT_BASE_URL",
-        "py:repopeek/llm/groq.py::GroqProvider.DEFAULT_TIER_MODELS",
-        "py:repopeek/parsers/sql.py::SqlParser.default_dialect"
-      ],
-      "explanation": "Task terms were extracted, but AST identifier index did not match symbol names for ['GitTemporalMiner']."
-    },
-    {
-      "task_id": "local_007",
-      "category": "IDENTIFIER_MISS",
-      "expected": [
-        "ContextCompiler"
-      ],
-      "retrieved": [
-        "py:repopeek/query/pack.py::ContextPack.token_budget",
-        "py:repopeek/llm/models.py::CompletionRequest.max_tokens",
-        "py:repopeek/llm/models.py::CompletionResponse.completion_tokens",
-        "py:repopeek/llm/models.py::CompletionResponse.total_tokens",
-        "py:repopeek/llm/models.py::CompletionResponse.cached_tokens"
-      ],
-      "explanation": "Task terms were extracted, but AST identifier index did not match symbol names for ['ContextCompiler']."
-    },
-    {
-      "task_id": "local_008",
-      "category": "IDENTIFIER_MISS",
-      "expected": [
-        "extract_task_identifiers"
-      ],
-      "retrieved": [
-        "py:repopeek/parsers/config.py::YamlConfigParser",
-        "yaml:tests/fixtures/sample_repo/config/pipeline.yaml::<config>",
-        "py:repopeek/config.py::RepopeekConfig.supported_extensions",
-        "py:repopeek/discovery/classifier.py::FileType.YAML",
-        "py:tests/test_polyglot_parsers.py::test_yaml_parser_malformed_resilience"
-      ],
-      "explanation": "Task terms were extracted, but AST identifier index did not match symbol names for ['extract_task_identifiers']."
-    },
-    {
-      "task_id": "local_009",
-      "category": "RANKING_ERROR",
-      "expected": [
-        "InvoiceParser"
-      ],
-      "retrieved": [
-        "py:repopeek/parsers/sql.py::SqlParser.__init__",
-        "py:tests/fixtures/sample_repo/src/billing/invoice.py::InvoiceParser.__init__",
-        "py:repopeek/parsers/__init__.py::<module>",
-        "py:tests/fixtures/sample_repo/src/billing/invoice.py::InvoiceParser.dialect",
-        "json:tests/fixtures/sample_repo/config/app_config.json::database.dialect"
-      ],
-      "explanation": "Gold symbol was found in candidate pool but ranked at position >10, outside top 5 due to competing symbol scores."
-    },
-    {
-      "task_id": "dep_011",
-      "category": "IDENTIFIER_MISS",
-      "expected": [
-        "compute_blast_radius"
-      ],
-      "retrieved": [
-        "py:tests/test_golden_scenarios.py::test_golden_question_1_blast_radius",
-        "py:tests/test_data_flow_and_bridges.py::test_blast_radius_impact_trace",
-        "py:repopeek/models/schema.py::NodeFacts.returns",
-        "py:repopeek/parsers/python.py::PythonParser._analyze_function_body",
-        "py:tests/test_story_cascade.py::_make_dummy_node"
-      ],
-      "explanation": "Task terms were extracted, but AST identifier index did not match symbol names for ['compute_blast_radius']."
-    },
-    {
-      "task_id": "dep_012",
-      "category": "IDENTIFIER_MISS",
-      "expected": [
-        "calculate_path_confidence"
-      ],
-      "retrieved": [
-        "json:docs/graph_schema.json::example_business_process_node.confidence",
-        "py:repopeek/enrichment/verifier.py::VerificationResult.confidence",
-        "py:repopeek/models/schema.py::Confidence",
-        "py:repopeek/models/schema.py::Edge.confidence",
-        "py:repopeek/models/schema.py::NodeStory.confidence"
-      ],
-      "explanation": "Task terms were extracted, but AST identifier index did not match symbol names for ['calculate_path_confidence']."
-    },
-    {
-      "task_id": "dep_014",
-      "category": "IDENTIFIER_MISS",
-      "expected": [
-        "resolve_task_to_symbols"
-      ],
-      "retrieved": [
-        "json:docs/graph_schema.json::example_business_process_node.confidence",
-        "py:repopeek/enrichment/verifier.py::VerificationResult.confidence",
-        "py:repopeek/models/schema.py::Confidence",
-        "py:repopeek/models/schema.py::Edge.confidence",
-        "py:repopeek/models/schema.py::NodeStory.confidence"
-      ],
-      "explanation": "Task terms were extracted, but AST identifier index did not match symbol names for ['resolve_task_to_symbols']."
-    },
-    {
-      "task_id": "dep_016",
-      "category": "IDENTIFIER_MISS",
-      "expected": [
-        "query_fts5_bm25"
-      ],
-      "retrieved": [
-        "py:repopeek/storage/sqlite_cache.py::<module>",
-        "py:repopeek/storage/sqlite_cache.py::build_sqlite_cache",
-        "py:tests/test_graph_persistence.py::test_sqlite_cache_and_recursive_impact",
-        "py:repopeek/enrichment/pipeline.py::StoryPipeline.cache",
-        "py:repopeek/enrichment/summarizer.py::HierarchicalStoryGenerator.cache"
-      ],
-      "explanation": "Task terms were extracted, but AST identifier index did not match symbol names for ['query_fts5_bm25']."
-    },
-    {
-      "task_id": "dep_017",
-      "category": "IDENTIFIER_MISS",
-      "expected": [
-        "ContextPackage",
-        "ContextCompiler"
-      ],
-      "retrieved": [
-        "py:knowledge_vault/_meta/validate.py::REQUIRED_FRONTMATTER_FIELDS",
-        "py:repopeek/query/pack.py::ContextPack.to_markdown",
-        "py:tests/test_query_and_pack.py::test_context_pack_budget_and_markdown",
-        "json:docs/graph_schema.json::node_types.BusinessProcess.optional_fields",
-        "json:docs/graph_schema.json::node_types.BusinessProcess.optional_fields[0]"
-      ],
-      "explanation": "Task terms were extracted, but AST identifier index did not match symbol names for ['ContextPackage', 'ContextCompiler']."
-    },
-    {
       "task_id": "dep_018",
       "category": "IDENTIFIER_MISS",
       "expected": [
         "run_pipeline.sh"
       ],
       "retrieved": [
-        "sh:tests/fixtures/sample_repo/scripts/run_pipeline.sh::<script>",
         "yaml:tests/fixtures/sample_repo/config/pipeline.yaml::pipeline.script",
-        "sh:tests/fixtures/sample_repo/scripts/run_pipeline.sh::cmd_L6_1",
-        "sh:tests/fixtures/sample_repo/scripts/run_pipeline.sh::cmd_L4",
-        "sh:tests/fixtures/sample_repo/scripts/run_pipeline.sh::cmd_L3"
+        "sh:tests/fixtures/sample_repo/scripts/run_pipeline.sh::<script>",
+        "py:tests/test_mcp_suite.py::test_mcp_tool_execution",
+        "yaml:benchmarks/v1/tasks.yaml::tasks[17].task",
+        "py:repopeek/parsers/shell.py::SCRIPT_EXTENSIONS"
       ],
-      "explanation": "Task terms were extracted, but AST identifier index did not match symbol names for ['run_pipeline.sh']."
+      "explanation": "Task terms were extracted, but candidate generation failed to retrieve ['run_pipeline.sh'] into the top 100 candidate pool."
     },
     {
       "task_id": "cross_019",
@@ -401,133 +271,58 @@
         "HttpBoundaryBridge"
       ],
       "retrieved": [
-        "py:repopeek/discovery/classifier.py::FileType.PYTHON",
-        "yaml:tests/fixtures/sample_repo/config/pipeline.yaml::pipeline.script",
-        "json:docs/graph_schema.json::description",
-        "json:docs/graph_schema.json::example_business_process_node.description",
-        "json:knowledge_vault/Antigravity/context-manifest.json::skills[0].description"
+        "py:tests/test_http_bridge.py::test_python_route_decorator_edge_cases",
+        "py:repopeek/parsers/typescript.py::_find_matching_brace",
+        "py:tests/test_http_bridge.py::test_express_server_route_linking",
+        "py:repopeek/bridges/http.py::HTTP_CLIENT_CALL_RE",
+        "py:repopeek/bridges/http.py::HttpBoundaryBridge.extract_client_calls"
       ],
       "explanation": "Task text contains purely natural language terms with no direct lexical or identifier overlap with target symbols ['HttpBoundaryBridge']."
     },
     {
-      "task_id": "cross_020",
-      "category": "IDENTIFIER_MISS",
-      "expected": [
-        "normalize_route_path"
-      ],
-      "retrieved": [
-        "py:repopeek/discovery/crawler.py::DiscoveredFile.path",
-        "json:knowledge_vault/Antigravity/context-manifest.json::skills[0].relPath",
-        "py:repopeek/config.py::RepopeekConfig.graph_output_path",
-        "py:repopeek/config.py::RepopeekConfig.repo_path",
-        "py:repopeek/discovery/crawler.py::DiscoveredFile.rel_path"
-      ],
-      "explanation": "Task terms were extracted, but AST identifier index did not match symbol names for ['normalize_route_path']."
-    },
-    {
-      "task_id": "cross_021",
-      "category": "IDENTIFIER_MISS",
-      "expected": [
-        "TypeScriptParser"
-      ],
-      "retrieved": [
-        "py:repopeek/parsers/python.py::PythonParser._parse_ast",
-        "py:tests/test_polyglot_parsers.py::test_shell_parser_commands_and_scripts",
-        "py:tests/test_polyglot_parsers.py::test_yaml_parser_nested_and_script_targets",
-        "py:repopeek/models/schema.py::NodeCard.blast",
-        "py:repopeek/parsers/shell.py::ShellParser._extract_script_target"
-      ],
-      "explanation": "Task terms were extracted, but AST identifier index did not match symbol names for ['TypeScriptParser']."
-    },
-    {
-      "task_id": "cross_022",
-      "category": "RANKING_ERROR",
-      "expected": [
-        "InvoiceParser.parse"
-      ],
-      "retrieved": [
-        "py:tests/test_polyglot_parsers.py::test_sql_parser_oracle_and_table_defs",
-        "py:tests/test_polyglot_parsers.py::test_sql_parser_select_query_and_references",
-        "py:tests/test_python_parser.py::test_parse_embedded_sql",
-        "sql:tests/fixtures/sample_repo/db/queries.sql::table.invoices",
-        "py:repopeek/parsers/sql.py::SqlParser"
-      ],
-      "explanation": "Gold symbol was found in candidate pool but ranked at position 8, outside top 5 due to competing symbol scores."
-    },
-    {
-      "task_id": "cross_023",
-      "category": "IDENTIFIER_MISS",
-      "expected": [
-        "HttpBoundaryBridge"
-      ],
-      "retrieved": [
-        "json:docs/graph_schema.json::edge_types.CALLS",
-        "py:repopeek/enrichment/governor.py::CostGovernor.can_call_llm",
-        "py:repopeek/enrichment/governor.py::CostGovernor.fallback_calls",
-        "py:repopeek/enrichment/governor.py::CostGovernor.llm_calls",
-        "py:repopeek/graph/lenses.py::get_bridges_lens"
-      ],
-      "explanation": "Task terms were extracted, but AST identifier index did not match symbol names for ['HttpBoundaryBridge']."
-    },
-    {
       "task_id": "cross_024",
-      "category": "IDENTIFIER_MISS",
+      "category": "RANKING_ERROR",
       "expected": [
         "TypeScriptParser"
       ],
       "retrieved": [
-        "py:tests/test_polyglot_parsers.py::test_shell_parser_commands_and_scripts",
-        "py:tests/test_polyglot_parsers.py::test_yaml_parser_nested_and_script_targets",
-        "py:repopeek/models/schema.py::NodeFacts.calls",
-        "py:repopeek/parsers/shell.py::ShellParser._extract_script_target",
-        "py:repopeek/discovery/crawler.py::DiscoveredFile.parse_status"
+        "py:repopeek/parsers/typescript.py::_parse_params",
+        "py:tests/test_python_parser.py::test_parse_classes_and_inheritance",
+        "py:repopeek/parsers/typescript.py::TypeScriptParser.parse_source",
+        "py:repopeek/parsers/typescript.py::_extract_http_calls",
+        "py:repopeek/parsers/typescript.py::CALL_PATTERN"
       ],
-      "explanation": "Task terms were extracted, but AST identifier index did not match symbol names for ['TypeScriptParser']."
-    },
-    {
-      "task_id": "cross_025",
-      "category": "RANKING_ERROR",
-      "expected": [
-        "InvoiceParser"
-      ],
-      "retrieved": [
-        "sh:tests/fixtures/sample_repo/scripts/run_pipeline.sh::<script>",
-        "yaml:tests/fixtures/sample_repo/config/pipeline.yaml::pipeline.script",
-        "py:tests/test_polyglot_parsers.py::test_shell_parser_commands_and_scripts",
-        "sh:tests/fixtures/sample_repo/scripts/run_pipeline.sh::cmd_L6_1",
-        "py:repopeek/parsers/shell.py::ShellParser"
-      ],
-      "explanation": "Gold symbol was found in candidate pool but ranked at position >10, outside top 5 due to competing symbol scores."
+      "explanation": "Gold symbol was present in candidate pool but ranked at position 7, outside top 5 due to competing symbol scores."
     },
     {
       "task_id": "cross_026",
-      "category": "IDENTIFIER_MISS",
+      "category": "RANKING_ERROR",
       "expected": [
         "HttpBoundaryBridge"
       ],
       "retrieved": [
-        "py:repopeek/graph/resolver.py::SymbolResolver.edges",
-        "py:repopeek/models/schema.py::CanonicalGraph.edges",
-        "py:repopeek/models/schema.py::EdgeType.INVOKES",
-        "py:repopeek/parsers/base.py::ParseResult.edges",
-        "py:repopeek/graph/lenses.py::get_bridges_lens"
+        "py:tests/test_http_bridge.py::test_express_server_route_linking",
+        "py:repopeek/bridges/http.py::HttpBoundaryBridge.extract_server_routes",
+        "py:repopeek/bridges/http.py::EXPRESS_ROUTE_RE",
+        "py:repopeek/models/schema.py::CanonicalGraph.out_edges",
+        "py:repopeek/models/schema.py::CanonicalGraph.in_edges"
       ],
-      "explanation": "Task terms were extracted, but AST identifier index did not match symbol names for ['HttpBoundaryBridge']."
+      "explanation": "Gold symbol was present in candidate pool but ranked at position 15, outside top 5 due to competing symbol scores."
     },
     {
       "task_id": "hist_027",
-      "category": "IDENTIFIER_MISS",
+      "category": "RANKING_ERROR",
       "expected": [
         "GitTemporalMiner"
       ],
       "retrieved": [
-        "py:repopeek/llm/mock.py::MockProvider.history",
-        "py:repopeek/models/schema.py::NodeProvenance.commit",
-        "py:repopeek/storage/provenance.py::GitProvenance.commit",
-        "py:repopeek/__init__.py::<module>",
-        "py:repopeek/__main__.py::<module>"
+        "py:repopeek/temporal/miner.py::GitTemporalMiner.__init__",
+        "py:repopeek/temporal/miner.py::GitTemporalMiner.mine_commits",
+        "py:repopeek/temporal/miner.py::GitTemporalMiner.max_files_per_commit",
+        "py:repopeek/temporal/miner.py::GitTemporalMiner.compute_co_changes",
+        "py:repopeek/temporal/miner.py::CommitRecord.commit_hash"
       ],
-      "explanation": "Task terms were extracted, but AST identifier index did not match symbol names for ['GitTemporalMiner']."
+      "explanation": "Gold symbol was present in candidate pool but ranked at position 10, outside top 5 due to competing symbol scores."
     },
     {
       "task_id": "hist_028",
@@ -536,199 +331,47 @@
         "CanonicalGraph"
       ],
       "retrieved": [
-        "py:repopeek/graph/builder.py::<module>",
-        "py:tests/test_schema.py::<module>",
-        "py:repopeek/models/schema.py::<module>",
-        "py:tests/test_graph_builder_and_lenses.py::<module>",
-        "py:repopeek/graph/builder.py::GraphBuilder"
+        "py:repopeek/graph/builder.py::GraphBuilder.build",
+        "py:repopeek/graph/builder.py::GraphBuilder.build_from_directory",
+        "yaml:benchmarks/v1/tasks.yaml::tasks[27].task",
+        "py:repopeek/bridges/http.py::HttpBoundaryBridge.resolve_and_link",
+        "py:tests/test_story_cascade.py::test_deterministic_story_builder"
       ],
       "explanation": "Task text contains purely natural language terms with no direct lexical or identifier overlap with target symbols ['CanonicalGraph']."
     },
     {
-      "task_id": "hist_029",
-      "category": "IDENTIFIER_MISS",
-      "expected": [
-        "GitTemporalMiner.mine_commits"
-      ],
-      "retrieved": [
-        "py:repopeek/models/schema.py::NodeProvenance.commit",
-        "py:repopeek/storage/provenance.py::GitProvenance.commit",
-        "py:repopeek/models/schema.py::CanonicalGraph.repo_commit",
-        "py:repopeek/graph/builder.py::GraphBuilder.build",
-        "py:repopeek/graph/builder.py::GraphBuilder.build_from_directory"
-      ],
-      "explanation": "Task terms were extracted, but AST identifier index did not match symbol names for ['GitTemporalMiner.mine_commits']."
-    },
-    {
-      "task_id": "hist_030",
-      "category": "IDENTIFIER_MISS",
-      "expected": [
-        "GitTemporalMiner"
-      ],
-      "retrieved": [
-        "py:repopeek/discovery/classifier.py::FileType.PYTHON",
-        "py:knowledge_vault/_meta/validate.py::<module>",
-        "py:repopeek/__init__.py::<module>",
-        "py:repopeek/__main__.py::<module>",
-        "py:repopeek/config.py::<module>"
-      ],
-      "explanation": "Task terms were extracted, but AST identifier index did not match symbol names for ['GitTemporalMiner']."
-    },
-    {
-      "task_id": "hist_031",
-      "category": "IDENTIFIER_MISS",
-      "expected": [
-        "GitTemporalMiner.compute_co_changes"
-      ],
-      "retrieved": [
-        "py:repopeek/discovery/hasher.py::compute_file_hashes",
-        "py:repopeek/discovery/hasher.py::compute_hashes_from_bytes",
-        "py:repopeek/llm/groq.py::GroqProvider.timeout",
-        "py:repopeek/query/engine.py::GraphQueryEngine.compute_blast",
-        "py:repopeek/storage/provenance.py::compute_repo_blob_shas"
-      ],
-      "explanation": "Task terms were extracted, but AST identifier index did not match symbol names for ['GitTemporalMiner.compute_co_changes']."
-    },
-    {
-      "task_id": "hist_032",
-      "category": "IDENTIFIER_MISS",
-      "expected": [
-        "GitTemporalMiner.build_graph_edges"
-      ],
-      "retrieved": [
-        "py:repopeek/graph/resolver.py::SymbolResolver.edges",
-        "py:repopeek/models/schema.py::CanonicalGraph.edges",
-        "py:repopeek/query/engine.py::GraphQueryEngine._incoming_edges",
-        "py:repopeek/query/engine.py::GraphQueryEngine._outgoing_edges",
-        "json:docs/graph_schema.json::description"
-      ],
-      "explanation": "Task terms were extracted, but AST identifier index did not match symbol names for ['GitTemporalMiner.build_graph_edges']."
-    },
-    {
-      "task_id": "hist_033",
-      "category": "IDENTIFIER_MISS",
-      "expected": [
-        "GitTemporalMiner"
-      ],
-      "retrieved": [
-        "py:repopeek/models/schema.py::NodeProvenance.commit",
-        "py:repopeek/storage/provenance.py::GitProvenance.commit",
-        "py:repopeek/models/schema.py::CanonicalGraph.repo_commit",
-        "py:repopeek/graph/builder.py::GraphBuilder.build",
-        "py:repopeek/graph/builder.py::GraphBuilder.build_from_directory"
-      ],
-      "explanation": "Task terms were extracted, but AST identifier index did not match symbol names for ['GitTemporalMiner']."
-    },
-    {
       "task_id": "hist_034",
-      "category": "LEXICAL_MISS",
+      "category": "RANKING_ERROR",
       "expected": [
         "compute_blast_radius"
       ],
       "retrieved": [
+        "py:tests/test_blast_radius.py::test_blast_radius_target_not_found",
+        "yaml:benchmarks/v1/tasks.yaml::tasks[33].task",
         "py:tests/test_data_flow_and_bridges.py::test_blast_radius_impact_trace",
-        "py:tests/test_golden_scenarios.py::test_golden_question_1_blast_radius",
-        "py:tests/__init__.py::<module>",
-        "py:tests/fixtures/sample_repo/ignored_dir/secret.py::<module>",
-        "py:tests/fixtures/sample_repo/src/billing/invoice.py::<module>"
+        "py:tests/test_blast_radius.py::<module>",
+        "py:repopeek/graph/blast_radius.py::BlastRadiusReport.affected_files"
       ],
-      "explanation": "Task text contains purely natural language terms with no direct lexical or identifier overlap with target symbols ['compute_blast_radius']."
-    },
-    {
-      "task_id": "neg_037",
-      "category": "IDENTIFIER_MISS",
-      "expected": [
-        "normalize_task_text"
-      ],
-      "retrieved": [
-        "py:tests/test_golden_scenarios.py::test_golden_question_1_blast_radius",
-        "py:tests/test_data_flow_and_bridges.py::test_blast_radius_impact_trace",
-        "py:tests/test_golden_scenarios.py::test_golden_question_3_minimal_context_pack",
-        "py:tests/test_query_and_pack.py::test_context_pack_budget_and_markdown",
-        "py:repopeek/query/engine.py::GraphQueryEngine.compute_blast"
-      ],
-      "explanation": "Task terms were extracted, but AST identifier index did not match symbol names for ['normalize_task_text']."
+      "explanation": "Gold symbol was present in candidate pool but ranked at position 54, outside top 5 due to competing symbol scores."
     },
     {
       "task_id": "neg_038",
-      "category": "IDENTIFIER_MISS",
+      "category": "RANKING_ERROR",
       "expected": [
         "TypeScriptParser"
       ],
       "retrieved": [
-        "py:tests/test_polyglot_parsers.py::test_sql_parser_dialect_fallback",
-        "py:tests/test_python_parser.py::test_parse_embedded_sql",
-        "py:repopeek/config.py::RepopeekConfig.sql_dialect",
+        "py:repopeek/parsers/python.py::PythonParser",
+        "py:repopeek/parsers/sql.py::SqlParser",
         "py:repopeek/parsers/python.py::PythonParser._parse_ast",
-        "py:tests/test_python_parser.py::parser"
+        "py:repopeek/parsers/sql.py::SqlParser.parse_source",
+        "py:tests/test_polyglot_parsers.py::test_sql_parser_dialect_fallback"
       ],
-      "explanation": "Task terms were extracted, but AST identifier index did not match symbol names for ['TypeScriptParser']."
-    },
-    {
-      "task_id": "neg_039",
-      "category": "IDENTIFIER_MISS",
-      "expected": [
-        "brier_score"
-      ],
-      "retrieved": [
-        "py:repopeek/query/mcp_server.py::RepoPeekMCPServer",
-        "py:repopeek/query/mcp_server.py::<module>",
-        "py:tests/test_query_and_pack.py::test_mcp_server_protocol",
-        "py:repopeek/llm/mock.py::MockProvider.simulate_server_error",
-        "py:repopeek/query/mcp_server.py::RepoPeekMCPServer.__init__"
-      ],
-      "explanation": "Task terms were extracted, but AST identifier index did not match symbol names for ['brier_score']."
-    },
-    {
-      "task_id": "neg_041",
-      "category": "IDENTIFIER_MISS",
-      "expected": [
-        "ContextCompiler"
-      ],
-      "retrieved": [
-        "py:repopeek/query/pack.py::ContextPack.token_budget",
-        "py:repopeek/query/engine.py::GraphQueryEngine.context_pack",
-        "py:repopeek/enrichment/governor.py::CostGovernor.cached_tokens",
-        "py:repopeek/enrichment/governor.py::CostGovernor.completion_tokens",
-        "py:repopeek/enrichment/governor.py::CostGovernor.max_tokens"
-      ],
-      "explanation": "Task terms were extracted, but AST identifier index did not match symbol names for ['ContextCompiler']."
-    },
-    {
-      "task_id": "neg_042",
-      "category": "IDENTIFIER_MISS",
-      "expected": [
-        "query_fts5_bm25"
-      ],
-      "retrieved": [
-        "py:repopeek/storage/sqlite_cache.py::query_sqlite_edges",
-        "py:repopeek/storage/sqlite_cache.py::query_sqlite_impact",
-        "py:repopeek/storage/sqlite_cache.py::query_sqlite_nodes",
-        "py:repopeek/storage/sqlite_cache.py::<module>",
-        "py:repopeek/storage/sqlite_cache.py::build_sqlite_cache"
-      ],
-      "explanation": "Task terms were extracted, but AST identifier index did not match symbol names for ['query_fts5_bm25']."
-    },
-    {
-      "task_id": "multi_045",
-      "category": "IDENTIFIER_MISS",
-      "expected": [
-        "extract_task_identifiers",
-        "resolve_task_to_symbols",
-        "ContextCompiler"
-      ],
-      "retrieved": [
-        "json:knowledge_vault/Antigravity/context-manifest.json::<config>",
-        "py:tests/test_data_flow_and_bridges.py::<module>",
-        "py:repopeek/graph/lenses.py::trace_variable_flow",
-        "py:repopeek/graph/resolver.py::SymbolResolver.symbols_by_name",
-        "py:repopeek/graph/resolver.py::SymbolResolver.symbols_by_qualname"
-      ],
-      "explanation": "Task terms were extracted, but AST identifier index did not match symbol names for ['extract_task_identifiers', 'resolve_task_to_symbols', 'ContextCompiler']."
+      "explanation": "Gold symbol was present in candidate pool but ranked at position 26, outside top 5 due to competing symbol scores."
     },
     {
       "task_id": "multi_047",
-      "category": "IDENTIFIER_MISS",
+      "category": "RANKING_ERROR",
       "expected": [
         "GitTemporalMiner.mine_commits",
         "GitTemporalMiner.compute_co_changes",
@@ -736,186 +379,39 @@
       ],
       "retrieved": [
         "py:repopeek/graph/lenses.py::trace_variable_flow",
-        "py:repopeek/config.py::RepopeekConfig.graph_output_path",
+        "py:repopeek/models/schema.py::NodeProvenance.commit",
         "py:repopeek/graph/lenses.py::trace_impact",
-        "py:repopeek/models/schema.py::CanonicalGraph.repo_commit",
-        "py:tests/test_schema.py::test_edge_validation_and_canonical_graph"
+        "py:tests/test_graph_persistence.py::test_git_provenance_non_git_dir",
+        "py:repopeek/temporal/miner.py::GitTemporalMiner.__init__"
       ],
-      "explanation": "Task terms were extracted, but AST identifier index did not match symbol names for ['GitTemporalMiner.mine_commits', 'GitTemporalMiner.compute_co_changes', 'GitTemporalMiner.build_graph_edges']."
-    },
-    {
-      "task_id": "multi_049",
-      "category": "IDENTIFIER_MISS",
-      "expected": [
-        "calculate_path_confidence",
-        "calculate_combined_confidence",
-        "calculate_graph_score"
-      ],
-      "retrieved": [
-        "py:tests/test_data_flow_and_bridges.py::test_blast_radius_impact_trace",
-        "py:repopeek/config.py::RepopeekConfig.graph_output_path",
-        "py:tests/test_golden_scenarios.py::test_golden_question_1_blast_radius",
-        "json:docs/graph_schema.json::example_business_process_node.confidence",
-        "py:repopeek/graph/builder.py::GraphBuilder.to_networkx"
-      ],
-      "explanation": "Task terms were extracted, but AST identifier index did not match symbol names for ['calculate_path_confidence', 'calculate_combined_confidence', 'calculate_graph_score']."
+      "explanation": "Gold symbol was present in candidate pool but ranked at position 18, outside top 5 due to competing symbol scores."
     },
     {
       "task_id": "multi_050",
-      "category": "IDENTIFIER_MISS",
+      "category": "RANKING_ERROR",
       "expected": [
         "ContextCompiler",
         "ChangePlan"
       ],
       "retrieved": [
-        "json:knowledge_vault/Antigravity/context-manifest.json::<config>",
-        "py:repopeek/query/engine.py::GraphQueryEngine.context_pack",
-        "py:repopeek/query/pack.py::ContextPack",
-        "py:tests/test_golden_scenarios.py::test_golden_question_3_minimal_context_pack",
-        "py:tests/test_query_and_pack.py::test_context_pack_budget_and_markdown"
+        "py:repopeek/evaluation/context.py::verify_context_determinism",
+        "py:tests/test_context_compiler.py::test_cli_plan_flag",
+        "py:repopeek/context/compiler.py::ContextCompiler.compile",
+        "py:tests/test_context_compiler.py::test_change_plan_generation",
+        "py:repopeek/context/compiler.py::ContextCompiler._generate_plan"
       ],
-      "explanation": "Task terms were extracted, but AST identifier index did not match symbol names for ['ContextCompiler', 'ChangePlan']."
-    },
-    {
-      "task_id": "local_004",
-      "category": "RANKING_ERROR",
-      "expected": "reciprocal_rank_fusion",
-      "retrieved": [
-        "py:repopeek/discovery/classifier.py::FileType.JSON",
-        "py:repopeek/discovery/classifier.py::FileType.OTHER",
-        "py:repopeek/discovery/classifier.py::FileType.PYTHON",
-        "py:repopeek/discovery/classifier.py::FileType.SHELL",
-        "py:repopeek/discovery/classifier.py::FileType.SQL"
-      ],
-      "explanation": "Gold symbol 'reciprocal_rank_fusion' was omitted from compiled ContextPackage entrypoints/direct blast."
-    },
-    {
-      "task_id": "local_005",
-      "category": "RANKING_ERROR",
-      "expected": "normalize_route_path",
-      "retrieved": [
-        "py:repopeek/config.py::RepopeekConfig.graph_output_path",
-        "py:repopeek/config.py::RepopeekConfig.output_dir",
-        "py:repopeek/discovery/hasher.py::compute_file_hashes",
-        "py:repopeek/parsers/base.py::BaseParser.parse_file",
-        "py:repopeek/parsers/base.py::BaseParser.parse_source"
-      ],
-      "explanation": "Gold symbol 'normalize_route_path' was omitted from compiled ContextPackage entrypoints/direct blast."
-    },
-    {
-      "task_id": "local_006",
-      "category": "RANKING_ERROR",
-      "expected": "GitTemporalMiner",
-      "retrieved": [
-        "py:repopeek/discovery/ignore.py::DEFAULT_IGNORE_DIRS",
-        "py:repopeek/discovery/ignore.py::DEFAULT_IGNORE_PATTERNS",
-        "py:repopeek/llm/groq.py::GroqProvider.DEFAULT_BASE_URL",
-        "py:repopeek/llm/groq.py::GroqProvider.DEFAULT_TIER_MODELS",
-        "py:repopeek/parsers/sql.py::SqlParser.default_dialect"
-      ],
-      "explanation": "Gold symbol 'GitTemporalMiner' was omitted from compiled ContextPackage entrypoints/direct blast."
-    },
-    {
-      "task_id": "local_007",
-      "category": "RANKING_ERROR",
-      "expected": "ContextCompiler",
-      "retrieved": [
-        "py:repopeek/query/pack.py::ContextPack.token_budget",
-        "py:repopeek/llm/models.py::CompletionRequest.max_tokens",
-        "py:repopeek/llm/models.py::CompletionResponse.completion_tokens",
-        "py:repopeek/llm/models.py::CompletionResponse.total_tokens",
-        "py:repopeek/llm/models.py::CompletionResponse.cached_tokens"
-      ],
-      "explanation": "Gold symbol 'ContextCompiler' was omitted from compiled ContextPackage entrypoints/direct blast."
-    },
-    {
-      "task_id": "local_008",
-      "category": "RANKING_ERROR",
-      "expected": "extract_task_identifiers",
-      "retrieved": [
-        "py:repopeek/parsers/config.py::YamlConfigParser",
-        "yaml:tests/fixtures/sample_repo/config/pipeline.yaml::<config>",
-        "py:repopeek/config.py::RepopeekConfig.supported_extensions",
-        "py:repopeek/discovery/classifier.py::FileType.YAML",
-        "py:tests/test_polyglot_parsers.py::test_yaml_parser_malformed_resilience"
-      ],
-      "explanation": "Gold symbol 'extract_task_identifiers' was omitted from compiled ContextPackage entrypoints/direct blast."
-    },
-    {
-      "task_id": "dep_011",
-      "category": "RANKING_ERROR",
-      "expected": "compute_blast_radius",
-      "retrieved": [
-        "py:tests/test_golden_scenarios.py::test_golden_question_1_blast_radius",
-        "py:tests/test_data_flow_and_bridges.py::test_blast_radius_impact_trace",
-        "py:repopeek/models/schema.py::NodeFacts.returns",
-        "py:repopeek/parsers/python.py::PythonParser._analyze_function_body",
-        "py:tests/test_story_cascade.py::_make_dummy_node"
-      ],
-      "explanation": "Gold symbol 'compute_blast_radius' was omitted from compiled ContextPackage entrypoints/direct blast."
-    },
-    {
-      "task_id": "dep_012",
-      "category": "RANKING_ERROR",
-      "expected": "calculate_path_confidence",
-      "retrieved": [
-        "json:docs/graph_schema.json::example_business_process_node.confidence",
-        "py:repopeek/enrichment/verifier.py::VerificationResult.confidence",
-        "py:repopeek/models/schema.py::Confidence",
-        "py:repopeek/models/schema.py::Edge.confidence",
-        "py:repopeek/models/schema.py::NodeStory.confidence"
-      ],
-      "explanation": "Gold symbol 'calculate_path_confidence' was omitted from compiled ContextPackage entrypoints/direct blast."
-    },
-    {
-      "task_id": "dep_014",
-      "category": "RANKING_ERROR",
-      "expected": "resolve_task_to_symbols",
-      "retrieved": [
-        "json:docs/graph_schema.json::example_business_process_node.confidence",
-        "py:repopeek/enrichment/verifier.py::VerificationResult.confidence",
-        "py:repopeek/models/schema.py::Confidence",
-        "py:repopeek/models/schema.py::Edge.confidence",
-        "py:repopeek/models/schema.py::NodeStory.confidence"
-      ],
-      "explanation": "Gold symbol 'resolve_task_to_symbols' was omitted from compiled ContextPackage entrypoints/direct blast."
-    },
-    {
-      "task_id": "dep_016",
-      "category": "RANKING_ERROR",
-      "expected": "query_fts5_bm25",
-      "retrieved": [
-        "py:repopeek/storage/sqlite_cache.py::<module>",
-        "py:repopeek/storage/sqlite_cache.py::build_sqlite_cache",
-        "py:tests/test_graph_persistence.py::test_sqlite_cache_and_recursive_impact",
-        "py:repopeek/enrichment/pipeline.py::StoryPipeline.cache",
-        "py:repopeek/enrichment/summarizer.py::HierarchicalStoryGenerator.cache"
-      ],
-      "explanation": "Gold symbol 'query_fts5_bm25' was omitted from compiled ContextPackage entrypoints/direct blast."
-    },
-    {
-      "task_id": "dep_017",
-      "category": "RANKING_ERROR",
-      "expected": "ContextPackage",
-      "retrieved": [
-        "py:knowledge_vault/_meta/validate.py::REQUIRED_FRONTMATTER_FIELDS",
-        "py:repopeek/query/pack.py::ContextPack.to_markdown",
-        "py:tests/test_query_and_pack.py::test_context_pack_budget_and_markdown",
-        "json:docs/graph_schema.json::node_types.BusinessProcess.optional_fields",
-        "json:docs/graph_schema.json::node_types.BusinessProcess.optional_fields[0]"
-      ],
-      "explanation": "Gold symbol 'ContextPackage' was omitted from compiled ContextPackage entrypoints/direct blast."
+      "explanation": "Gold symbol was present in candidate pool but ranked at position 12, outside top 5 due to competing symbol scores."
     },
     {
       "task_id": "dep_017",
       "category": "RANKING_ERROR",
       "expected": "ContextCompiler",
       "retrieved": [
-        "py:knowledge_vault/_meta/validate.py::REQUIRED_FRONTMATTER_FIELDS",
-        "py:repopeek/query/pack.py::ContextPack.to_markdown",
-        "py:tests/test_query_and_pack.py::test_context_pack_budget_and_markdown",
-        "json:docs/graph_schema.json::node_types.BusinessProcess.optional_fields",
-        "json:docs/graph_schema.json::node_types.BusinessProcess.optional_fields[0]"
+        "py:repopeek/context/compiler.py::ContextPackage",
+        "py:repopeek/context/compiler.py::ContextPackage.to_markdown",
+        "py:repopeek/context/compiler.py::ContextCompiler.compile",
+        "py:repopeek/context/compiler.py::ContextPackage.constraints",
+        "py:repopeek/context/compiler.py::ContextPackage.snippets"
       ],
       "explanation": "Gold symbol 'ContextCompiler' was omitted from compiled ContextPackage entrypoints/direct blast."
     },
@@ -924,11 +420,11 @@
       "category": "RANKING_ERROR",
       "expected": "run_pipeline.sh",
       "retrieved": [
-        "sh:tests/fixtures/sample_repo/scripts/run_pipeline.sh::<script>",
         "yaml:tests/fixtures/sample_repo/config/pipeline.yaml::pipeline.script",
-        "sh:tests/fixtures/sample_repo/scripts/run_pipeline.sh::cmd_L6_1",
-        "sh:tests/fixtures/sample_repo/scripts/run_pipeline.sh::cmd_L4",
-        "sh:tests/fixtures/sample_repo/scripts/run_pipeline.sh::cmd_L3"
+        "sh:tests/fixtures/sample_repo/scripts/run_pipeline.sh::<script>",
+        "py:tests/test_mcp_suite.py::test_mcp_tool_execution",
+        "yaml:benchmarks/v1/tasks.yaml::tasks[17].task",
+        "py:repopeek/parsers/shell.py::SCRIPT_EXTENSIONS"
       ],
       "explanation": "Gold symbol 'run_pipeline.sh' was omitted from compiled ContextPackage entrypoints/direct blast."
     },
@@ -937,63 +433,11 @@
       "category": "RANKING_ERROR",
       "expected": "HttpBoundaryBridge",
       "retrieved": [
-        "py:repopeek/discovery/classifier.py::FileType.PYTHON",
-        "yaml:tests/fixtures/sample_repo/config/pipeline.yaml::pipeline.script",
-        "json:docs/graph_schema.json::description",
-        "json:docs/graph_schema.json::example_business_process_node.description",
-        "json:knowledge_vault/Antigravity/context-manifest.json::skills[0].description"
-      ],
-      "explanation": "Gold symbol 'HttpBoundaryBridge' was omitted from compiled ContextPackage entrypoints/direct blast."
-    },
-    {
-      "task_id": "cross_020",
-      "category": "RANKING_ERROR",
-      "expected": "normalize_route_path",
-      "retrieved": [
-        "py:repopeek/discovery/crawler.py::DiscoveredFile.path",
-        "json:knowledge_vault/Antigravity/context-manifest.json::skills[0].relPath",
-        "py:repopeek/config.py::RepopeekConfig.graph_output_path",
-        "py:repopeek/config.py::RepopeekConfig.repo_path",
-        "py:repopeek/discovery/crawler.py::DiscoveredFile.rel_path"
-      ],
-      "explanation": "Gold symbol 'normalize_route_path' was omitted from compiled ContextPackage entrypoints/direct blast."
-    },
-    {
-      "task_id": "cross_021",
-      "category": "RANKING_ERROR",
-      "expected": "TypeScriptParser",
-      "retrieved": [
-        "py:repopeek/parsers/python.py::PythonParser._parse_ast",
-        "py:tests/test_polyglot_parsers.py::test_shell_parser_commands_and_scripts",
-        "py:tests/test_polyglot_parsers.py::test_yaml_parser_nested_and_script_targets",
-        "py:repopeek/models/schema.py::NodeCard.blast",
-        "py:repopeek/parsers/shell.py::ShellParser._extract_script_target"
-      ],
-      "explanation": "Gold symbol 'TypeScriptParser' was omitted from compiled ContextPackage entrypoints/direct blast."
-    },
-    {
-      "task_id": "cross_022",
-      "category": "RANKING_ERROR",
-      "expected": "InvoiceParser.parse",
-      "retrieved": [
-        "py:tests/test_polyglot_parsers.py::test_sql_parser_oracle_and_table_defs",
-        "py:tests/test_polyglot_parsers.py::test_sql_parser_select_query_and_references",
-        "py:tests/test_python_parser.py::test_parse_embedded_sql",
-        "sql:tests/fixtures/sample_repo/db/queries.sql::table.invoices",
-        "py:repopeek/parsers/sql.py::SqlParser"
-      ],
-      "explanation": "Gold symbol 'InvoiceParser.parse' was omitted from compiled ContextPackage entrypoints/direct blast."
-    },
-    {
-      "task_id": "cross_023",
-      "category": "RANKING_ERROR",
-      "expected": "HttpBoundaryBridge",
-      "retrieved": [
-        "json:docs/graph_schema.json::edge_types.CALLS",
-        "py:repopeek/enrichment/governor.py::CostGovernor.can_call_llm",
-        "py:repopeek/enrichment/governor.py::CostGovernor.fallback_calls",
-        "py:repopeek/enrichment/governor.py::CostGovernor.llm_calls",
-        "py:repopeek/graph/lenses.py::get_bridges_lens"
+        "py:tests/test_http_bridge.py::test_python_route_decorator_edge_cases",
+        "py:repopeek/parsers/typescript.py::_find_matching_brace",
+        "py:tests/test_http_bridge.py::test_express_server_route_linking",
+        "py:repopeek/bridges/http.py::HTTP_CLIENT_CALL_RE",
+        "py:repopeek/bridges/http.py::HttpBoundaryBridge.extract_client_calls"
       ],
       "explanation": "Gold symbol 'HttpBoundaryBridge' was omitted from compiled ContextPackage entrypoints/direct blast."
     },
@@ -1002,762 +446,39 @@
       "category": "RANKING_ERROR",
       "expected": "TypeScriptParser",
       "retrieved": [
-        "py:tests/test_polyglot_parsers.py::test_shell_parser_commands_and_scripts",
-        "py:tests/test_polyglot_parsers.py::test_yaml_parser_nested_and_script_targets",
-        "py:repopeek/models/schema.py::NodeFacts.calls",
-        "py:repopeek/parsers/shell.py::ShellParser._extract_script_target",
-        "py:repopeek/discovery/crawler.py::DiscoveredFile.parse_status"
+        "py:repopeek/parsers/typescript.py::_parse_params",
+        "py:tests/test_python_parser.py::test_parse_classes_and_inheritance",
+        "py:repopeek/parsers/typescript.py::TypeScriptParser.parse_source",
+        "py:repopeek/parsers/typescript.py::_extract_http_calls",
+        "py:repopeek/parsers/typescript.py::CALL_PATTERN"
       ],
       "explanation": "Gold symbol 'TypeScriptParser' was omitted from compiled ContextPackage entrypoints/direct blast."
-    },
-    {
-      "task_id": "cross_025",
-      "category": "RANKING_ERROR",
-      "expected": "InvoiceParser",
-      "retrieved": [
-        "sh:tests/fixtures/sample_repo/scripts/run_pipeline.sh::<script>",
-        "yaml:tests/fixtures/sample_repo/config/pipeline.yaml::pipeline.script",
-        "py:tests/test_polyglot_parsers.py::test_shell_parser_commands_and_scripts",
-        "sh:tests/fixtures/sample_repo/scripts/run_pipeline.sh::cmd_L6_1",
-        "py:repopeek/parsers/shell.py::ShellParser"
-      ],
-      "explanation": "Gold symbol 'InvoiceParser' was omitted from compiled ContextPackage entrypoints/direct blast."
-    },
-    {
-      "task_id": "cross_026",
-      "category": "RANKING_ERROR",
-      "expected": "HttpBoundaryBridge",
-      "retrieved": [
-        "py:repopeek/graph/resolver.py::SymbolResolver.edges",
-        "py:repopeek/models/schema.py::CanonicalGraph.edges",
-        "py:repopeek/models/schema.py::EdgeType.INVOKES",
-        "py:repopeek/parsers/base.py::ParseResult.edges",
-        "py:repopeek/graph/lenses.py::get_bridges_lens"
-      ],
-      "explanation": "Gold symbol 'HttpBoundaryBridge' was omitted from compiled ContextPackage entrypoints/direct blast."
-    },
-    {
-      "task_id": "hist_027",
-      "category": "RANKING_ERROR",
-      "expected": "GitTemporalMiner",
-      "retrieved": [
-        "py:repopeek/llm/mock.py::MockProvider.history",
-        "py:repopeek/models/schema.py::NodeProvenance.commit",
-        "py:repopeek/storage/provenance.py::GitProvenance.commit",
-        "py:repopeek/__init__.py::<module>",
-        "py:repopeek/__main__.py::<module>"
-      ],
-      "explanation": "Gold symbol 'GitTemporalMiner' was omitted from compiled ContextPackage entrypoints/direct blast."
-    },
-    {
-      "task_id": "hist_028",
-      "category": "RANKING_ERROR",
-      "expected": "CanonicalGraph",
-      "retrieved": [
-        "py:repopeek/graph/builder.py::<module>",
-        "py:tests/test_schema.py::<module>",
-        "py:repopeek/models/schema.py::<module>",
-        "py:tests/test_graph_builder_and_lenses.py::<module>",
-        "py:repopeek/graph/builder.py::GraphBuilder"
-      ],
-      "explanation": "Gold symbol 'CanonicalGraph' was omitted from compiled ContextPackage entrypoints/direct blast."
-    },
-    {
-      "task_id": "hist_029",
-      "category": "RANKING_ERROR",
-      "expected": "GitTemporalMiner.mine_commits",
-      "retrieved": [
-        "py:repopeek/models/schema.py::NodeProvenance.commit",
-        "py:repopeek/storage/provenance.py::GitProvenance.commit",
-        "py:repopeek/models/schema.py::CanonicalGraph.repo_commit",
-        "py:repopeek/graph/builder.py::GraphBuilder.build",
-        "py:repopeek/graph/builder.py::GraphBuilder.build_from_directory"
-      ],
-      "explanation": "Gold symbol 'GitTemporalMiner.mine_commits' was omitted from compiled ContextPackage entrypoints/direct blast."
-    },
-    {
-      "task_id": "hist_030",
-      "category": "RANKING_ERROR",
-      "expected": "GitTemporalMiner",
-      "retrieved": [
-        "py:repopeek/discovery/classifier.py::FileType.PYTHON",
-        "py:knowledge_vault/_meta/validate.py::<module>",
-        "py:repopeek/__init__.py::<module>",
-        "py:repopeek/__main__.py::<module>",
-        "py:repopeek/config.py::<module>"
-      ],
-      "explanation": "Gold symbol 'GitTemporalMiner' was omitted from compiled ContextPackage entrypoints/direct blast."
-    },
-    {
-      "task_id": "hist_031",
-      "category": "RANKING_ERROR",
-      "expected": "GitTemporalMiner.compute_co_changes",
-      "retrieved": [
-        "py:repopeek/discovery/hasher.py::compute_file_hashes",
-        "py:repopeek/discovery/hasher.py::compute_hashes_from_bytes",
-        "py:repopeek/llm/groq.py::GroqProvider.timeout",
-        "py:repopeek/query/engine.py::GraphQueryEngine.compute_blast",
-        "py:repopeek/storage/provenance.py::compute_repo_blob_shas"
-      ],
-      "explanation": "Gold symbol 'GitTemporalMiner.compute_co_changes' was omitted from compiled ContextPackage entrypoints/direct blast."
-    },
-    {
-      "task_id": "hist_032",
-      "category": "RANKING_ERROR",
-      "expected": "GitTemporalMiner.build_graph_edges",
-      "retrieved": [
-        "py:repopeek/graph/resolver.py::SymbolResolver.edges",
-        "py:repopeek/models/schema.py::CanonicalGraph.edges",
-        "py:repopeek/query/engine.py::GraphQueryEngine._incoming_edges",
-        "py:repopeek/query/engine.py::GraphQueryEngine._outgoing_edges",
-        "json:docs/graph_schema.json::description"
-      ],
-      "explanation": "Gold symbol 'GitTemporalMiner.build_graph_edges' was omitted from compiled ContextPackage entrypoints/direct blast."
-    },
-    {
-      "task_id": "hist_033",
-      "category": "RANKING_ERROR",
-      "expected": "GitTemporalMiner",
-      "retrieved": [
-        "py:repopeek/models/schema.py::NodeProvenance.commit",
-        "py:repopeek/storage/provenance.py::GitProvenance.commit",
-        "py:repopeek/models/schema.py::CanonicalGraph.repo_commit",
-        "py:repopeek/graph/builder.py::GraphBuilder.build",
-        "py:repopeek/graph/builder.py::GraphBuilder.build_from_directory"
-      ],
-      "explanation": "Gold symbol 'GitTemporalMiner' was omitted from compiled ContextPackage entrypoints/direct blast."
-    },
-    {
-      "task_id": "hist_034",
-      "category": "RANKING_ERROR",
-      "expected": "compute_blast_radius",
-      "retrieved": [
-        "py:tests/test_data_flow_and_bridges.py::test_blast_radius_impact_trace",
-        "py:tests/test_golden_scenarios.py::test_golden_question_1_blast_radius",
-        "py:tests/__init__.py::<module>",
-        "py:tests/fixtures/sample_repo/ignored_dir/secret.py::<module>",
-        "py:tests/fixtures/sample_repo/src/billing/invoice.py::<module>"
-      ],
-      "explanation": "Gold symbol 'compute_blast_radius' was omitted from compiled ContextPackage entrypoints/direct blast."
-    },
-    {
-      "task_id": "neg_035",
-      "category": "NEGATIVE_RETRIEVAL_FAILURE",
-      "expected": "EXCLUDE: scripts/run_pipeline.sh",
-      "retrieved": [
-        "docs/graph_schema.json",
-        "knowledge_vault/_meta/validate.py",
-        "repopeek/cli.py",
-        "repopeek/config.py",
-        "repopeek/discovery/__init__.py",
-        "repopeek/discovery/classifier.py",
-        "repopeek/discovery/crawler.py",
-        "repopeek/discovery/hasher.py",
-        "repopeek/discovery/ignore.py",
-        "repopeek/enrichment/__init__.py",
-        "repopeek/enrichment/cache.py",
-        "repopeek/enrichment/governor.py",
-        "repopeek/enrichment/pipeline.py",
-        "repopeek/enrichment/summarizer.py",
-        "repopeek/enrichment/templates.py",
-        "repopeek/enrichment/verifier.py",
-        "repopeek/graph/__init__.py",
-        "repopeek/graph/builder.py",
-        "repopeek/graph/lenses.py",
-        "repopeek/graph/resolver.py",
-        "repopeek/llm/__init__.py",
-        "repopeek/llm/base.py",
-        "repopeek/llm/env.py",
-        "repopeek/llm/factory.py",
-        "repopeek/llm/fallback.py",
-        "repopeek/llm/groq.py",
-        "repopeek/llm/mock.py",
-        "repopeek/llm/models.py",
-        "repopeek/models/schema.py",
-        "repopeek/parsers/__init__.py",
-        "repopeek/parsers/base.py",
-        "repopeek/parsers/config.py",
-        "repopeek/parsers/python.py",
-        "repopeek/parsers/shell.py",
-        "repopeek/parsers/sql.py",
-        "repopeek/query/__init__.py",
-        "repopeek/query/engine.py",
-        "repopeek/query/mcp_server.py",
-        "repopeek/query/pack.py",
-        "repopeek/storage/__init__.py",
-        "repopeek/storage/json_store.py",
-        "repopeek/storage/obsidian_exporter.py",
-        "repopeek/storage/provenance.py",
-        "repopeek/storage/sqlite_cache.py",
-        "repopeek/viewer/__init__.py",
-        "repopeek/viewer/server.py",
-        "tests/fixtures/sample_repo/config/app_config.json",
-        "tests/fixtures/sample_repo/config/pipeline.yaml",
-        "tests/fixtures/sample_repo/db/queries.sql",
-        "tests/fixtures/sample_repo/scripts/run_pipeline.sh",
-        "tests/fixtures/sample_repo/src/billing/invoice.py",
-        "tests/fixtures/sample_repo/src/billing/validators.py",
-        "tests/fixtures/sample_repo/src/models/base.py",
-        "tests/test_config_and_cli.py",
-        "tests/test_data_flow_and_bridges.py",
-        "tests/test_discovery.py",
-        "tests/test_golden_scenarios.py",
-        "tests/test_graph_builder_and_lenses.py",
-        "tests/test_graph_persistence.py",
-        "tests/test_llm_provider.py",
-        "tests/test_polyglot_parsers.py",
-        "tests/test_python_parser.py",
-        "tests/test_query_and_pack.py",
-        "tests/test_schema.py",
-        "tests/test_story_cascade.py",
-        "tests/test_viewer_and_obsidian.py",
-        "py:tests/fixtures/sample_repo/src/billing/invoice.py::InvoiceParser",
-        "py:tests/test_polyglot_parsers.py::test_yaml_parser_nested_and_script_targets",
-        "yaml:tests/fixtures/sample_repo/config/pipeline.yaml::pipeline.script",
-        "py:repopeek/parsers/config.py::YamlConfigParser",
-        "yaml:tests/fixtures/sample_repo/config/pipeline.yaml::<config>",
-        "py:tests/fixtures/sample_repo/src/billing/invoice.py::InvoiceParser.__init__",
-        "py:tests/fixtures/sample_repo/src/billing/invoice.py::InvoiceParser._cache",
-        "py:tests/fixtures/sample_repo/src/billing/invoice.py::InvoiceParser.dialect",
-        "py:tests/fixtures/sample_repo/src/billing/invoice.py::InvoiceParser.env",
-        "py:tests/fixtures/sample_repo/src/billing/invoice.py::InvoiceParser.parse",
-        "py:tests/fixtures/sample_repo/src/billing/invoice.py::InvoiceParser.schema",
-        "py:tests/fixtures/sample_repo/src/billing/invoice.py::<module>",
-        "e.type",
-        "len",
-        "parser.parse_source",
-        "py:repopeek/parsers/base.py::BaseParser.parse_source",
-        "py:repopeek/parsers/config.py::YamlConfigParser",
-        "py:tests/test_polyglot_parsers.py::<module>",
-        "res.edges",
-        "res.is_success",
-        "res.nodes",
-        "n.id",
-        "res.language"
-      ],
-      "explanation": "Explicitly excluded item 'scripts/run_pipeline.sh' was erroneously pulled into compiled context."
-    },
-    {
-      "task_id": "neg_035",
-      "category": "NEGATIVE_RETRIEVAL_FAILURE",
-      "expected": "EXCLUDE: config/pipeline.yaml",
-      "retrieved": [
-        "docs/graph_schema.json",
-        "knowledge_vault/_meta/validate.py",
-        "repopeek/cli.py",
-        "repopeek/config.py",
-        "repopeek/discovery/__init__.py",
-        "repopeek/discovery/classifier.py",
-        "repopeek/discovery/crawler.py",
-        "repopeek/discovery/hasher.py",
-        "repopeek/discovery/ignore.py",
-        "repopeek/enrichment/__init__.py",
-        "repopeek/enrichment/cache.py",
-        "repopeek/enrichment/governor.py",
-        "repopeek/enrichment/pipeline.py",
-        "repopeek/enrichment/summarizer.py",
-        "repopeek/enrichment/templates.py",
-        "repopeek/enrichment/verifier.py",
-        "repopeek/graph/__init__.py",
-        "repopeek/graph/builder.py",
-        "repopeek/graph/lenses.py",
-        "repopeek/graph/resolver.py",
-        "repopeek/llm/__init__.py",
-        "repopeek/llm/base.py",
-        "repopeek/llm/env.py",
-        "repopeek/llm/factory.py",
-        "repopeek/llm/fallback.py",
-        "repopeek/llm/groq.py",
-        "repopeek/llm/mock.py",
-        "repopeek/llm/models.py",
-        "repopeek/models/schema.py",
-        "repopeek/parsers/__init__.py",
-        "repopeek/parsers/base.py",
-        "repopeek/parsers/config.py",
-        "repopeek/parsers/python.py",
-        "repopeek/parsers/shell.py",
-        "repopeek/parsers/sql.py",
-        "repopeek/query/__init__.py",
-        "repopeek/query/engine.py",
-        "repopeek/query/mcp_server.py",
-        "repopeek/query/pack.py",
-        "repopeek/storage/__init__.py",
-        "repopeek/storage/json_store.py",
-        "repopeek/storage/obsidian_exporter.py",
-        "repopeek/storage/provenance.py",
-        "repopeek/storage/sqlite_cache.py",
-        "repopeek/viewer/__init__.py",
-        "repopeek/viewer/server.py",
-        "tests/fixtures/sample_repo/config/app_config.json",
-        "tests/fixtures/sample_repo/config/pipeline.yaml",
-        "tests/fixtures/sample_repo/db/queries.sql",
-        "tests/fixtures/sample_repo/scripts/run_pipeline.sh",
-        "tests/fixtures/sample_repo/src/billing/invoice.py",
-        "tests/fixtures/sample_repo/src/billing/validators.py",
-        "tests/fixtures/sample_repo/src/models/base.py",
-        "tests/test_config_and_cli.py",
-        "tests/test_data_flow_and_bridges.py",
-        "tests/test_discovery.py",
-        "tests/test_golden_scenarios.py",
-        "tests/test_graph_builder_and_lenses.py",
-        "tests/test_graph_persistence.py",
-        "tests/test_llm_provider.py",
-        "tests/test_polyglot_parsers.py",
-        "tests/test_python_parser.py",
-        "tests/test_query_and_pack.py",
-        "tests/test_schema.py",
-        "tests/test_story_cascade.py",
-        "tests/test_viewer_and_obsidian.py",
-        "py:tests/fixtures/sample_repo/src/billing/invoice.py::InvoiceParser",
-        "py:tests/test_polyglot_parsers.py::test_yaml_parser_nested_and_script_targets",
-        "yaml:tests/fixtures/sample_repo/config/pipeline.yaml::pipeline.script",
-        "py:repopeek/parsers/config.py::YamlConfigParser",
-        "yaml:tests/fixtures/sample_repo/config/pipeline.yaml::<config>",
-        "py:tests/fixtures/sample_repo/src/billing/invoice.py::InvoiceParser.__init__",
-        "py:tests/fixtures/sample_repo/src/billing/invoice.py::InvoiceParser._cache",
-        "py:tests/fixtures/sample_repo/src/billing/invoice.py::InvoiceParser.dialect",
-        "py:tests/fixtures/sample_repo/src/billing/invoice.py::InvoiceParser.env",
-        "py:tests/fixtures/sample_repo/src/billing/invoice.py::InvoiceParser.parse",
-        "py:tests/fixtures/sample_repo/src/billing/invoice.py::InvoiceParser.schema",
-        "py:tests/fixtures/sample_repo/src/billing/invoice.py::<module>",
-        "e.type",
-        "len",
-        "parser.parse_source",
-        "py:repopeek/parsers/base.py::BaseParser.parse_source",
-        "py:repopeek/parsers/config.py::YamlConfigParser",
-        "py:tests/test_polyglot_parsers.py::<module>",
-        "res.edges",
-        "res.is_success",
-        "res.nodes",
-        "n.id",
-        "res.language"
-      ],
-      "explanation": "Explicitly excluded item 'config/pipeline.yaml' was erroneously pulled into compiled context."
-    },
-    {
-      "task_id": "neg_036",
-      "category": "NEGATIVE_RETRIEVAL_FAILURE",
-      "expected": "EXCLUDE: db/queries.sql",
-      "retrieved": [
-        "docs/graph_schema.json",
-        "knowledge_vault/_meta/validate.py",
-        "repopeek/cli.py",
-        "repopeek/config.py",
-        "repopeek/discovery/__init__.py",
-        "repopeek/discovery/classifier.py",
-        "repopeek/discovery/crawler.py",
-        "repopeek/discovery/hasher.py",
-        "repopeek/discovery/ignore.py",
-        "repopeek/enrichment/__init__.py",
-        "repopeek/enrichment/cache.py",
-        "repopeek/enrichment/governor.py",
-        "repopeek/enrichment/pipeline.py",
-        "repopeek/enrichment/summarizer.py",
-        "repopeek/enrichment/templates.py",
-        "repopeek/enrichment/verifier.py",
-        "repopeek/graph/__init__.py",
-        "repopeek/graph/builder.py",
-        "repopeek/graph/lenses.py",
-        "repopeek/graph/resolver.py",
-        "repopeek/llm/__init__.py",
-        "repopeek/llm/base.py",
-        "repopeek/llm/env.py",
-        "repopeek/llm/factory.py",
-        "repopeek/llm/fallback.py",
-        "repopeek/llm/groq.py",
-        "repopeek/llm/mock.py",
-        "repopeek/llm/models.py",
-        "repopeek/models/schema.py",
-        "repopeek/parsers/__init__.py",
-        "repopeek/parsers/base.py",
-        "repopeek/parsers/config.py",
-        "repopeek/parsers/python.py",
-        "repopeek/parsers/shell.py",
-        "repopeek/parsers/sql.py",
-        "repopeek/query/__init__.py",
-        "repopeek/query/engine.py",
-        "repopeek/query/mcp_server.py",
-        "repopeek/query/pack.py",
-        "repopeek/storage/__init__.py",
-        "repopeek/storage/json_store.py",
-        "repopeek/storage/obsidian_exporter.py",
-        "repopeek/storage/provenance.py",
-        "repopeek/storage/sqlite_cache.py",
-        "repopeek/viewer/__init__.py",
-        "repopeek/viewer/server.py",
-        "tests/fixtures/sample_repo/config/app_config.json",
-        "tests/fixtures/sample_repo/config/pipeline.yaml",
-        "tests/fixtures/sample_repo/db/queries.sql",
-        "tests/fixtures/sample_repo/scripts/run_pipeline.sh",
-        "tests/fixtures/sample_repo/src/billing/invoice.py",
-        "tests/fixtures/sample_repo/src/billing/validators.py",
-        "tests/fixtures/sample_repo/src/models/base.py",
-        "tests/test_config_and_cli.py",
-        "tests/test_data_flow_and_bridges.py",
-        "tests/test_discovery.py",
-        "tests/test_golden_scenarios.py",
-        "tests/test_graph_builder_and_lenses.py",
-        "tests/test_graph_persistence.py",
-        "tests/test_llm_provider.py",
-        "tests/test_polyglot_parsers.py",
-        "tests/test_python_parser.py",
-        "tests/test_query_and_pack.py",
-        "tests/test_schema.py",
-        "tests/test_story_cascade.py",
-        "tests/test_viewer_and_obsidian.py",
-        "py:tests/fixtures/sample_repo/src/billing/validators.py::validate_invoice",
-        "sql:tests/fixtures/sample_repo/db/queries.sql::<file>",
-        "sql:tests/fixtures/sample_repo/db/queries.sql::table.invoices",
-        "sql:tests/fixtures/sample_repo/src/billing/invoice.py::query_L33",
-        "sql:tests/fixtures/sample_repo/db/queries.sql::stmt_L9",
-        "py:tests/fixtures/sample_repo/src/billing/invoice.py::<module>",
-        "py:tests/fixtures/sample_repo/src/billing/invoice.py::InvoiceParser.parse",
-        "len",
-        "os.environ",
-        "os.environ.get",
-        "py:repopeek/enrichment/cache.py::StoryCache.get",
-        "py:tests/fixtures/sample_repo/src/billing/validators.py::<module>",
-        "int",
-        "raw",
-        "sql:tests/fixtures/sample_repo/db/queries.sql::stmt_L9",
-        "sql:tests/fixtures/sample_repo/db/queries.sql::table.invoices"
-      ],
-      "explanation": "Explicitly excluded item 'db/queries.sql' was erroneously pulled into compiled context."
-    },
-    {
-      "task_id": "neg_037",
-      "category": "RANKING_ERROR",
-      "expected": "normalize_task_text",
-      "retrieved": [
-        "py:tests/test_golden_scenarios.py::test_golden_question_1_blast_radius",
-        "py:tests/test_data_flow_and_bridges.py::test_blast_radius_impact_trace",
-        "py:tests/test_golden_scenarios.py::test_golden_question_3_minimal_context_pack",
-        "py:tests/test_query_and_pack.py::test_context_pack_budget_and_markdown",
-        "py:repopeek/query/engine.py::GraphQueryEngine.compute_blast"
-      ],
-      "explanation": "Gold symbol 'normalize_task_text' was omitted from compiled ContextPackage entrypoints/direct blast."
     },
     {
       "task_id": "neg_038",
       "category": "RANKING_ERROR",
       "expected": "TypeScriptParser",
       "retrieved": [
+        "py:repopeek/parsers/sql.py::SqlParser",
+        "py:repopeek/parsers/sql.py::SqlParser.parse_source",
         "py:tests/test_polyglot_parsers.py::test_sql_parser_dialect_fallback",
-        "py:tests/test_python_parser.py::test_parse_embedded_sql",
-        "py:repopeek/config.py::RepopeekConfig.sql_dialect",
-        "py:repopeek/parsers/python.py::PythonParser._parse_ast",
-        "py:tests/test_python_parser.py::parser"
+        "py:repopeek/parsers/sql.py::SqlParser.__init__",
+        "py:tests/test_typescript_parser.py::test_typescript_parser_imports_and_types"
       ],
       "explanation": "Gold symbol 'TypeScriptParser' was omitted from compiled ContextPackage entrypoints/direct blast."
-    },
-    {
-      "task_id": "neg_038",
-      "category": "NEGATIVE_RETRIEVAL_FAILURE",
-      "expected": "EXCLUDE: repopeek/parsers/python.py",
-      "retrieved": [
-        "docs/graph_schema.json",
-        "knowledge_vault/_meta/validate.py",
-        "repopeek/cli.py",
-        "repopeek/config.py",
-        "repopeek/discovery/__init__.py",
-        "repopeek/discovery/classifier.py",
-        "repopeek/discovery/crawler.py",
-        "repopeek/discovery/hasher.py",
-        "repopeek/discovery/ignore.py",
-        "repopeek/enrichment/__init__.py",
-        "repopeek/enrichment/cache.py",
-        "repopeek/enrichment/governor.py",
-        "repopeek/enrichment/pipeline.py",
-        "repopeek/enrichment/summarizer.py",
-        "repopeek/enrichment/templates.py",
-        "repopeek/enrichment/verifier.py",
-        "repopeek/graph/__init__.py",
-        "repopeek/graph/builder.py",
-        "repopeek/graph/lenses.py",
-        "repopeek/graph/resolver.py",
-        "repopeek/llm/__init__.py",
-        "repopeek/llm/base.py",
-        "repopeek/llm/env.py",
-        "repopeek/llm/factory.py",
-        "repopeek/llm/fallback.py",
-        "repopeek/llm/groq.py",
-        "repopeek/llm/mock.py",
-        "repopeek/llm/models.py",
-        "repopeek/models/schema.py",
-        "repopeek/parsers/__init__.py",
-        "repopeek/parsers/base.py",
-        "repopeek/parsers/config.py",
-        "repopeek/parsers/python.py",
-        "repopeek/parsers/shell.py",
-        "repopeek/parsers/sql.py",
-        "repopeek/query/__init__.py",
-        "repopeek/query/engine.py",
-        "repopeek/query/mcp_server.py",
-        "repopeek/query/pack.py",
-        "repopeek/storage/__init__.py",
-        "repopeek/storage/json_store.py",
-        "repopeek/storage/obsidian_exporter.py",
-        "repopeek/storage/provenance.py",
-        "repopeek/storage/sqlite_cache.py",
-        "repopeek/viewer/__init__.py",
-        "repopeek/viewer/server.py",
-        "tests/fixtures/sample_repo/config/app_config.json",
-        "tests/fixtures/sample_repo/config/pipeline.yaml",
-        "tests/fixtures/sample_repo/db/queries.sql",
-        "tests/fixtures/sample_repo/src/billing/invoice.py",
-        "tests/fixtures/sample_repo/src/billing/validators.py",
-        "tests/test_config_and_cli.py",
-        "tests/test_data_flow_and_bridges.py",
-        "tests/test_discovery.py",
-        "tests/test_golden_scenarios.py",
-        "tests/test_graph_builder_and_lenses.py",
-        "tests/test_graph_persistence.py",
-        "tests/test_llm_provider.py",
-        "tests/test_polyglot_parsers.py",
-        "tests/test_python_parser.py",
-        "tests/test_query_and_pack.py",
-        "tests/test_schema.py",
-        "tests/test_story_cascade.py",
-        "tests/test_viewer_and_obsidian.py",
-        "py:tests/test_polyglot_parsers.py::test_sql_parser_dialect_fallback",
-        "py:tests/test_python_parser.py::test_parse_embedded_sql",
-        "py:repopeek/config.py::RepopeekConfig.sql_dialect",
-        "py:repopeek/parsers/python.py::PythonParser._parse_ast",
-        "py:tests/test_python_parser.py::parser",
-        "n.kind",
-        "next",
-        "parser.parse_source",
-        "py:repopeek/parsers/base.py::BaseParser.parse_source",
-        "py:repopeek/parsers/sql.py::SqlParser",
-        "py:tests/test_polyglot_parsers.py::<module>",
-        "res.is_success",
-        "res.nodes",
-        "sql:tests/test_polyglot_parsers.py::query_L64",
-        "sql:tests/test_polyglot_parsers.py::query_L69",
-        "events",
-        "e.type",
-        "len",
-        "py:tests/test_python_parser.py::<module>",
-        "res.edges",
-        "sql:tests/test_python_parser.py::query_L98",
-        "json:tests/fixtures/sample_repo/config/app_config.json::database",
-        "parser",
-        "orders"
-      ],
-      "explanation": "Explicitly excluded item 'repopeek/parsers/python.py' was erroneously pulled into compiled context."
-    },
-    {
-      "task_id": "neg_039",
-      "category": "RANKING_ERROR",
-      "expected": "brier_score",
-      "retrieved": [
-        "py:repopeek/query/mcp_server.py::RepoPeekMCPServer",
-        "py:repopeek/query/mcp_server.py::<module>",
-        "py:tests/test_query_and_pack.py::test_mcp_server_protocol",
-        "py:repopeek/llm/mock.py::MockProvider.simulate_server_error",
-        "py:repopeek/query/mcp_server.py::RepoPeekMCPServer.__init__"
-      ],
-      "explanation": "Gold symbol 'brier_score' was omitted from compiled ContextPackage entrypoints/direct blast."
-    },
-    {
-      "task_id": "neg_040",
-      "category": "NEGATIVE_RETRIEVAL_FAILURE",
-      "expected": "EXCLUDE: src/models/base.py",
-      "retrieved": [
-        "docs/graph_schema.json",
-        "knowledge_vault/_meta/validate.py",
-        "repopeek/cli.py",
-        "repopeek/config.py",
-        "repopeek/discovery/classifier.py",
-        "repopeek/discovery/crawler.py",
-        "repopeek/discovery/hasher.py",
-        "repopeek/discovery/ignore.py",
-        "repopeek/enrichment/cache.py",
-        "repopeek/enrichment/governor.py",
-        "repopeek/enrichment/pipeline.py",
-        "repopeek/enrichment/summarizer.py",
-        "repopeek/enrichment/templates.py",
-        "repopeek/enrichment/verifier.py",
-        "repopeek/graph/builder.py",
-        "repopeek/graph/lenses.py",
-        "repopeek/graph/resolver.py",
-        "repopeek/llm/base.py",
-        "repopeek/llm/env.py",
-        "repopeek/llm/factory.py",
-        "repopeek/llm/fallback.py",
-        "repopeek/llm/groq.py",
-        "repopeek/llm/mock.py",
-        "repopeek/llm/models.py",
-        "repopeek/models/schema.py",
-        "repopeek/parsers/__init__.py",
-        "repopeek/parsers/base.py",
-        "repopeek/parsers/config.py",
-        "repopeek/parsers/python.py",
-        "repopeek/parsers/shell.py",
-        "repopeek/parsers/sql.py",
-        "repopeek/query/engine.py",
-        "repopeek/query/mcp_server.py",
-        "repopeek/query/pack.py",
-        "repopeek/storage/json_store.py",
-        "repopeek/storage/obsidian_exporter.py",
-        "repopeek/storage/provenance.py",
-        "repopeek/storage/sqlite_cache.py",
-        "repopeek/viewer/server.py",
-        "tests/fixtures/sample_repo/config/app_config.json",
-        "tests/fixtures/sample_repo/config/pipeline.yaml",
-        "tests/fixtures/sample_repo/db/queries.sql",
-        "tests/fixtures/sample_repo/scripts/run_pipeline.sh",
-        "tests/fixtures/sample_repo/src/billing/invoice.py",
-        "tests/fixtures/sample_repo/src/billing/validators.py",
-        "tests/fixtures/sample_repo/src/models/base.py",
-        "tests/test_config_and_cli.py",
-        "tests/test_data_flow_and_bridges.py",
-        "tests/test_discovery.py",
-        "tests/test_golden_scenarios.py",
-        "tests/test_graph_builder_and_lenses.py",
-        "tests/test_graph_persistence.py",
-        "tests/test_llm_provider.py",
-        "tests/test_polyglot_parsers.py",
-        "tests/test_python_parser.py",
-        "tests/test_query_and_pack.py",
-        "tests/test_schema.py",
-        "tests/test_story_cascade.py",
-        "tests/test_viewer_and_obsidian.py",
-        "py:tests/fixtures/sample_repo/src/models/base.py::AuditableEntity",
-        "py:tests/fixtures/sample_repo/src/billing/invoice.py::Invoice",
-        "py:tests/fixtures/sample_repo/src/models/base.py::BaseEntity",
-        "py:repopeek/parsers/base.py::BaseParser",
-        "py:tests/fixtures/sample_repo/src/billing/invoice.py::Invoice.amount",
-        "py:tests/fixtures/sample_repo/src/billing/invoice.py::Invoice",
-        "py:tests/fixtures/sample_repo/src/models/base.py::<module>",
-        "py:tests/fixtures/sample_repo/src/models/base.py::BaseEntity",
-        "py:tests/fixtures/sample_repo/src/billing/invoice.py::<module>",
-        "py:tests/fixtures/sample_repo/src/models/base.py::AuditableEntity.validate",
-        "py:tests/fixtures/sample_repo/src/models/base.py::AuditableEntity.updated_at",
-        "py:tests/fixtures/sample_repo/src/models/base.py::AuditableEntity.updated_by",
-        "py:tests/fixtures/sample_repo/src/billing/invoice.py::InvoiceParser.parse",
-        "py:tests/fixtures/sample_repo/src/models/base.py::AuditableEntity",
-        "py:tests/fixtures/sample_repo/src/billing/invoice.py::Invoice.amount",
-        "py:tests/fixtures/sample_repo/src/billing/invoice.py::Invoice.status"
-      ],
-      "explanation": "Explicitly excluded item 'src/models/base.py' was erroneously pulled into compiled context."
-    },
-    {
-      "task_id": "neg_041",
-      "category": "RANKING_ERROR",
-      "expected": "ContextCompiler",
-      "retrieved": [
-        "py:repopeek/query/pack.py::ContextPack.token_budget",
-        "py:repopeek/query/engine.py::GraphQueryEngine.context_pack",
-        "py:repopeek/enrichment/governor.py::CostGovernor.cached_tokens",
-        "py:repopeek/enrichment/governor.py::CostGovernor.completion_tokens",
-        "py:repopeek/enrichment/governor.py::CostGovernor.max_tokens"
-      ],
-      "explanation": "Gold symbol 'ContextCompiler' was omitted from compiled ContextPackage entrypoints/direct blast."
-    },
-    {
-      "task_id": "neg_042",
-      "category": "RANKING_ERROR",
-      "expected": "query_fts5_bm25",
-      "retrieved": [
-        "py:repopeek/storage/sqlite_cache.py::query_sqlite_edges",
-        "py:repopeek/storage/sqlite_cache.py::query_sqlite_impact",
-        "py:repopeek/storage/sqlite_cache.py::query_sqlite_nodes",
-        "py:repopeek/storage/sqlite_cache.py::<module>",
-        "py:repopeek/storage/sqlite_cache.py::build_sqlite_cache"
-      ],
-      "explanation": "Gold symbol 'query_fts5_bm25' was omitted from compiled ContextPackage entrypoints/direct blast."
     },
     {
       "task_id": "multi_044",
       "category": "RANKING_ERROR",
       "expected": "Edge",
       "retrieved": [
-        "py:tests/test_data_flow_and_bridges.py::test_blast_radius_impact_trace",
+        "py:repopeek/context/compiler.py::ContextCompiler",
         "py:repopeek/graph/builder.py::GraphBuilder",
-        "py:tests/test_golden_scenarios.py::test_golden_question_1_blast_radius",
-        "py:tests/test_graph_builder_and_lenses.py::<module>",
-        "py:tests/test_graph_builder_and_lenses.py::test_graph_builder_full_assembly"
+        "py:repopeek/graph/blast_radius.py::compute_blast_radius",
+        "py:tests/test_data_flow_and_bridges.py::test_blast_radius_impact_trace",
+        "py:tests/test_blast_radius.py::test_graph_query_engine_blast_radius_and_impact"
       ],
       "explanation": "Gold symbol 'Edge' was omitted from compiled ContextPackage entrypoints/direct blast."
-    },
-    {
-      "task_id": "multi_044",
-      "category": "RANKING_ERROR",
-      "expected": "compute_blast_radius",
-      "retrieved": [
-        "py:tests/test_data_flow_and_bridges.py::test_blast_radius_impact_trace",
-        "py:repopeek/graph/builder.py::GraphBuilder",
-        "py:tests/test_golden_scenarios.py::test_golden_question_1_blast_radius",
-        "py:tests/test_graph_builder_and_lenses.py::<module>",
-        "py:tests/test_graph_builder_and_lenses.py::test_graph_builder_full_assembly"
-      ],
-      "explanation": "Gold symbol 'compute_blast_radius' was omitted from compiled ContextPackage entrypoints/direct blast."
-    },
-    {
-      "task_id": "multi_044",
-      "category": "RANKING_ERROR",
-      "expected": "ContextCompiler",
-      "retrieved": [
-        "py:tests/test_data_flow_and_bridges.py::test_blast_radius_impact_trace",
-        "py:repopeek/graph/builder.py::GraphBuilder",
-        "py:tests/test_golden_scenarios.py::test_golden_question_1_blast_radius",
-        "py:tests/test_graph_builder_and_lenses.py::<module>",
-        "py:tests/test_graph_builder_and_lenses.py::test_graph_builder_full_assembly"
-      ],
-      "explanation": "Gold symbol 'ContextCompiler' was omitted from compiled ContextPackage entrypoints/direct blast."
-    },
-    {
-      "task_id": "multi_045",
-      "category": "RANKING_ERROR",
-      "expected": "extract_task_identifiers",
-      "retrieved": [
-        "json:knowledge_vault/Antigravity/context-manifest.json::<config>",
-        "py:tests/test_data_flow_and_bridges.py::<module>",
-        "py:repopeek/graph/lenses.py::trace_variable_flow",
-        "py:repopeek/graph/resolver.py::SymbolResolver.symbols_by_name",
-        "py:repopeek/graph/resolver.py::SymbolResolver.symbols_by_qualname"
-      ],
-      "explanation": "Gold symbol 'extract_task_identifiers' was omitted from compiled ContextPackage entrypoints/direct blast."
-    },
-    {
-      "task_id": "multi_045",
-      "category": "RANKING_ERROR",
-      "expected": "resolve_task_to_symbols",
-      "retrieved": [
-        "json:knowledge_vault/Antigravity/context-manifest.json::<config>",
-        "py:tests/test_data_flow_and_bridges.py::<module>",
-        "py:repopeek/graph/lenses.py::trace_variable_flow",
-        "py:repopeek/graph/resolver.py::SymbolResolver.symbols_by_name",
-        "py:repopeek/graph/resolver.py::SymbolResolver.symbols_by_qualname"
-      ],
-      "explanation": "Gold symbol 'resolve_task_to_symbols' was omitted from compiled ContextPackage entrypoints/direct blast."
-    },
-    {
-      "task_id": "multi_045",
-      "category": "RANKING_ERROR",
-      "expected": "ContextCompiler",
-      "retrieved": [
-        "json:knowledge_vault/Antigravity/context-manifest.json::<config>",
-        "py:tests/test_data_flow_and_bridges.py::<module>",
-        "py:repopeek/graph/lenses.py::trace_variable_flow",
-        "py:repopeek/graph/resolver.py::SymbolResolver.symbols_by_name",
-        "py:repopeek/graph/resolver.py::SymbolResolver.symbols_by_qualname"
-      ],
-      "explanation": "Gold symbol 'ContextCompiler' was omitted from compiled ContextPackage entrypoints/direct blast."
-    },
-    {
-      "task_id": "multi_046",
-      "category": "RANKING_ERROR",
-      "expected": "HttpBoundaryBridge",
-      "retrieved": [
-        "py:repopeek/query/engine.py::GraphQueryEngine",
-        "py:repopeek/viewer/server.py::GraphViewerHandler.engine",
-        "py:repopeek/query/engine.py::GraphQueryEngine._incoming_edges",
-        "py:repopeek/query/engine.py::GraphQueryEngine._outgoing_edges",
-        "py:repopeek/query/engine.py::GraphQueryEngine.data_trace"
-      ],
-      "explanation": "Gold symbol 'HttpBoundaryBridge' was omitted from compiled ContextPackage entrypoints/direct blast."
     },
     {
       "task_id": "multi_047",
@@ -1765,10 +486,10 @@
       "expected": "GitTemporalMiner.mine_commits",
       "retrieved": [
         "py:repopeek/graph/lenses.py::trace_variable_flow",
-        "py:repopeek/config.py::RepopeekConfig.graph_output_path",
+        "py:repopeek/models/schema.py::NodeProvenance.commit",
         "py:repopeek/graph/lenses.py::trace_impact",
-        "py:repopeek/models/schema.py::CanonicalGraph.repo_commit",
-        "py:tests/test_schema.py::test_edge_validation_and_canonical_graph"
+        "py:tests/test_graph_persistence.py::test_git_provenance_non_git_dir",
+        "py:repopeek/temporal/miner.py::GitTemporalMiner.__init__"
       ],
       "explanation": "Gold symbol 'GitTemporalMiner.mine_commits' was omitted from compiled ContextPackage entrypoints/direct blast."
     },
@@ -1778,10 +499,10 @@
       "expected": "GitTemporalMiner.compute_co_changes",
       "retrieved": [
         "py:repopeek/graph/lenses.py::trace_variable_flow",
-        "py:repopeek/config.py::RepopeekConfig.graph_output_path",
+        "py:repopeek/models/schema.py::NodeProvenance.commit",
         "py:repopeek/graph/lenses.py::trace_impact",
-        "py:repopeek/models/schema.py::CanonicalGraph.repo_commit",
-        "py:tests/test_schema.py::test_edge_validation_and_canonical_graph"
+        "py:tests/test_graph_persistence.py::test_git_provenance_non_git_dir",
+        "py:repopeek/temporal/miner.py::GitTemporalMiner.__init__"
       ],
       "explanation": "Gold symbol 'GitTemporalMiner.compute_co_changes' was omitted from compiled ContextPackage entrypoints/direct blast."
     },
@@ -1791,62 +512,36 @@
       "expected": "GitTemporalMiner.build_graph_edges",
       "retrieved": [
         "py:repopeek/graph/lenses.py::trace_variable_flow",
-        "py:repopeek/config.py::RepopeekConfig.graph_output_path",
+        "py:repopeek/models/schema.py::NodeProvenance.commit",
         "py:repopeek/graph/lenses.py::trace_impact",
-        "py:repopeek/models/schema.py::CanonicalGraph.repo_commit",
-        "py:tests/test_schema.py::test_edge_validation_and_canonical_graph"
+        "py:tests/test_graph_persistence.py::test_git_provenance_non_git_dir",
+        "py:repopeek/temporal/miner.py::GitTemporalMiner.__init__"
       ],
       "explanation": "Gold symbol 'GitTemporalMiner.build_graph_edges' was omitted from compiled ContextPackage entrypoints/direct blast."
     },
     {
       "task_id": "multi_049",
       "category": "RANKING_ERROR",
-      "expected": "calculate_path_confidence",
-      "retrieved": [
-        "py:tests/test_data_flow_and_bridges.py::test_blast_radius_impact_trace",
-        "py:repopeek/config.py::RepopeekConfig.graph_output_path",
-        "py:tests/test_golden_scenarios.py::test_golden_question_1_blast_radius",
-        "json:docs/graph_schema.json::example_business_process_node.confidence",
-        "py:repopeek/graph/builder.py::GraphBuilder.to_networkx"
-      ],
-      "explanation": "Gold symbol 'calculate_path_confidence' was omitted from compiled ContextPackage entrypoints/direct blast."
-    },
-    {
-      "task_id": "multi_049",
-      "category": "RANKING_ERROR",
       "expected": "calculate_combined_confidence",
       "retrieved": [
-        "py:tests/test_data_flow_and_bridges.py::test_blast_radius_impact_trace",
-        "py:repopeek/config.py::RepopeekConfig.graph_output_path",
-        "py:tests/test_golden_scenarios.py::test_golden_question_1_blast_radius",
-        "json:docs/graph_schema.json::example_business_process_node.confidence",
-        "py:repopeek/graph/builder.py::GraphBuilder.to_networkx"
+        "py:repopeek/graph/blast_radius.py::calculate_graph_score",
+        "py:tests/test_blast_radius.py::test_graph_score_distance_decay",
+        "py:repopeek/graph/blast_radius.py::calculate_path_confidence",
+        "py:repopeek/graph/blast_radius.py::compute_blast_radius",
+        "py:tests/test_blast_radius.py::test_multi_path_combination"
       ],
       "explanation": "Gold symbol 'calculate_combined_confidence' was omitted from compiled ContextPackage entrypoints/direct blast."
-    },
-    {
-      "task_id": "multi_049",
-      "category": "RANKING_ERROR",
-      "expected": "calculate_graph_score",
-      "retrieved": [
-        "py:tests/test_data_flow_and_bridges.py::test_blast_radius_impact_trace",
-        "py:repopeek/config.py::RepopeekConfig.graph_output_path",
-        "py:tests/test_golden_scenarios.py::test_golden_question_1_blast_radius",
-        "json:docs/graph_schema.json::example_business_process_node.confidence",
-        "py:repopeek/graph/builder.py::GraphBuilder.to_networkx"
-      ],
-      "explanation": "Gold symbol 'calculate_graph_score' was omitted from compiled ContextPackage entrypoints/direct blast."
     },
     {
       "task_id": "multi_050",
       "category": "RANKING_ERROR",
       "expected": "ContextCompiler",
       "retrieved": [
-        "json:knowledge_vault/Antigravity/context-manifest.json::<config>",
-        "py:repopeek/query/engine.py::GraphQueryEngine.context_pack",
-        "py:repopeek/query/pack.py::ContextPack",
-        "py:tests/test_golden_scenarios.py::test_golden_question_3_minimal_context_pack",
-        "py:tests/test_query_and_pack.py::test_context_pack_budget_and_markdown"
+        "py:repopeek/evaluation/context.py::verify_context_determinism",
+        "py:tests/test_context_compiler.py::test_cli_plan_flag",
+        "py:repopeek/context/compiler.py::ContextCompiler.compile",
+        "py:tests/test_context_compiler.py::test_change_plan_generation",
+        "py:repopeek/context/compiler.py::ContextCompiler._generate_plan"
       ],
       "explanation": "Gold symbol 'ContextCompiler' was omitted from compiled ContextPackage entrypoints/direct blast."
     },
@@ -1855,23 +550,21 @@
       "category": "RANKING_ERROR",
       "expected": "ChangePlan",
       "retrieved": [
-        "json:knowledge_vault/Antigravity/context-manifest.json::<config>",
-        "py:repopeek/query/engine.py::GraphQueryEngine.context_pack",
-        "py:repopeek/query/pack.py::ContextPack",
-        "py:tests/test_golden_scenarios.py::test_golden_question_3_minimal_context_pack",
-        "py:tests/test_query_and_pack.py::test_context_pack_budget_and_markdown"
+        "py:repopeek/evaluation/context.py::verify_context_determinism",
+        "py:tests/test_context_compiler.py::test_cli_plan_flag",
+        "py:repopeek/context/compiler.py::ContextCompiler.compile",
+        "py:tests/test_context_compiler.py::test_change_plan_generation",
+        "py:repopeek/context/compiler.py::ContextCompiler._generate_plan"
       ],
       "explanation": "Gold symbol 'ChangePlan' was omitted from compiled ContextPackage entrypoints/direct blast."
     }
   ],
   "failure_counts": {
-    "RANKING_ERROR": 51,
-    "IDENTIFIER_MISS": 31,
-    "NEGATIVE_RETRIEVAL_FAILURE": 5,
-    "LEXICAL_MISS": 3
+    "RANKING_ERROR": 19,
+    "LEXICAL_MISS": 2,
+    "IDENTIFIER_MISS": 1
   },
   "recommendations": [
-    "Improve domain-specific synonym normalization in intent tokenization pipeline.",
-    "Strengthen negative constraint pruning to block excluded paths from blast radius propagation."
+    "Improve domain-specific synonym normalization in intent tokenization pipeline."
   ]
 }

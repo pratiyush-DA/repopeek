@@ -142,6 +142,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Resolve a natural language task to candidate symbols via hybrid retrieval (AST + BM25 + RRF)",
     )
     parser.add_argument(
+        "--explain",
+        type=str,
+        default=None,
+        help="Deterministic retrieval debugging: explain query normalization, candidate pool, and score components",
+    )
+    parser.add_argument(
         "--context",
         type=str,
         default=None,
@@ -227,6 +233,8 @@ def main(argv=None) -> int:
         argv = sys.argv[1:]
     if argv and argv[0] == "evaluate":
         argv = ["--evaluate"] + argv[1:]
+    if argv and argv[0] == "explain":
+        argv = ["--explain"] + argv[1:]
 
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -264,6 +272,7 @@ def main(argv=None) -> int:
         or args.routes
         or args.watch
         or args.evaluate
+        or args.explain
     )
     if not is_query_mode:
         print(f"Repopeek v{__version__} - Repository Intelligence Engine")
@@ -382,6 +391,10 @@ def main(argv=None) -> int:
         if args.resolve:
             candidates = engine.resolve_task(args.resolve)
             print(json.dumps(candidates, indent=2))
+            return 0
+
+        if args.explain:
+            print(engine.explain(args.explain))
             return 0
 
         if args.context:

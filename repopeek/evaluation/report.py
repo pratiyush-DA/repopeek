@@ -47,17 +47,33 @@ def generate_markdown_report(
         "",
         "| Metric | Score |",
         "|---|---|",
-        f"| Recall@1 | `{report.retrieval.recall_at_1 * 100:.1f}%` |",
-        f"| Recall@3 | `{report.retrieval.recall_at_3 * 100:.1f}%` |",
-        f"| Recall@5 | `{report.retrieval.recall_at_5 * 100:.1f}%` |",
-        f"| Recall@10 | `{report.retrieval.recall_at_10 * 100:.1f}%` |",
+        f"| Candidate Recall@50 | `{report.retrieval.candidate_recall_at_50 * 100:.1f}%` |",
+        f"| Candidate Recall@100 | `{report.retrieval.candidate_recall_at_100 * 100:.1f}%` |",
+        f"| Final Recall@1 | `{report.retrieval.recall_at_1 * 100:.1f}%` |",
+        f"| Final Recall@3 | `{report.retrieval.recall_at_3 * 100:.1f}%` |",
+        f"| Final Recall@5 | `{report.retrieval.recall_at_5 * 100:.1f}%` |",
+        f"| Final Recall@10 | `{report.retrieval.recall_at_10 * 100:.1f}%` |",
         f"| Mean Reciprocal Rank (MRR) | `{report.retrieval.mrr:.4f}` |",
+        "",
+        "### Retrieval Ablation Study",
+        "",
+        "| Configuration | Description | Recall@1 | Recall@5 | Recall@10 | MRR |",
+        "|---|---|---|---|---|---|",
+    ]
+
+    for a in report.ablations:
+        lines.append(
+            f"| **{a.configuration}** | {a.description} | {a.recall_at_1 * 100:.1f}% | "
+            f"{a.recall_at_5 * 100:.1f}% | {a.recall_at_10 * 100:.1f}% | {a.mrr:.4f} |"
+        )
+
+    lines.extend([
         "",
         "### Retrieval Strategy Comparison",
         "",
         "| Retrieval Strategy | Recall@1 | Recall@5 | MRR | Latency (ms) | Notes |",
         "|---|---|---|---|---|---|",
-    ]
+    ])
 
     for s in report.strategies:
         lines.append(
@@ -126,6 +142,7 @@ def generate_markdown_report(
         f"| **Context Token Reduction** | **`{report.context.token_reduction_pct:.1f}%`** |",
         f"| Symbol Coverage Recall | `{report.context.symbol_recall * 100:.1f}%` |",
         f"| File Coverage Recall | `{report.context.file_recall * 100:.1f}%` |",
+        f"| Context Precision | `{report.context.context_precision * 100:.1f}%` |",
         f"| Negative Retrieval Precision | `{report.context.negative_precision * 100:.1f}%` |",
         f"| False Inclusion Rate | `{report.context.false_inclusion_rate * 100:.1f}%` |",
         "",

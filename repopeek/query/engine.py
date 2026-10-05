@@ -2,7 +2,7 @@
 
 from collections import deque
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Sequence, Set
 
 from repopeek.models.schema import CanonicalGraph, EdgeType, NodeCard
 from repopeek.query.pack import ContextPack
@@ -206,6 +206,7 @@ class GraphQueryEngine:
         max_depth: int = 5,
         direction: str = "both",
         confidence_threshold: float = 0.20,
+        exclusions: Optional[Sequence[str]] = None,
     ) -> Any:
         """Compute mathematical traversal confidence and evidence-backed blast radius."""
         from repopeek.graph.blast_radius import compute_blast_radius, BlastRadiusReport
@@ -219,6 +220,7 @@ class GraphQueryEngine:
             max_depth=max_depth,
             direction=direction,
             confidence_threshold=confidence_threshold,
+            exclusions=exclusions,
         )
 
     def impact(
@@ -227,6 +229,7 @@ class GraphQueryEngine:
         max_depth: int = 5,
         direction: str = "both",
         confidence_threshold: float = 0.20,
+        exclusions: Optional[Sequence[str]] = None,
     ) -> Dict[str, Any]:
         """Compute blast-radius tree answering 'If I change X, what breaks?'"""
         report = self.blast_radius(
@@ -234,6 +237,7 @@ class GraphQueryEngine:
             max_depth=max_depth,
             direction=direction,
             confidence_threshold=confidence_threshold,
+            exclusions=exclusions,
         )
         return report.to_dict()
 
@@ -381,6 +385,8 @@ class GraphQueryEngine:
 
     def _build_node_index(self) -> Dict[str, Dict[str, Any]]:
         """Build a lightweight index dict for AST identifier search."""
+        if hasattr(self, "_cached_node_index") and self._cached_node_index is not None:
+            return self._cached_node_index
         index: Dict[str, Dict[str, Any]] = {}
         for node_id, node in self.graph.nodes.items():
             index[node_id] = {
@@ -389,23 +395,27 @@ class GraphQueryEngine:
                 "kind": node.kind,
                 "file": node.span.file if node.span else None,
             }
+        self._cached_node_index = index
         return index
 
     def resolve_task(
         self,
         task: str,
         limit: int = 20,
+        enable_stemming: bool = True,
+        enable_compounds: bool = True,
+        use_rrf_scoring: bool = False,
     ) -> List[Dict[str, Any]]:
         """Resolve a natural language engineering task to ranked candidate symbols.
 
-        Uses three-stage hybrid retrieval:
-        1. AST identifier extraction and variant matching (always available)
-        2. SQLite FTS5 BM25 retrieval (if cache.db exists with FTS5 table)
-        3. Reciprocal Rank Fusion (k=60) combining both sources
+        Uses calibrated multi-component hybrid retrieval (AST + BM25 + Ranking).
 
         Args:
             task: Natural language task description.
             limit: Maximum number of candidates to return.
+            enable_stemming: Whether to apply conservative linguistic stemming.
+            enable_compounds: Whether to generate adjacent compound variants.
+            use_rrf_scoring: Whether to fallback to baseline pure RRF ranking.
 
         Returns:
             List of dicts with keys: node_id, score, reasons, node_card (serialized).
@@ -438,6 +448,9 @@ class GraphQueryEngine:
             node_index=node_index,
             fts_results=fts_results,
             limit=limit,
+            enable_stemming=enable_stemming,
+            enable_compounds=enable_compounds,
+            use_rrf_scoring=use_rrf_scoring,
         )
 
         # Enrich with node card data
@@ -464,11 +477,40 @@ class GraphQueryEngine:
         budget: int = 1500,
         level: int = 2,
         include_snippets: bool = True,
+        exclusions: Optional[Sequence[str]] = None,
     ) -> Any:
         """Compile a natural language engineering task into a ContextPackage."""
         from repopeek.context import ContextCompiler
         compiler = ContextCompiler(self)
-        return compiler.compile(task=task, budget=budget, level=level, include_snippets=include_snippets)
+        return compiler.compile(
+            task=task,
+            budget=budget,
+            level=level,
+            include_snippets=include_snippets,
+            exclusions=exclusions,
+        )
+
+    def explain(self, task: str, limit: int = 5) -> str:
+        """Deterministic query and retrieval explain report."""
+        from repopeek.retrieval.intent import (
+            explain_task,
+            format_explain,
+            extract_task_identifiers,
+            _build_fts_query,
+        )
+        fts_results = None
+        if self.storage_dir:
+            db_path = self.storage_dir / "cache.db"
+            if db_path.exists():
+                from repopeek.storage.sqlite_cache import query_fts5_bm25
+                intent = extract_task_identifiers(task)
+                fts_query = _build_fts_query(intent)
+                if fts_query:
+                    fts_results = query_fts5_bm25(db_path, fts_query, limit=50)
+
+        node_index = self._build_node_index()
+        report = explain_task(task, node_index=node_index, fts_results=fts_results, limit=limit)
+        return format_explain(report)
 
     def change_plan(self, task: str) -> Any:
         """Generate a risk-assessed, step-by-step engineering change plan."""

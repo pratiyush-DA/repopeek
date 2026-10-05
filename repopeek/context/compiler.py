@@ -8,9 +8,9 @@ and risk-aware step-by-step change plans.
 
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Sequence, Set
 
-from repopeek.graph.blast_radius import BlastRadiusReport, compute_blast_radius
+from repopeek.graph.blast_radius import BlastRadiusReport, compute_blast_radius, is_node_excluded
 from repopeek.query.pack import ContextPack
 
 
@@ -235,6 +235,7 @@ class ContextCompiler:
         budget: int = 1500,
         level: int = 2,
         include_snippets: bool = True,
+        exclusions: Optional[Sequence[str]] = None,
     ) -> ContextPackage:
         """Compile a natural language task into a ContextPackage.
 
@@ -243,37 +244,75 @@ class ContextCompiler:
             budget: Token budget constraint (default 1500).
             level: Progressive disclosure level (1, 2, or 3).
             include_snippets: Whether to extract in-card snippets for zero-read edits.
+            exclusions: Optional collection of negative exclusion patterns (dirs, files, symbols, globs).
 
         Returns:
             ContextPackage instance.
         """
+        # Determine all active exclusions (explicit + task intent extracted)
+        from repopeek.retrieval.intent import extract_task_identifiers
+        intent = extract_task_identifiers(task)
+        all_exclusions: List[str] = list(exclusions or [])
+        if intent.exclusions:
+            for ex in intent.exclusions:
+                if ex not in all_exclusions:
+                    all_exclusions.append(ex)
+
         # 1. Intent-to-symbol resolution
-        entrypoints = self.engine.resolve_task(task, limit=5)
+        raw_entrypoints = self.engine.resolve_task(task, limit=10)
+        entrypoints: List[Dict[str, Any]] = []
+        combined_excluded: Dict[str, Dict[str, Any]] = {}
+
+        for ep in raw_entrypoints:
+            nid = ep.get("node_id", "")
+            node_card = self.graph.nodes.get(nid)
+            if all_exclusions and is_node_excluded(nid, node_card, all_exclusions):
+                combined_excluded[nid] = {
+                    "node_id": nid,
+                    "kind": ep.get("kind", "unknown"),
+                    "file": ep.get("file"),
+                    "distance": 0,
+                    "confidence": ep.get("score", 0.0),
+                    "exclusion_reason": "Entrypoint matches explicit exclusion rule",
+                }
+            else:
+                entrypoints.append(ep)
+
+        entrypoints = entrypoints[:5]
         top_node_ids = [ep["node_id"] for ep in entrypoints if "node_id" in ep]
 
         # 2. Mathematical blast radius computation across top candidate entrypoints
         combined_direct: Dict[str, Dict[str, Any]] = {}
         combined_indirect: Dict[str, Dict[str, Any]] = {}
-        combined_excluded: Dict[str, Dict[str, Any]] = {}
         all_affected_files: Set[str] = set()
 
         for ep_id in top_node_ids[:2]:  # Focus blast radius on top 2 entrypoints
-            report: BlastRadiusReport = self.engine.blast_radius(ep_id, max_depth=4)
+            report: BlastRadiusReport = self.engine.blast_radius(
+                ep_id,
+                max_depth=3,
+                confidence_threshold=0.35,
+                exclusions=all_exclusions if all_exclusions else None,
+            )
             for d in report.direct:
                 if d.node_id not in combined_direct:
                     combined_direct[d.node_id] = d.to_dict()
-                if d.file:
+                if d.file and not (all_exclusions and is_node_excluded(d.file, None, all_exclusions)):
                     all_affected_files.add(d.file)
             for ind in report.indirect:
                 if ind.node_id not in combined_direct and ind.node_id not in combined_indirect:
                     combined_indirect[ind.node_id] = ind.to_dict()
-                if ind.file:
+                if ind.file and not (all_exclusions and is_node_excluded(ind.file, None, all_exclusions)):
                     all_affected_files.add(ind.file)
             for ex in report.excluded:
                 if ex.node_id not in combined_direct and ex.node_id not in combined_indirect:
                     combined_excluded[ex.node_id] = ex.to_dict()
 
-            all_affected_files.update(report.affected_files)
+            if all_exclusions:
+                all_affected_files.update(
+                    f for f in report.affected_files if not is_node_excluded(f, None, all_exclusions)
+                )
+            else:
+                all_affected_files.update(report.affected_files)
 
         # 3. Extract source code snippets if requested
         snippets: Dict[str, str] = {}

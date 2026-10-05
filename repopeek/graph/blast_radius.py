@@ -20,8 +20,9 @@ defined in the Phase 3 architecture specification:
 
 from collections import deque
 from dataclasses import asdict, dataclass, field
+import fnmatch
 import math
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 
 from repopeek.models.schema import CanonicalGraph, Confidence, Edge, EdgeType
 
@@ -202,6 +203,105 @@ class BlastRadiusReport:
         }
 
 
+_EXCLUSION_CACHE: Dict[Tuple[str, Tuple[str, ...]], bool] = {}
+
+
+def is_node_excluded(
+    node_id: str,
+    node_card: Optional[Any] = None,
+    exclusions: Optional[Sequence[str]] = None,
+) -> bool:
+    """Check if a node ID or its associated file matches any exclusion rule.
+
+    Supports:
+    - Directory exclusions: 'shipping/', 'tests/shipping/', 'scripts/'
+    - File exclusions: 'shipping.py', 'shipping/service.py', 'db/queries.sql'
+    - Symbol exclusions: 'ShippingService', exact node_id, or symbol name
+    - Glob-style path exclusions: '**/shipping/**', '*shipping*', 'tests/*'
+    """
+    if not exclusions:
+        return False
+
+    cache_key = (node_id, tuple(exclusions))
+    if cache_key in _EXCLUSION_CACHE:
+        return _EXCLUSION_CACHE[cache_key]
+
+    file_path = ""
+    if node_card and getattr(node_card, "span", None) and node_card.span.file:
+        file_path = node_card.span.file.replace("\\", "/").strip()
+    elif "::" in node_id:
+        for part in node_id.split("::"):
+            if "/" in part or "\\" in part or part.endswith((".py", ".ts", ".js", ".sql", ".sh", ".json", ".yaml", ".yml")):
+                file_path = part.replace("\\", "/").strip()
+                break
+
+    # Extract symbol name and parent symbol from node_id
+    id_parts = node_id.split("::")
+    symbol_name = id_parts[-1] if id_parts else node_id
+    parent_symbol = id_parts[-2] if len(id_parts) > 1 else ""
+
+    norm_file = "/" + file_path.lstrip("/") if file_path else ""
+
+    for exc in exclusions:
+        if not exc:
+            continue
+        exc_norm = exc.replace("\\", "/").strip()
+
+        # 1. Exact node_id match
+        if exc_norm == node_id:
+            _EXCLUSION_CACHE[cache_key] = True
+            return True
+
+        # 2. Symbol name matching
+        if exc_norm == symbol_name or exc_norm == parent_symbol:
+            _EXCLUSION_CACHE[cache_key] = True
+            return True
+        if "." in symbol_name:
+            sub_symbols = symbol_name.split(".")
+            if exc_norm in sub_symbols:
+                _EXCLUSION_CACHE[cache_key] = True
+                return True
+
+        # 3. Path matching
+        if file_path:
+            # Direct glob matching
+            if fnmatch.fnmatch(file_path, exc_norm) or fnmatch.fnmatch(norm_file, exc_norm):
+                _EXCLUSION_CACHE[cache_key] = True
+                return True
+            # Glob pattern with **
+            if "**" in exc_norm:
+                clean_pat = exc_norm.replace("**/", "*").replace("/**", "*")
+                if fnmatch.fnmatch(file_path, clean_pat) or fnmatch.fnmatch(norm_file, clean_pat):
+                    _EXCLUSION_CACHE[cache_key] = True
+                    return True
+
+            # Directory exclusion (trailing slash or directory segment)
+            if exc_norm.endswith("/"):
+                dir_name = exc_norm.rstrip("/")
+                if f"/{dir_name}/" in f"{norm_file}/" or file_path.startswith(exc_norm) or file_path.startswith(dir_name + "/"):
+                    _EXCLUSION_CACHE[cache_key] = True
+                    return True
+                if fnmatch.fnmatch(file_path, f"*{dir_name}/*"):
+                    _EXCLUSION_CACHE[cache_key] = True
+                    return True
+            else:
+                # Exact file path match or filename match
+                if file_path == exc_norm or norm_file == "/" + exc_norm.lstrip("/"):
+                    _EXCLUSION_CACHE[cache_key] = True
+                    return True
+                if file_path.endswith("/" + exc_norm):
+                    _EXCLUSION_CACHE[cache_key] = True
+                    return True
+                # If exc_norm is a directory name without trailing slash
+                path_segments = [p for p in file_path.split("/") if p]
+                if exc_norm in path_segments:
+                    _EXCLUSION_CACHE[cache_key] = True
+                    return True
+
+    _EXCLUSION_CACHE[cache_key] = False
+    return False
+
+
 def _format_node_citation(node_card: Any) -> Optional[str]:
     """Format file:start-end citation string for a node."""
     if not node_card or not node_card.span or not node_card.span.file:
@@ -218,6 +318,7 @@ def compute_blast_radius(
     max_depth: int = 5,
     direction: str = "both",
     confidence_threshold: float = 0.20,
+    exclusions: Optional[Sequence[str]] = None,
 ) -> BlastRadiusReport:
     """Compute mathematical traversal confidence and evidence-backed blast radius.
 
@@ -227,6 +328,7 @@ def compute_blast_radius(
         max_depth: Maximum traversal hop distance (default 5).
         direction: 'both', 'upstream', or 'downstream'.
         confidence_threshold: Minimum combined confidence for inclusion in indirect blast radius.
+        exclusions: Optional collection of negative exclusion patterns (dirs, files, symbols, globs).
 
     Returns:
         BlastRadiusReport with partitioned direct, indirect, and excluded nodes.
@@ -237,12 +339,38 @@ def compute_blast_radius(
 
     target_citation = _format_node_citation(target_node)
 
-    # 1. Build adjacency maps
-    incoming_edges: Dict[str, List[Edge]] = {}
-    outgoing_edges: Dict[str, List[Edge]] = {}
-    for edge in graph.edges:
-        outgoing_edges.setdefault(edge.src, []).append(edge)
-        incoming_edges.setdefault(edge.dst, []).append(edge)
+    # Check if target itself matches an exclusion rule
+    if exclusions and is_node_excluded(target_id, target_node, exclusions):
+        return BlastRadiusReport(
+            target_id=target_id,
+            target_citation=target_citation,
+            found=True,
+            excluded=[
+                ExcludedNode(
+                    node_id=target_id,
+                    kind=target_node.kind,
+                    file=target_node.span.file if target_node.span else None,
+                    distance=0,
+                    confidence=1.0,
+                    exclusion_reason="Target node matches explicit exclusion rule",
+                )
+            ],
+            affected_files=[],
+            affected_tables=[],
+            affected_configs=[],
+            metrics={"direct_count": 0, "indirect_count": 0, "excluded_count": 1},
+        )
+
+    # 1. Build adjacency maps (cached on graph)
+    if hasattr(graph, "_cached_adj") and graph._cached_adj is not None:
+        incoming_edges, outgoing_edges = graph._cached_adj
+    else:
+        incoming_edges: Dict[str, List[Edge]] = {}
+        outgoing_edges: Dict[str, List[Edge]] = {}
+        for edge in graph.edges:
+            outgoing_edges.setdefault(edge.src, []).append(edge)
+            incoming_edges.setdefault(edge.dst, []).append(edge)
+        graph._cached_adj = (incoming_edges, outgoing_edges)
 
     # 2. Collect simple paths from target_id up to max_depth
     # State in queue: (current_node_id, current_path_of_steps, visited_nodes_in_path)
@@ -250,6 +378,10 @@ def compute_blast_radius(
     node_min_dist: Dict[str, int] = {}
     traversed_edges_list: List[Dict[str, Any]] = []
     seen_edges: Set[Tuple[str, str, str, str]] = set()
+
+    # Track hard-pruned excluded nodes
+    explicit_excluded_nodes: List[ExcludedNode] = []
+    explicit_excluded_ids: Set[str] = set()
 
     queue: deque = deque([(target_id, [], {target_id})])
 
@@ -291,6 +423,21 @@ def compute_blast_radius(
             elif next_id in graph.nodes:
                 step_citation = _format_node_citation(graph.nodes[next_id])
 
+            # Hard exclusion pruning: prune BEFORE adding to queue or recording paths
+            next_node = graph.nodes.get(next_id)
+            if exclusions and is_node_excluded(next_id, next_node, exclusions):
+                if next_id not in explicit_excluded_ids:
+                    explicit_excluded_ids.add(next_id)
+                    explicit_excluded_nodes.append(ExcludedNode(
+                        node_id=next_id,
+                        kind=next_node.kind if next_node else "unknown",
+                        file=next_node.span.file if next_node and next_node.span else None,
+                        distance=depth + 1,
+                        confidence=step_prior,
+                        exclusion_reason="Explicit negative exclusion rule matched",
+                    ))
+                continue
+
             step = BlastRadiusStep(
                 src=edge.src,
                 dst=edge.dst,
@@ -308,8 +455,8 @@ def compute_blast_radius(
             if next_id not in node_min_dist or depth + 1 < node_min_dist[next_id]:
                 node_min_dist[next_id] = depth + 1
 
-            # Bounded exploration: continue queue if paths to next_id < 10
-            if len(node_paths[next_id]) <= 10:
+            # Bounded exploration: continue queue if paths to next_id <= 3
+            if len(node_paths[next_id]) <= 3:
                 queue.append((next_id, new_steps, path_visited | {next_id}))
 
     # 3. Compute mathematical confidence scores & partitions
@@ -394,10 +541,17 @@ def compute_blast_radius(
         if "config" in node_id or kind in ("json_config", "yaml_config"):
             affected_configs.add(node_id.split("::")[-1])
 
+    # Merge explicit exclusions and confidence-pruned nodes
+    all_excluded_nodes = explicit_excluded_nodes + excluded_nodes
+
     # Sort partitions by graph_score descending
     direct_nodes.sort(key=lambda n: n.graph_score, reverse=True)
     indirect_nodes.sort(key=lambda n: n.graph_score, reverse=True)
-    excluded_nodes.sort(key=lambda e: e.confidence, reverse=True)
+    all_excluded_nodes.sort(key=lambda e: e.confidence, reverse=True)
+
+    # Filter affected_files to ensure no excluded paths remain
+    if exclusions:
+        affected_files = {f for f in affected_files if not is_node_excluded(f, None, exclusions)}
 
     # 4. Summary metrics
     all_confs = [n.combined_confidence for n in direct_nodes + indirect_nodes]
@@ -407,7 +561,7 @@ def compute_blast_radius(
     metrics = {
         "direct_count": len(direct_nodes),
         "indirect_count": len(indirect_nodes),
-        "excluded_count": len(excluded_nodes),
+        "excluded_count": len(all_excluded_nodes),
         "mean_confidence": mean_conf,
         "max_distance": max_dist,
     }
@@ -418,7 +572,7 @@ def compute_blast_radius(
         found=True,
         direct=direct_nodes,
         indirect=indirect_nodes,
-        excluded=excluded_nodes,
+        excluded=all_excluded_nodes,
         affected_files=sorted(list(affected_files)),
         affected_tables=sorted(list(affected_tables)),
         affected_configs=sorted(list(affected_configs)),

@@ -52,6 +52,7 @@ def evaluate_context_compilation(
             budget=budget,
             level=level,
             include_snippets=False,
+            exclusions=task.gold.excluded if task.gold and task.gold.excluded else None,
         )
 
         all_token_counts.append(pkg.estimated_tokens)

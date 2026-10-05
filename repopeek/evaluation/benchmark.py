@@ -29,6 +29,7 @@ from repopeek.evaluation.models import (
 from repopeek.evaluation.retrieval import (
     compare_retrieval_strategies,
     evaluate_task_retrieval,
+    run_retrieval_ablation,
 )
 from repopeek.evaluation.temporal import evaluate_temporal_cochange
 from repopeek.graph.blast_radius import get_edge_prior
@@ -145,8 +146,9 @@ class BenchmarkRunner:
         retrieval_metrics, ret_failures = evaluate_task_retrieval(tasks, self.engine)
         all_failures.extend(ret_failures)
 
-        # Strategy comparison
+        # Strategy comparison & Ablation study
         strategies = compare_retrieval_strategies(tasks, self.engine)
+        ablations = run_retrieval_ablation(tasks, self.engine)
 
         # ── Level 2: Graph Accuracy & Calibration ──
         gold_edges: List[Dict[str, str]] = []
@@ -208,6 +210,7 @@ class BenchmarkRunner:
             total_tasks=len(tasks),
             retrieval=retrieval_metrics,
             strategies=strategies,
+            ablations=ablations,
             graph=graph_metrics,
             confidence=conf_metrics,
             temporal=temporal_metrics,

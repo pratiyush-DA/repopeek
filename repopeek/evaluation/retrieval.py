@@ -10,6 +10,7 @@ from repopeek.evaluation.metrics import (
     reciprocal_rank,
 )
 from repopeek.evaluation.models import (
+    AblationResult,
     BenchmarkTask,
     FailureCase,
     FailureCategory,
@@ -33,7 +34,7 @@ def evaluate_task_retrieval(
 ) -> Tuple[RetrievalMetrics, List[FailureCase]]:
     """Evaluate task-to-symbol resolution across a benchmark task suite.
 
-    Computes Recall@1, Recall@3, Recall@5, Recall@10, and MRR.
+    Computes Candidate Recall@50/100, Final Recall@1/3/5/10, and MRR.
     Categorizes retrieval failures into LEXICAL_MISS, IDENTIFIER_MISS, or RANKING_ERROR.
     """
     total = len(tasks)
@@ -42,6 +43,8 @@ def evaluate_task_retrieval(
 
     all_retrieved: List[List[str]] = []
     all_gold: List[List[str]] = []
+    c_at_50_hits = 0
+    c_at_100_hits = 0
     r_at_1_hits = 0
     r_at_3_hits = 0
     r_at_5_hits = 0
@@ -55,17 +58,25 @@ def evaluate_task_retrieval(
         if not gold_symbols:
             continue
 
-        resolved = engine.resolve_task(task.task, limit=max(limits))
-        cand_ids = [c["node_id"] for c in resolved]
+        resolved_pool = engine.resolve_task(task.task, limit=100)
+        cand_ids = [c["node_id"] for c in resolved_pool]
 
-        all_retrieved.append(cand_ids)
+        all_retrieved.append(cand_ids[:10])
         all_gold.append(gold_symbols)
 
-        # Calculate Recall@K
-        r1 = recall_at_k(cand_ids, gold_symbols, k=1, matcher=matches_symbol)
-        r3 = recall_at_k(cand_ids, gold_symbols, k=3, matcher=matches_symbol)
-        r5 = recall_at_k(cand_ids, gold_symbols, k=5, matcher=matches_symbol)
-        r10 = recall_at_k(cand_ids, gold_symbols, k=10, matcher=matches_symbol)
+        # Candidate pool recall (before/independent of top-k rank cutoffs)
+        c50 = recall_at_k(cand_ids[:50], gold_symbols, k=50, matcher=matches_symbol)
+        c100 = recall_at_k(cand_ids[:100], gold_symbols, k=100, matcher=matches_symbol)
+        if c50 > 0:
+            c_at_50_hits += 1
+        if c100 > 0:
+            c_at_100_hits += 1
+
+        # Calculate Final Ranking Recall@K
+        r1 = recall_at_k(cand_ids[:1], gold_symbols, k=1, matcher=matches_symbol)
+        r3 = recall_at_k(cand_ids[:3], gold_symbols, k=3, matcher=matches_symbol)
+        r5 = recall_at_k(cand_ids[:5], gold_symbols, k=5, matcher=matches_symbol)
+        r10 = recall_at_k(cand_ids[:10], gold_symbols, k=10, matcher=matches_symbol)
 
         if r1 > 0:
             r_at_1_hits += 1
@@ -78,39 +89,37 @@ def evaluate_task_retrieval(
 
         # Failure diagnosis if missed in top 5
         if r5 == 0.0:
-            # Diagnose root cause
-            intent = extract_task_identifiers(task.task)
-            ast_candidates = _ast_identifier_search(intent, node_index, limit=100)
-            ast_ids = [nid for nid, _ in ast_candidates]
+            # Check if gold was present in candidate pool
+            in_candidate_pool = any(any(matches_symbol(nid, g) for g in gold_symbols) for nid in cand_ids[:100])
 
-            # Check if gold was extracted in intent
-            has_gold_tokens = any(
-                any(g.lower() in token.lower() or token.lower() in g.lower() for g in gold_symbols)
-                for token in intent.identifiers + intent.concepts
-            )
-
-            if not has_gold_tokens:
-                cat = FailureCategory.LEXICAL_MISS
-                expl = (
-                    f"Task text contains purely natural language terms with no direct lexical or identifier "
-                    f"overlap with target symbols {gold_symbols}."
-                )
-            elif not any(any(matches_symbol(nid, g) for g in gold_symbols) for nid in ast_ids):
-                cat = FailureCategory.IDENTIFIER_MISS
-                expl = (
-                    f"Task terms were extracted, but AST identifier index did not match symbol names for {gold_symbols}."
-                )
-            else:
+            if in_candidate_pool:
                 cat = FailureCategory.RANKING_ERROR
-                # Gold appeared in AST search but was pushed outside top 5 by RRF
                 found_rank = next(
                     (idx + 1 for idx, nid in enumerate(cand_ids) if any(matches_symbol(nid, g) for g in gold_symbols)),
-                    ">10"
+                    ">100",
                 )
                 expl = (
-                    f"Gold symbol was found in candidate pool but ranked at position {found_rank}, "
+                    f"Gold symbol was present in candidate pool but ranked at position {found_rank}, "
                     f"outside top 5 due to competing symbol scores."
                 )
+            else:
+                intent = extract_task_identifiers(task.task)
+                has_gold_tokens = any(
+                    any(g.lower() in token.lower() or token.lower() in g.lower() for g in gold_symbols)
+                    for token in intent.identifiers + intent.concepts + intent.stemmed_concepts
+                )
+                if not has_gold_tokens:
+                    cat = FailureCategory.LEXICAL_MISS
+                    expl = (
+                        f"Task text contains purely natural language terms with no direct lexical or identifier "
+                        f"overlap with target symbols {gold_symbols}."
+                    )
+                else:
+                    cat = FailureCategory.IDENTIFIER_MISS
+                    expl = (
+                        f"Task terms were extracted, but candidate generation failed to retrieve {gold_symbols} "
+                        f"into the top 100 candidate pool."
+                    )
 
             failures.append(
                 FailureCase(
@@ -129,6 +138,8 @@ def evaluate_task_retrieval(
     mrr = mean_reciprocal_rank(all_retrieved, all_gold, matcher=matches_symbol)
 
     metrics = RetrievalMetrics(
+        candidate_recall_at_50=round(c_at_50_hits / eval_count, 4),
+        candidate_recall_at_100=round(c_at_100_hits / eval_count, 4),
         recall_at_1=round(r_at_1_hits / eval_count, 4),
         recall_at_3=round(r_at_3_hits / eval_count, 4),
         recall_at_5=round(r_at_5_hits / eval_count, 4),
@@ -137,6 +148,83 @@ def evaluate_task_retrieval(
         total_tasks=eval_count,
     )
     return metrics, failures
+
+
+def run_retrieval_ablation(
+    tasks: Sequence[BenchmarkTask],
+    engine: GraphQueryEngine,
+) -> List[AblationResult]:
+    """Execute ablation experiments comparing retrieval pipeline components.
+
+    Baseline: Existing BM25 / RRF
+    Experiment A: Baseline + Identifier Normalization (multi-component scoring without stemming or compounds)
+    Experiment B: Baseline + Identifier Normalization + Conservative Stemming
+    Experiment C: Baseline + Identifier Normalization + Stemming + Intent Variants (Full PR20)
+    """
+    gold_tasks = [t for t in tasks if t.gold.symbols]
+    if not gold_tasks:
+        return []
+
+    configs = [
+        (
+            "Baseline",
+            "Existing BM25 / RRF",
+            {"enable_stemming": False, "enable_compounds": False, "use_rrf_scoring": True},
+        ),
+        (
+            "Experiment A",
+            "+ Identifier Normalization",
+            {"enable_stemming": False, "enable_compounds": False, "use_rrf_scoring": False},
+        ),
+        (
+            "Experiment B",
+            "+ Conservative Stemming",
+            {"enable_stemming": True, "enable_compounds": False, "use_rrf_scoring": False},
+        ),
+        (
+            "Experiment C",
+            "+ Intent Compound Variants (Full PR20)",
+            {"enable_stemming": True, "enable_compounds": True, "use_rrf_scoring": False},
+        ),
+    ]
+
+    results: List[AblationResult] = []
+
+    for name, desc, kwargs in configs:
+        r1_hits = 0
+        r5_hits = 0
+        r10_hits = 0
+        all_retrieved: List[List[str]] = []
+        all_gold: List[List[str]] = []
+
+        for task in gold_tasks:
+            gold = task.gold.symbols
+            cands = engine.resolve_task(task.task, limit=10, **kwargs)
+            cand_ids = [c["node_id"] for c in cands]
+            all_retrieved.append(cand_ids)
+            all_gold.append(gold)
+
+            if recall_at_k(cand_ids, gold, k=1, matcher=matches_symbol) > 0:
+                r1_hits += 1
+            if recall_at_k(cand_ids, gold, k=5, matcher=matches_symbol) > 0:
+                r5_hits += 1
+            if recall_at_k(cand_ids, gold, k=10, matcher=matches_symbol) > 0:
+                r10_hits += 1
+
+        n = len(gold_tasks)
+        mrr = mean_reciprocal_rank(all_retrieved, all_gold, matcher=matches_symbol)
+        results.append(
+            AblationResult(
+                configuration=name,
+                recall_at_1=round(r1_hits / n, 4),
+                recall_at_5=round(r5_hits / n, 4),
+                recall_at_10=round(r10_hits / n, 4),
+                mrr=mrr,
+                description=desc,
+            )
+        )
+
+    return results
 
 
 def compare_retrieval_strategies(
@@ -221,7 +309,11 @@ def compare_retrieval_strategies(
         return {t[i:i+3] for i in range(len(t) - 2)} if len(t) >= 3 else {t}
 
     # Build character n-gram pseudo-embeddings
-    ngram_index = {nid: get_trigrams(nid + " " + (data.get("sig") or "")) for nid, data in node_index.items()}
+    ngram_index = {
+        nid: get_trigrams(nid + " " + (data.get("sig") or ""))
+        for nid, data in node_index.items()
+        if not nid.startswith("__") and isinstance(data, dict)
+    }
 
     for task in gold_tasks:
         task_ngrams = get_trigrams(task.task)

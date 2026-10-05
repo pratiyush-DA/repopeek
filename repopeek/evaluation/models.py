@@ -75,12 +75,28 @@ class BenchmarkTask:
 @dataclass
 class RetrievalMetrics:
     """Recall and ranking metrics for task-to-symbol resolution."""
+    candidate_recall_at_50: float = 0.0
+    candidate_recall_at_100: float = 0.0
     recall_at_1: float = 0.0
     recall_at_3: float = 0.0
     recall_at_5: float = 0.0
     recall_at_10: float = 0.0
     mrr: float = 0.0
     total_tasks: int = 0
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class AblationResult:
+    """Outcome of a retrieval ablation experiment configuration."""
+    configuration: str
+    recall_at_1: float
+    recall_at_5: float
+    recall_at_10: float
+    mrr: float
+    description: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -249,6 +265,7 @@ class BenchmarkReport:
     confidence: ConfidenceMetrics = field(default_factory=ConfidenceMetrics)
     temporal: Dict[str, TemporalMetrics] = field(default_factory=dict)
     context: ContextMetrics = field(default_factory=ContextMetrics)
+    ablations: List[AblationResult] = field(default_factory=list)
     determinism_passed: bool = True
     performance: PerformanceReport = field(default_factory=PerformanceReport)
     agent: AgentComparison = field(default_factory=AgentComparison)
@@ -262,6 +279,7 @@ class BenchmarkReport:
             "total_tasks": self.total_tasks,
             "retrieval": self.retrieval.to_dict(),
             "strategies": [s.to_dict() for s in self.strategies],
+            "ablations": [a.to_dict() for a in self.ablations],
             "graph": {str(k): v.to_dict() for k, v in self.graph.items()},
             "confidence": self.confidence.to_dict(),
             "temporal": {k: v.to_dict() for k, v in self.temporal.items()},
