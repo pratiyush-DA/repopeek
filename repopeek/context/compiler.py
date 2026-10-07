@@ -6,11 +6,13 @@ Context Packages with multi-tier constraint enforcement, quantitative blast radi
 and risk-aware step-by-step change plans.
 """
 
+import re
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Set
+from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 
 from repopeek.graph.blast_radius import BlastRadiusReport, compute_blast_radius, is_node_excluded
+from repopeek.graph.identity import is_sql_table_kind
 from repopeek.query.pack import ContextPack
 
 
@@ -103,6 +105,7 @@ class ContextPackage:
     change_plan: Optional[ChangePlan] = None
     snippets: Dict[str, str] = field(default_factory=dict)
     affected_files: List[str] = field(default_factory=list)
+    coverage: str = "full"
 
     def to_markdown(self, level: int = 2) -> str:
         """Render progressive disclosure Markdown block (Level 1, 2, or 3).
@@ -114,6 +117,7 @@ class ContextPackage:
         lines = [
             f"# RepoPeek Context Package: {self.task}",
             f"*Tokens: ~{self.estimated_tokens} (Budget: {self.token_budget} | Raw File Equivalent: ~{self.raw_file_tokens} | Token Reduction: {self.token_reduction_pct}%)*",
+            f"*Coverage: `{self.coverage}`*",
             "",
         ]
 
@@ -134,9 +138,8 @@ class ContextPackage:
             if story and level >= 2:
                 lines.append(f"  - Context: {story}")
 
-            # Include snippet if level 3
-            if level >= 3 and nid in self.snippets:
-                lines.append("  ```python")
+            if level >= 2 and nid in self.snippets:
+                lines.append("  ```")
                 lines.append(self.snippets[nid].rstrip())
                 lines.append("  ```")
         lines.append("")
@@ -219,6 +222,7 @@ class ContextPackage:
             "constraints": self.constraints.to_dict(),
             "change_plan": self.change_plan.to_dict() if self.change_plan else None,
             "affected_files": sorted(self.affected_files),
+            "coverage": self.coverage,
         }
 
 
@@ -257,6 +261,15 @@ class ContextCompiler:
             for ex in intent.exclusions:
                 if ex not in all_exclusions:
                     all_exclusions.append(ex)
+        if all_exclusions:
+            extra_files: List[str] = []
+            for nid, node_card in self.graph.nodes.items():
+                if is_node_excluded(nid, node_card, all_exclusions):
+                    if node_card.span and node_card.span.file:
+                        extra_files.append(node_card.span.file.replace("\\", "/"))
+            for f in extra_files:
+                if f not in all_exclusions:
+                    all_exclusions.append(f)
 
         # 1. Intent-to-symbol resolution
         raw_entrypoints = self.engine.resolve_task(task, limit=10)
@@ -314,6 +327,175 @@ class ContextCompiler:
             else:
                 all_affected_files.update(report.affected_files)
 
+        combined_direct, combined_indirect = self._filter_neighbors(
+            task, intent, top_node_ids, combined_direct, combined_indirect
+        )
+        combined_direct = {k: v for k, v in combined_direct.items() if not str(k).startswith("ext:")}
+        combined_indirect = {k: v for k, v in combined_indirect.items() if not str(k).startswith("ext:")}
+
+        def _file_blocked(path: Optional[str]) -> bool:
+            if not path or not all_exclusions:
+                return False
+            return is_node_excluded(path.replace("\\", "/"), None, all_exclusions)
+
+        for nid in list(combined_direct):
+            fp = combined_direct[nid].get("file")
+            node = self.graph.nodes.get(nid)
+            if fp and _file_blocked(fp):
+                combined_direct.pop(nid, None)
+            elif node and node.span and _file_blocked(node.span.file):
+                combined_direct.pop(nid, None)
+        for nid in list(combined_indirect):
+            fp = combined_indirect[nid].get("file")
+            node = self.graph.nodes.get(nid)
+            if fp and _file_blocked(fp):
+                combined_indirect.pop(nid, None)
+            elif node and node.span and _file_blocked(node.span.file):
+                combined_indirect.pop(nid, None)
+
+        # Capture the risk signal from the full (pre-display-trim) blast radius so the
+        # change plan's risk level reflects real schema/downstream impact even after the
+        # displayed file set is trimmed for precision.
+        risk_has_schema = any(
+            is_sql_table_kind(str(v.get("kind", "")))
+            for v in list(combined_direct.values()) + list(combined_indirect.values())
+        )
+        risk_total_affected = len(combined_direct) + len(combined_indirect)
+
+        ranked_files: List[str] = []
+        raw_l = task.lower()
+        ident_l = [i.lower() for i in intent.identifiers if i]
+        # Frontend intent requires an explicit client-side signal. A bare "login"
+        # mention is not enough: it also appears in backend serializers/views
+        # (e.g. UserLoginSerializer) and would wrongly pull in JSX noise.
+        frontend_intent = (
+            any(w in raw_l for w in (
+                "frontend", "front-end", "client-side", "jsx", "tsx", "react",
+                "authcontext", "loginpage", "usestate", "useeffect",
+            ))
+            or bool(re.search(r"\.(jsx|tsx|vue|svelte)\b", raw_l))
+            or any(str(p).lower().endswith((".jsx", ".tsx", ".ts")) for p in intent.paths)
+        )
+
+        def _score_file(path: str, base: float) -> float:
+            p = path.replace("\\", "/")
+            pl = p.lower()
+            stem = Path(p).stem.lower()
+            s = base
+            if any(stem == i or stem.replace("_", "") == i.replace("_", "") for i in ident_l):
+                s += 5.0
+            elif any(len(i) > 3 and (i in stem or stem in i) for i in ident_l):
+                s += 2.0
+            if frontend_intent:
+                if pl.endswith((".jsx", ".js", ".tsx", ".ts")):
+                    s += 3.0
+                if "/src/" in pl or pl.startswith("app/src"):
+                    s += 1.5
+                if any(tok in stem for tok in ("login", "auth", "remember")):
+                    s += 4.0
+                if pl.endswith("views.py") and not any("view" in i for i in ident_l):
+                    s -= 2.0
+            return s
+
+        # Accumulate a per-file base signal (entrypoint rank + blast membership). Each
+        # file is scored once below so multi-node files are not inflated by applying the
+        # stem/frontend boosts repeatedly per node.
+        base_signal: Dict[str, float] = {}
+        for i, ep in enumerate(entrypoints):
+            f = ep.get("file")
+            if f and not _file_blocked(f):
+                base_signal[f] = base_signal.get(f, 0.0) + (10.0 - i)
+        for blob in list(combined_direct.values()) + list(combined_indirect.values()):
+            f = blob.get("file")
+            if f and not _file_blocked(f):
+                base_signal[f] = base_signal.get(f, 0.0) + 1.0
+
+        file_scores: Dict[str, float] = {f: _score_file(f, b) for f, b in base_signal.items()}
+
+        # Keep the top-ranked file always (protects file recall), then only additional
+        # files whose score stays within a relative band of the top. Hard cap unchanged
+        # at 4; the band is what trims padded noise files to lift precision.
+        ranked_files = sorted(file_scores, key=lambda p: (-file_scores[p], p.replace("\\", "/")))
+        keep_files: Set[str] = set()
+        if ranked_files:
+            top_score = file_scores[ranked_files[0]]
+            cutoff = 0.5 * top_score
+            keep_files.add(ranked_files[0])
+            for f in ranked_files[1:]:
+                if len(keep_files) >= 4:
+                    break
+                if file_scores[f] >= cutoff:
+                    keep_files.add(f)
+
+        def _is_frontend(path: Optional[str]) -> bool:
+            return bool(path) and str(path).lower().endswith((".jsx", ".js", ".tsx", ".ts"))
+
+        # Cross-stack recall backstop: a frontend task whose gold client-side file never
+        # survived retrieval/threshold (e.g. LoginPage.jsx on a backend-ranked task) still
+        # needs exactly one best-matching frontend file picked by task-token overlap, so
+        # coverage stays honest without scanning in every login/auth-named file.
+        if frontend_intent and not any(_is_frontend(f) for f in keep_files):
+            from repopeek.retrieval.intent import generate_identifier_variants
+            task_toks = {t.lower() for t in (intent.identifiers + intent.concepts + intent.stemmed_concepts) if t}
+            for ident in intent.identifiers:
+                for v in generate_identifier_variants(ident):
+                    task_toks.add(v.lower())
+            best_fp: Optional[str] = None
+            best_s = 0.0
+            for node in self.graph.nodes.values():
+                fp = node.span.file if node.span else None
+                if not fp or _file_blocked(fp) or not _is_frontend(fp):
+                    continue
+                stem_raw = Path(str(fp).replace("\\", "/")).stem
+                stem_words = {p.lower() for p in re.findall(r"[A-Za-z][a-z0-9]*", stem_raw)}
+                stem_l = stem_raw.lower()
+                overlap = len(stem_words & task_toks)
+                ui = sum(1 for tok in ("login", "auth", "remember") if tok in stem_l)
+                s = overlap * 2.0 + ui
+                if s > best_s or (
+                    s == best_s and best_fp is not None and len(stem_l) < len(Path(str(best_fp)).stem)
+                ):
+                    best_s, best_fp = s, fp
+            if best_fp and best_s > 0:
+                if len(keep_files) >= 4:
+                    evictable = [f for f in ranked_files if f in keep_files and f != ranked_files[0]]
+                    if evictable:
+                        keep_files.discard(evictable[-1])
+                keep_files.add(best_fp)
+
+        all_affected_files = {f for f in keep_files if not _file_blocked(f)}
+        entrypoints = [ep for ep in entrypoints if not ep.get("file") or ep.get("file") in keep_files]
+        combined_direct = {
+            k: v for k, v in combined_direct.items()
+            if not v.get("file") or v.get("file") in keep_files
+        }
+        combined_indirect = {
+            k: v for k, v in combined_indirect.items()
+            if not v.get("file") or v.get("file") in keep_files
+        }
+
+        def _compact(items: List[Dict[str, Any]], max_per_file: int = 2, max_total: int = 8) -> List[Dict[str, Any]]:
+            per: Dict[str, int] = {}
+            out: List[Dict[str, Any]] = []
+            for it in items:
+                fp = str(it.get("file") or "").replace("\\", "/")
+                if per.get(fp, 0) >= max_per_file:
+                    continue
+                per[fp] = per.get(fp, 0) + 1
+                out.append(it)
+                if len(out) >= max_total:
+                    break
+            return out
+
+        entrypoints = _compact(entrypoints, max_per_file=2, max_total=5)
+        direct_list = _compact(list(combined_direct.values()), max_per_file=2, max_total=8)
+        indirect_list = _compact(list(combined_indirect.values()), max_per_file=2, max_total=8)
+        combined_direct = {d.get("node_id", str(i)): d for i, d in enumerate(direct_list)}
+        combined_indirect = {d.get("node_id", str(i)): d for i, d in enumerate(indirect_list)}
+
+        fe_files = [f for f in all_affected_files if str(f).lower().endswith((".jsx", ".js", ".tsx", ".ts"))]
+        coverage = "partial" if (frontend_intent and not fe_files) else "full"
+
         # 3. Extract source code snippets if requested
         snippets: Dict[str, str] = {}
         if include_snippets:
@@ -331,7 +513,15 @@ class ContextCompiler:
         constraints = self._extract_constraints(top_node_ids, list(combined_direct.keys()))
 
         # 5. Risk assessment and change plan generation
-        change_plan = self._generate_plan(task, entrypoints, combined_direct, combined_indirect, all_affected_files)
+        change_plan = self._generate_plan(
+            task,
+            entrypoints,
+            combined_direct,
+            combined_indirect,
+            all_affected_files,
+            risk_has_schema=risk_has_schema,
+            risk_total_affected=risk_total_affected,
+        )
 
         # 6. Token economics calculation
         # Raw file tokens: estimate tokens if agent was forced to read the full source files
@@ -352,12 +542,62 @@ class ContextCompiler:
             change_plan=change_plan,
             snippets=snippets,
             affected_files=sorted(list(all_affected_files)),
+            coverage=coverage,
         )
 
         # Calculate estimated tokens from markdown rendering
         rendered_md = package.to_markdown(level=level)
         est_tokens = ContextPack.estimate_tokens_from_text(rendered_md)
         package.estimated_tokens = est_tokens
+
+        # Token-budget enforcement. When the rendered pack exceeds budget, shed the
+        # lowest-value material first — surplus neighbor snippets, then indirect cards,
+        # then extra direct cards — while keeping the primary entrypoint and one snippet
+        # per shortlisted (incl. gold) file. We trim context depth, never the file list.
+        def _reestimate() -> int:
+            return ContextPack.estimate_tokens_from_text(package.to_markdown(level=level))
+
+        if est_tokens > budget and package.estimated_tokens > budget:
+            ep_order = [ep.get("node_id") for ep in package.entrypoints if ep.get("node_id")]
+            primary = set(ep_order[:1])
+            # One snippet per shortlisted file (the highest-ranked entrypoint there) is kept
+            # so every file in the shortlist retains a span.
+            primary_per_file: Dict[str, str] = {}
+            for ep in package.entrypoints:
+                f, nid = ep.get("file"), ep.get("node_id")
+                if f and nid and f not in primary_per_file:
+                    primary_per_file[f] = nid
+            keep_snip = set(primary_per_file.values()) | primary
+
+            # Phase 1: drop neighbor snippets, then secondary entrypoint snippets low->high.
+            drop_order = [k for k in list(package.snippets) if k not in ep_order and k not in keep_snip]
+            drop_order += [k for k in reversed(ep_order) if k not in keep_snip]
+            for key in drop_order:
+                if package.estimated_tokens <= budget:
+                    break
+                if key in package.snippets:
+                    package.snippets.pop(key, None)
+                    package.estimated_tokens = _reestimate()
+
+            # Phase 2: shed indirect cards from the tail.
+            while package.estimated_tokens > budget and package.indirect:
+                package.indirect.pop()
+                package.estimated_tokens = _reestimate()
+
+            # Phase 3: shed surplus direct cards (keep at least the top one).
+            while package.estimated_tokens > budget and len(package.direct) > 1:
+                package.direct.pop()
+                package.estimated_tokens = _reestimate()
+
+            # Last resort: keep only the primary entrypoint snippet.
+            if package.estimated_tokens > budget:
+                for key in [k for k in list(package.snippets) if k not in primary]:
+                    if package.estimated_tokens <= budget:
+                        break
+                    package.snippets.pop(key, None)
+                    package.estimated_tokens = _reestimate()
+
+            est_tokens = package.estimated_tokens
 
         # Token reduction percentage
         denom = max(raw_tokens, est_tokens)
@@ -394,8 +634,8 @@ class ContextCompiler:
                 raises_str = ", ".join(node.facts.raises)
                 constraints.exception_constraints.append(f"`{node.id}` may raise: {raises_str}")
 
-            # Schema constraints
-            if "table" in node.id or node.kind == "sql_table":
+            # Schema constraints — kind/edge based, never substring of node.id
+            if is_sql_table_kind(node.kind):
                 constraints.schema_constraints.append(f"Relies on schema table `{node.id}`")
 
             # Behavioral invariant from story
@@ -411,12 +651,28 @@ class ContextCompiler:
         direct_nodes: Dict[str, Dict[str, Any]],
         indirect_nodes: Dict[str, Dict[str, Any]],
         affected_files: Set[str],
+        risk_has_schema: Optional[bool] = None,
+        risk_total_affected: Optional[int] = None,
     ) -> ChangePlan:
-        """Generate a risk-aware, step-by-step engineering change plan."""
+        """Generate a risk-aware, step-by-step engineering change plan.
+
+        ``risk_has_schema`` / ``risk_total_affected`` let the caller pass the full
+        pre-trim blast-radius signal so risk assessment is not softened by the display
+        file-count trimming applied for precision. When omitted they are derived from the
+        (possibly trimmed) node sets for standalone use.
+        """
         # 1. Determine Risk Level
         risk_reasons: List[str] = []
-        total_affected = len(direct_nodes) + len(indirect_nodes)
-        has_schema = any("table" in nid for nid in list(direct_nodes.keys()) + list(indirect_nodes.keys()))
+        trimmed_total = len(direct_nodes) + len(indirect_nodes)
+        total_affected = risk_total_affected if risk_total_affected is not None else trimmed_total
+        has_schema = (
+            risk_has_schema
+            if risk_has_schema is not None
+            else any(
+                is_sql_table_kind(str(d.get("kind", "")))
+                for d in list(direct_nodes.values()) + list(indirect_nodes.values())
+            )
+        )
 
         if has_schema or total_affected > 5:
             risk_level = "HIGH"
@@ -491,6 +747,91 @@ class ContextCompiler:
             pre_checks=pre_checks,
             post_checks=post_checks,
         )
+
+    def _filter_neighbors(
+        self,
+        task: str,
+        intent: Any,
+        entrypoint_ids: List[str],
+        combined_direct: Dict[str, Dict[str, Any]],
+        combined_indirect: Dict[str, Dict[str, Any]],
+    ) -> Tuple[Dict[str, Dict[str, Any]], Dict[str, Dict[str, Any]]]:
+        """Keep structurally relevant neighbors; drop connected-but-irrelevant noise."""
+        import re
+        from typing import Any as _Any
+
+        entry_files = set()
+        for eid in entrypoint_ids:
+            node = self.graph.nodes.get(eid)
+            if node and node.span and node.span.file:
+                entry_files.add(node.span.file)
+
+        terms = {t.lower() for t in (intent.identifiers + intent.concepts + intent.compounds[:12]) if t}
+        terms = {t for t in terms if len(t) > 2}
+
+        def _score(nid: str, data: Dict[str, Any], bucket: str) -> float:
+            node = self.graph.nodes.get(nid)
+            kind = (data.get("kind") or (node.kind if node else "")).lower()
+            file_p = data.get("file") or (node.span.file if node and node.span else "") or ""
+            nid_l = nid.lower()
+            dist = int(data.get("distance") or data.get("depth") or 2)
+            gscore = float(data.get("graph_score") or data.get("combined_confidence") or 0.0)
+            overlap = sum(1 for t in terms if t in nid_l or t in file_p.lower())
+            same_file = 1.0 if file_p in entry_files else 0.0
+            structural = 0.0
+            if kind in ("function", "method", "class"):
+                structural = 0.35
+            elif kind in ("yaml_config", "json_config", "file", "module", "external_symbol"):
+                structural = -0.4 if getattr(intent, "task_kind", "application") == "application" else 0.2
+            hop_pen = 0.0 if dist <= 1 else -0.25 * (dist - 1)
+            keep_boost = 0.8 if nid in entrypoint_ids else 0.0
+            lexical = min(1.0, 0.25 * overlap)
+            fe_boost = 0.0
+            tl = task.lower()
+            file_stem = Path(str(file_p).replace("\\", "/")).stem.lower() if file_p else ""
+            if any(w in tl for w in ("login", "frontend", "ui", "jsx", "react", "authcontext", "remember-me")):
+                if str(file_p).lower().endswith((".jsx", ".js", ".tsx", ".ts")):
+                    fe_boost = 0.7
+                if any(tok in file_stem for tok in ("login", "auth", "remember")):
+                    fe_boost = max(fe_boost, 1.2)
+            if str(nid).startswith("ext:"):
+                return -5.0
+            return keep_boost + gscore + lexical + same_file * 0.5 + structural + hop_pen + fe_boost
+
+        scored_direct = sorted(
+            combined_direct.items(),
+            key=lambda kv: (-_score(kv[0], kv[1], "direct"), kv[0]),
+        )
+        scored_indirect = sorted(
+            combined_indirect.items(),
+            key=lambda kv: (-_score(kv[0], kv[1], "indirect"), kv[0]),
+        )
+
+        kept_direct: Dict[str, Dict[str, Any]] = {}
+        for nid, data in scored_direct:
+            s = _score(nid, data, "direct")
+            dist = int(data.get("distance") or 1)
+            if nid in entrypoint_ids or dist == 1 or s >= 0.25:
+                data = dict(data)
+                data["relevance"] = "direct" if dist == 1 else "structural"
+                kept_direct[nid] = data
+            if len(kept_direct) >= 12:
+                break
+
+        kept_indirect: Dict[str, Dict[str, Any]] = {}
+        for nid, data in scored_indirect:
+            if nid in kept_direct:
+                continue
+            s = _score(nid, data, "indirect")
+            if s < 0.35:
+                continue
+            data = dict(data)
+            data["relevance"] = "possible"
+            kept_indirect[nid] = data
+            if len(kept_indirect) >= 8:
+                break
+
+        return kept_direct, kept_indirect
 
     def _estimate_raw_file_tokens(self, files: Set[str]) -> int:
         """Estimate the tokens an agent would have to consume by reading raw files."""

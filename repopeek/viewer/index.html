@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>RepoPeek — Code Intelligence Graph</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
   <style>
     :root {
       --bg: #0d0e15;
@@ -28,7 +30,7 @@
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif;
+      font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
     }
 
     body {
@@ -561,6 +563,19 @@
     window.addEventListener("resize", resizeCanvas);
     resizeCanvas();
 
+    function formatNodeLabel(n) {
+      const id = n.id || "";
+      const kind = (n.kind || "").toLowerCase();
+      const qual = id.includes("::") ? id.split("::").pop() : id;
+      if (qual === "<module>" || qual === "<config>" || qual === "<script>") {
+        const file = (n.span && n.span.file) ? n.span.file.split("/").pop() : qual;
+        return "module " + file;
+      }
+      if (kind === "function" || kind === "method") return kind + " " + qual + "()";
+      if (kind === "class") return "class " + qual;
+      return qual;
+    }
+
     function getNodeColor(kind) {
       kind = (kind || "").toLowerCase();
       if (kind === "module" || kind === "file") return "#38bdf8";
@@ -790,11 +805,13 @@
           ctx.stroke();
         }
 
-        // Labels
-        if (showLabels && (scale > 1.1 || isHovered || isSelected || inImpact)) {
-          ctx.font = "11px -apple-system, sans-serif";
-          ctx.fillStyle = isHovered || isSelected ? "#ffffff" : "rgba(255, 255, 255, 0.75)";
-          const label = n.id.split("::").pop();
+        // Labels — scale with zoom; prefer server-provided developer labels
+        if (showLabels && (scale > 0.85 || isHovered || isSelected || inImpact)) {
+          const px = Math.max(10, Math.min(18, 9 + scale * 4));
+          ctx.font = `${isSelected || isHovered ? 600 : 500} ${px}px "IBM Plex Sans", "Segoe UI", sans-serif`;
+          ctx.fillStyle = isHovered || isSelected ? "#ffffff" : "rgba(224, 230, 255, 0.88)";
+          const raw = n.label || formatNodeLabel(n);
+          const label = raw.length > 48 ? raw.slice(0, 45) + "…" : raw;
           ctx.fillText(label, n.x + n.radius + 4, n.y + 3);
         }
       }
@@ -857,7 +874,7 @@
           tooltip.style.display = "block";
           tooltip.style.left = e.clientX + "px";
           tooltip.style.top = e.clientY + "px";
-          const shortName = node.id.split("::").pop();
+          const shortName = node.label || formatNodeLabel(node);
           tooltip.innerText = `${shortName} (${node.kind})`;
         } else {
           tooltip.style.display = "none";

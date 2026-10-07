@@ -4,6 +4,7 @@ from collections import deque
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Set
 
+from repopeek.graph.identity import is_sql_table_kind
 from repopeek.models.schema import CanonicalGraph, EdgeType, NodeCard
 from repopeek.query.pack import ContextPack
 from repopeek.storage.json_store import load_canonical_graph
@@ -60,7 +61,7 @@ class GraphQueryEngine:
                 src_node = self.graph.nodes[e.src]
                 if src_node.span and src_node.span.file:
                     files.add(src_node.span.file)
-                if "table" in src_node.kind.lower() or "entity" in src_node.kind.lower():
+                if is_sql_table_kind(src_node.kind):
                     tables.add(src_node.id)
 
         return {
@@ -70,7 +71,7 @@ class GraphQueryEngine:
             "tables": len(tables),
         }
 
-    def extract_snippet(self, node: NodeCard, max_lines: int = 15) -> Optional[str]:
+    def extract_snippet(self, node: NodeCard, max_lines: int = 40, max_chars: int = 2000) -> Optional[str]:
         """Extract physical code snippet from disk corresponding to node span."""
         if not node.span or not node.span.file:
             return None
@@ -102,8 +103,12 @@ class GraphQueryEngine:
             if len(span_lines) > max_lines:
                 truncated = span_lines[:max_lines]
                 truncated.append(f"# ... ({len(span_lines) - max_lines} lines truncated)")
-                return "\n".join(truncated)
-            return "\n".join(span_lines)
+                text = "\n".join(truncated)
+            else:
+                text = "\n".join(span_lines)
+            if len(text) > max_chars:
+                return text[:max_chars] + "\n# ... (truncated)"
+            return text
         except Exception:
             return None
 
@@ -171,33 +176,41 @@ class GraphQueryEngine:
         resolved_id = node.id
         incoming = []
         outgoing = []
+        limit = 30
+
+        def _edge_brief(e: Any, peer: str) -> Dict[str, Any]:
+            peer_node = self.graph.nodes.get(peer)
+            return {
+                "src": e.src,
+                "dst": e.dst,
+                "type": e.type.value,
+                "confidence": e.confidence.value,
+                "peer_id": peer,
+                "peer_kind": peer_node.kind if peer_node else None,
+                "peer_file": peer_node.span.file if peer_node and peer_node.span else None,
+            }
 
         if direction in ("both", "incoming", "upstream"):
-            for e in self._incoming_edges.get(resolved_id, []):
-                incoming.append({
-                    "src": e.src,
-                    "dst": e.dst,
-                    "type": e.type.value,
-                    "confidence": e.confidence.value,
-                    "src_card": self.graph.nodes[e.src].model_dump(exclude_none=True)
-                    if e.src in self.graph.nodes else None,
-                })
+            for e in self._incoming_edges.get(resolved_id, [])[:limit]:
+                incoming.append(_edge_brief(e, e.src))
 
         if direction in ("both", "outgoing", "downstream"):
-            for e in self._outgoing_edges.get(resolved_id, []):
-                outgoing.append({
-                    "src": e.src,
-                    "dst": e.dst,
-                    "type": e.type.value,
-                    "confidence": e.confidence.value,
-                    "dst_card": self.graph.nodes[e.dst].model_dump(exclude_none=True)
-                    if e.dst in self.graph.nodes else None,
-                })
+            for e in self._outgoing_edges.get(resolved_id, [])[:limit]:
+                outgoing.append(_edge_brief(e, e.dst))
 
         return {
-            "node": node.model_dump(exclude_none=True),
+            "node": {
+                "id": node.id,
+                "kind": node.kind,
+                "sig": node.sig,
+                "file": node.span.file if node.span else None,
+            },
             "incoming": incoming,
             "outgoing": outgoing,
+            "truncated": (
+                len(self._incoming_edges.get(resolved_id, [])) > limit
+                or len(self._outgoing_edges.get(resolved_id, [])) > limit
+            ),
         }
 
     def blast_radius(
@@ -272,8 +285,8 @@ class GraphQueryEngine:
             "entity": entity_id,
             "writers_count": len(writers),
             "readers_count": len(readers),
-            "writers": writers,
-            "readers": readers,
+            "writers": writers[:30],
+            "readers": readers[:30],
         }
 
     def context_pack(
@@ -317,7 +330,7 @@ class GraphQueryEngine:
             packed_nodes[t_node.id] = card_dict
             if t_node.span and t_node.span.file:
                 affected_files.add(t_node.span.file)
-            if "table" in t_node.id:
+            if is_sql_table_kind(t_node.kind):
                 affected_tables.add(t_node.id.split("::")[-1])
 
         # 2. Second priority: Direct 1-hop neighbors of targets
@@ -337,18 +350,35 @@ class GraphQueryEngine:
                 if e.dst in self.graph.nodes and e.dst not in packed_nodes:
                     candidate_neighbors.append(self.graph.nodes[e.dst])
 
+        def _neighbor_key(n: NodeCard) -> tuple:
+            k = n.kind.lower()
+            if k in ("function", "method", "class"):
+                pri = 0
+            elif k in ("sql_table", "sql_query"):
+                pri = 1
+            elif k in ("yaml_config", "json_config", "external_symbol", "file", "module"):
+                pri = 4
+            else:
+                pri = 2
+            return (pri, n.id)
+
+        candidate_neighbors.sort(key=_neighbor_key)
+        packed_neighbor_count = 0
         for c_node in candidate_neighbors:
             if c_node.id in packed_nodes:
+                continue
+            if c_node.kind == "external_symbol":
                 continue
             card_dict = c_node.model_dump(exclude_none=True)
             packed_nodes[c_node.id] = card_dict
             if c_node.span and c_node.span.file:
                 affected_files.add(c_node.span.file)
-            if "table" in c_node.id:
+            if is_sql_table_kind(c_node.kind):
                 affected_tables.add(c_node.id.split("::")[-1])
-
-            if current_tokens() > token_budget:
-                del packed_nodes[c_node.id]
+            packed_neighbor_count += 1
+            if packed_neighbor_count >= 12 or current_tokens() > token_budget:
+                if current_tokens() > token_budget:
+                    del packed_nodes[c_node.id]
                 break
 
         # 3. Third priority: Upstream impact callers
@@ -595,9 +625,9 @@ class GraphQueryEngine:
         ]
 
         return {
-            "routes": routes_data,
-            "calls": calls_data,
-            "links": links_data,
+            "routes": routes_data[:40],
+            "calls": calls_data[:40],
+            "links": links_data[:40],
             "total_routes": len(routes_data),
             "total_calls": len(calls_data),
             "total_links": len(links_data),

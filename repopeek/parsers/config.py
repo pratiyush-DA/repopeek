@@ -86,6 +86,16 @@ class JsonConfigParser(BaseParser):
             )
 
         flat_entries = _flatten_config(parsed)
+        if len(flat_entries) > 80:
+            file_node.facts.params = [k for k, _ in flat_entries[:20]]
+            return ParseResult(
+                file_path=Path(norm_path),
+                rel_path=norm_path,
+                language="json",
+                nodes=nodes,
+                edges=edges,
+                errors=errors,
+            )
         all_keys = [k for k, _ in flat_entries]
         file_node.facts.params = [k for k, v in flat_entries if not isinstance(v, (dict, list))]
 

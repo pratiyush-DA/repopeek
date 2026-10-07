@@ -10,7 +10,7 @@ depends_on: ['[[adr-006-llm-provider-abstraction]]', '[[adr-007-story-cost-casca
   '[[data-node-story]]', '[[feat-semantic-enrichment]]', '[[res-groq-capabilities]]',
   '[[res-story-cost-control]]', '[[run-swap-llm-provider]]']
 affects: ['[[comp-query]]', '[[feat-provenance-binding]]', '[[feat-semantic-enrichment]]']
-last_verified: 2026-10-04
+last_verified: 2026-10-06
 source: "_sources/task_list.md §Phase 5"
 ---
 # Enrichment Component

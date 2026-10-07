@@ -2,12 +2,11 @@
 id: con-scope-languages
 type: constraint
 title: Supported Language Scope Restriction
-summary: The MVP is strictly restricted to Python, SQL (Oracle dialect default), and
-  JSON; all other languages are ignored.
+summary: MVP languages are Python, TypeScript/JavaScript, SQL, shell, JSON/YAML; other languages are ignored.
 status: active
 tags: [constraint, scope, parsers]
 affects: ['[[comp-discovery]]', '[[comp-parsers]]', '[[feat-file-classification]]']
-last_verified: 2026-10-03
+last_verified: 2026-10-06
 source: "_sources/cursorrules.md \xA7Scope Protection"
 depends_on: []
 ---

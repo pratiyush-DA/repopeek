@@ -3,7 +3,7 @@ id: 00-index
 type: index
 title: Repopeek Knowledge Vault — Root Index
 summary: Root entry point for Repopeek intelligence graph documentation. Navigate via MOCs.
-last_verified: 2026-10-03
+last_verified: 2026-10-06
 ---
 
 # Repopeek Knowledge Vault — Root Index
@@ -42,5 +42,5 @@ last_verified: 2026-10-03
 - [[con-no-cloud-saas]] — Prohibit cloud SaaS multi-tenancy
 - [[con-determinism]] — Identical inputs yield identical deterministic graphs
 - [[con-no-hallucination]] — Undocumented behaviors marked TBD
-- [[con-scope-languages]] — Strictly Python, SQL (Oracle), and JSON
+- [[con-scope-languages]] — MVP languages: Python, JS/TS, SQL, shell, JSON/YAML (not Java/Go)
 - [[con-local-execution]] — Offline execution except configured LLM endpoint

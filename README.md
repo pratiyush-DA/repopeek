@@ -1,12 +1,16 @@
 # RepoPeek — Multi-Agent Code Intelligence Engine
 
-RepoPeek is a lightweight, local Semantic Code Property Graph (SCPG) engine designed to index any repository down to atomic units and materialize task-specific lenses and budget-governed context packs for low-context (<500 tokens) AI coding agents.
+RepoPeek is a lightweight, local Semantic Code Property Graph (SCPG) engine. It indexes a repository into a queryable graph and compiles **task-specific packs of ≤4 files with ~40-line spans** (~1–2k tokens) for AI coding agents.
+
+It is the **primary navigation map**, not a closed-world dump of the repo. Agents should trust `compile_context` / `resolve` / `lookup`, then open the listed files.
+
+**Handoff for new agents:** [Workflow_Documentation/07-Agent-Handoff.md](Workflow_Documentation/07-Agent-Handoff.md).
 
 ---
 
 ## Key Capabilities
 
-- **Polyglot Parsing Substrate**: High-fidelity syntactic extraction across Python (stdlib AST), SQL (SQLGlot AST with multi-dialect support), Shell (shlex command & argument tokenization), JSON, and YAML keypaths.
+- **Polyglot Parsing Substrate**: Python (stdlib AST), TypeScript/JavaScript, SQL (SQLGlot; postgres detect when `postgres/` exists), Shell, JSON, YAML.
 - **Cross-Language Bridges & Data Flow**: Automatically tracks variable def-use flows (`READS`, `WRITES`), subprocess invocations, SQL table bindings, and configuration dependencies across language boundaries.
 - **Deterministic Lens Materialization**: Computes 9 focused graph projections on demand:
   `Module`, `Symbol`, `Call`, `Class`, `Data`, `Entity`, `Config`, `Process`, and `Exception`.
@@ -14,7 +18,7 @@ RepoPeek is a lightweight, local Semantic Code Property Graph (SCPG) engine desi
 - **5-Tier Story Cascade & Anti-Hallucination Guardrails**:
   1. *Tier 1*: Deterministic AST fact templates (zero cost).
   2. *Tier 2*: SHA-256 content-hash story cache with disk persistence.
-  3. *Tier 3*: Cheap-model structured summaries (Groq `llama-3.1-8b-instant`).
+  3. *Tier 3*: Cheap-model structured summaries (Groq `qwen/qwen3.8-27b` by default; strong tier `openai/gpt-oss-120b`).
   4. *Tier 4*: Bottom-up hierarchical aggregation.
   5. *Tier 5*: Fact Verifier validating generated claims against AST reality (`calls`, `reads`, `writes`, `raises`) with automatic fallback.
 - **Low-Context Retrieval Engine**: Answers blast radius and flow queries instantly:
@@ -22,8 +26,9 @@ RepoPeek is a lightweight, local Semantic Code Property Graph (SCPG) engine desi
   - `neighbors`: 1-hop inbound and outbound relationship inspection.
   - `impact`: Bidirectional upstream and downstream blast-radius reachability analysis.
   - `data_trace`: Traces who writes and who reads any table or variable entity.
-  - `context_pack`: Compact, budget-governed markdown context pack (<500 tokens) ready for LLM consumption.
-- **Stdio JSON-RPC MCP Server**: Standard Model Context Protocol server exposing tool capabilities directly to AI IDEs (Antigravity, Cursor, Claude Desktop).
+  - `context_pack`: Compact pack for known symbol ids.
+  - `compile_context` / `repopeek_context`: NL task → ≤4 files, exclusions, snippets, `coverage`.
+- **Stdio JSON-RPC MCP Server**: Standard Model Context Protocol server exposing **10 tools** directly to AI IDEs (Antigravity, Cursor, Claude Desktop).
 
 ---
 
@@ -45,14 +50,12 @@ pip install -e .
 ### 2. Index a Repository
 
 ```bash
-# Deterministic offline indexing (zero LLM calls, instant)
-python -m repopeek.cli --repo-path /path/to/target-repo --offline
+# Deterministic offline indexing (zero LLM). Abort if >400 files or >8000 nodes.
+python -m repopeek --repo-path /path/to/target-repo --output-dir ./output --offline
 
-# Cost estimation dry-run
-python -m repopeek.cli --repo-path /path/to/target-repo --dry-run
-
-# Full indexing with Groq LLM enrichment (reads GROQ_API_KEY from .env)
-python -m repopeek.cli --repo-path /path/to/target-repo
+# Groq overlay (GROQ_API_KEY required; optional GROQ_API_KEY_2 / GROQ_API_KEY_3)
+# REPOPEEK_LLM_MAX_NODES=200 REPOPEEK_LLM_CONCURRENCY=2
+python -m repopeek --repo-path /path/to/target-repo --output-dir ./output
 ```
 
 ### 3. Querying the Code Graph
@@ -67,8 +70,11 @@ python -m repopeek.cli --impact InvoiceParser.parse
 # Trace data flow for an entity or SQL table ("Who writes X? Who reads X?")
 python -m repopeek.cli --trace table.invoices
 
-# Generate a budget-governed context pack (<500 tokens)
-python -m repopeek.cli --pack InvoiceParser.parse
+# Generate a budget-governed context pack
+python -m repopeek --pack InvoiceParser.parse --output-dir ./output
+
+# Compile a natural-language task (preferred for agents)
+python -m repopeek --context "Raise MAX_LLM_RETRIES in metadata generation" --output-dir ./output
 ```
 
 ### 4. Interactive Web Graph Viewer (Obsidian-Style)
@@ -133,9 +139,14 @@ To connect RepoPeek to AI coding agents, add the server configuration to your to
 |---|---|---|
 | `repopeek_lookup` | `query` (str) | Search and retrieve atomic node card by symbol name or node ID. |
 | `repopeek_neighbors` | `query` (str) | Inspect direct incoming and outgoing graph edges. |
-| `repopeek_impact` | `target_query` (str), `max_depth` (int), `direction` (str) | Calculate complete blast radius tree (affected files, tables, and callers). |
-| `repopeek_data_trace` | `entity_query` (str) | Trace definitions, writes, reads, and downstream dependencies. |
-| `repopeek_context_pack` | `target_queries` (list[str]), `token_budget` (int) | Generate formatted markdown context pack fitting strictly within token budget. |
+| `repopeek_impact` | `target` (str), `max_depth` (int), `direction` (str) | Calculate complete blast radius tree (affected files, tables, and callers). |
+| `repopeek_data_trace` | `query` (str) | Trace definitions, writes, reads, and downstream dependencies. |
+| `repopeek_context_pack` | `targets` (list[str]), `token_budget` (int) | Generate formatted markdown context pack fitting strictly within token budget. |
+| `repopeek_context` | `task` (str), `budget` (int), `level` (int) | Compile a task-aware context package with blast radius and constraints. |
+| `repopeek_plan` | `task` (str) | Generate a risk-assessed step-by-step change plan. |
+| `repopeek_routes` | | List detected HTTP client calls and server routes. |
+| `repopeek_co_changes` | `target` (str) | Show temporally coupled files from git co-change mining. |
+| `repopeek_resolve` | `task` (str) | Rank symbol candidates for a natural-language engineering task. |
 
 ---
 
@@ -149,14 +160,30 @@ RepoPeek's retrieval engine has been verified against 3 core golden test scenari
 2. **Question 2: Data Flow Traceability**
    - *Target:* `table.invoices` & `database.dialect`
    - *Result:* Accurately separated writer nodes (`WRITES` from SQL `INSERT INTO invoices`) and reader nodes (`READS` from SQL `SELECT ... FROM invoices`).
-3. **Question 3: Sub-500 Token Context Pack**
+3. **Question 3: Context pack**
    - *Target:* `InvoiceParser.parse`
-   - *Result:* Materialized atomic node cards, signatures, and blast radius summaries within ~198 tokens, providing complete context for an autonomous agent without reading the repository.
+   - *Result:* Atomic cards and blast summaries in a small pack. Task-level `compile_context` now uses a **4-file cap** and ~40-line snippets (~1–2k tokens), not a sub-500-token whole-task dump.
+
+---
+
+## Testing
+
+Always target `tests/` (never bare `pytest`; `testing/` is gitignored eval data and will collect foreign Django tests):
+
+```bash
+# Windows PowerShell
+$env:PYTHONPATH="."
+.venv\Scripts\python -m pytest tests
+python knowledge_vault/_meta/validate.py
+```
+
+Dais real-world eval (gitignored): `testing/dais/run_mcp_matrix.py` after indexing into `testing/dais/repopeek`. See `Workflow_Documentation/operations/03-Testing.md`.
 
 ---
 
 ## Architecture & Conventions
 
 - **Decision Ladder (Ponytail Protocol: `full`)**: YAGNI -> Existing codebase -> Stdlib -> Existing dependencies -> Smallest correct implementation.
-- **Knowledge Vault**: All architectural decisions, schemas, and operational logs are strictly maintained in `knowledge_vault/` and validated via `python knowledge_vault/_meta/validate.py`.
+- **Knowledge Vault**: requirements and schemas in `knowledge_vault/` (`python knowledge_vault/_meta/validate.py`).
+- **Workflow docs**: `Workflow_Documentation/00-README.md`. Agent takeover: `Workflow_Documentation/07-Agent-Handoff.md`.
 - **License**: MIT

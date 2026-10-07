@@ -201,3 +201,39 @@ def test_yaml_parser_malformed_resilience():
     assert "YAMLError" in res.errors[0]
     file_node = next(n for n in res.nodes if n.kind == "file")
     assert file_node.story.confidence == "unresolved"
+
+
+def test_sql_create_function_not_mislabeled_as_table():
+    """CREATE FUNCTION must be a function node; EXTENSION/GRANT must not become tables.
+
+    Regression: exp.Create was always routed to the table extractor, so
+    CREATE OR REPLACE FUNCTION fix_timezone_setting() surfaced as a sql_table
+    (the graph lying about the schema).
+    """
+    sql = """CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+GRANT ALL PRIVILEGES ON DATABASE app_db TO app_user;
+CREATE OR REPLACE FUNCTION fix_timezone_setting()
+RETURNS void AS $$
+BEGIN
+    SET timezone = 'UTC';
+END;
+$$ LANGUAGE plpgsql;"""
+    res = SqlParser().parse_source(sql, rel_path="postgres/init.sql")
+
+    fn = next((n for n in res.nodes if "fix_timezone_setting" in n.id), None)
+    assert fn is not None
+    assert fn.kind == "sql_query"
+    assert "function.fix_timezone_setting" in fn.id
+    assert "CREATE FUNCTION" in fn.sig
+    # Nothing in this script is a real table, so no sql_table node should exist.
+    assert not any(n.kind == "sql_table" for n in res.nodes)
+
+
+def test_sql_real_create_table_still_sql_table():
+    """A genuine CREATE TABLE must still produce a sql_table node with columns."""
+    sql = "CREATE TABLE accounts (id INT PRIMARY KEY, owner VARCHAR(100));"
+    res = SqlParser(default_dialect="postgres").parse_source(sql, rel_path="db/schema.sql")
+    table = next((n for n in res.nodes if n.kind == "sql_table"), None)
+    assert table is not None
+    assert "table.accounts" in table.id
+    assert table.facts.writes == ["accounts"]

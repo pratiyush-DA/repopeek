@@ -223,3 +223,88 @@ def test_cli_plan_flag(tmp_path: Path, capsys):
     captured = capsys.readouterr()
     assert "# Engineering Change Plan" in captured.out
     assert "Risk Level" in captured.out
+
+
+def _make_padding_graph() -> CanonicalGraph:
+    """A strongly-matched entrypoint plus a low-signal blast-only neighbor in another file."""
+    graph = CanonicalGraph(schema_version="1.0.0", tool_version="0.1.0", repo_commit="pad", dirty=False)
+    top = NodeCard(
+        id="python:billing/checkout.py::process_checkout",
+        kind="function",
+        sig="def process_checkout(cart_id: str, retry_count: int = 3) -> bool",
+        span=Span(file="billing/checkout.py", start=10, end=40),
+        facts=NodeFacts(params=["cart_id", "retry_count"], returns="bool"),
+        story=NodeStory(text="Processes checkout with retry_count budget"),
+        content_hash="t1",
+    )
+    pad = NodeCard(
+        id="python:infra/audit.py::write_audit_log",
+        kind="function",
+        sig="def write_audit_log(event) -> None",
+        span=Span(file="infra/audit.py", start=3, end=20),
+        facts=NodeFacts(params=["event"]),
+        story=NodeStory(text="Persists an audit trail entry"),
+        content_hash="t2",
+    )
+    graph.add_node(top)
+    graph.add_node(pad)
+    graph.add_edge(Edge(
+        src=top.id, dst=pad.id, type=EdgeType.CALLS, confidence=Confidence.RESOLVED,
+        evidence=Evidence(file="billing/checkout.py", start_line=30, end_line=30, how_derived="ast:call"),
+    ))
+    return graph
+
+
+def test_file_precision_trims_low_signal_padding(tmp_path: Path):
+    """A blast-only neighbor whose file is far below the top score is trimmed (precision)."""
+    graph = _make_padding_graph()
+    build_sqlite_cache(graph, tmp_path / "cache.db")
+    engine = GraphQueryEngine(graph, storage_dir=tmp_path)
+
+    pkg = engine.compile_context("Update retry_count in process_checkout", budget=1500, level=2)
+    files = {f.replace("\\", "/") for f in pkg.affected_files}
+
+    assert "billing/checkout.py" in files          # matched entrypoint file is kept
+    assert "infra/audit.py" not in files           # low-signal padding neighbor is trimmed
+
+
+def test_token_budget_trims_snippets_but_keeps_primary(tmp_path: Path):
+    """When the rendered pack exceeds budget, snippets are shed but the primary stays."""
+    svc = tmp_path / "svc"
+    svc.mkdir()
+    body = "\n".join(f"    x{i} = compute({i})" for i in range(45))
+    for name in ("alpha", "beta", "gamma"):
+        (svc / f"{name}.py").write_text(
+            f"def {name}_handler(payload):\n{body}\n    return payload\n", encoding="utf-8"
+        )
+
+    graph = CanonicalGraph(schema_version="1.0.0", tool_version="0.1.0", repo_commit="b", dirty=False)
+    ids = []
+    for i, name in enumerate(("alpha", "beta", "gamma")):
+        nid = f"python:svc/{name}.py::{name}_handler"
+        ids.append(nid)
+        graph.add_node(NodeCard(
+            id=nid, kind="function", sig=f"def {name}_handler(payload)",
+            span=Span(file=f"svc/{name}.py", start=1, end=47),
+            facts=NodeFacts(params=["payload"]),
+            story=NodeStory(text=f"{name} handler for payload"),
+            content_hash=f"h{i}",
+        ))
+    graph.add_edge(Edge(src=ids[0], dst=ids[1], type=EdgeType.CALLS, confidence=Confidence.RESOLVED,
+                        evidence=Evidence(file="svc/alpha.py", start_line=1, end_line=1, how_derived="ast")))
+    graph.add_edge(Edge(src=ids[1], dst=ids[2], type=EdgeType.CALLS, confidence=Confidence.RESOLVED,
+                        evidence=Evidence(file="svc/beta.py", start_line=1, end_line=1, how_derived="ast")))
+
+    build_sqlite_cache(graph, tmp_path / "cache.db")
+    engine = GraphQueryEngine(graph, storage_dir=tmp_path, repo_root=tmp_path)
+
+    task = "update alpha_handler beta_handler gamma_handler payload"
+    big = engine.compile_context(task, budget=5000, level=2)
+    small = engine.compile_context(task, budget=600, level=2)
+
+    # Budget enforcement trimmed snippet material relative to the unconstrained pack.
+    assert small.estimated_tokens < big.estimated_tokens
+    assert len(small.snippets) < len(big.snippets)
+    # The primary entrypoint and at least one snippet survive the trim.
+    assert small.entrypoints
+    assert len(small.snippets) >= 1

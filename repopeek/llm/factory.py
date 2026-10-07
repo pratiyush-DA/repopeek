@@ -14,11 +14,17 @@ def get_llm_provider(provider_name: Optional[str] = None, **kwargs: Any) -> LLMP
     """Return an instantiated LLMProvider based on configuration or environment state."""
     load_env_file()
 
-    chosen = (
-        provider_name
-        or os.environ.get("REPOPEEK_LLM_PROVIDER")
-        or ("groq" if os.environ.get("GROQ_API_KEY") else "fallback")
-    ).lower()
+    if provider_name:
+        chosen = provider_name.lower()
+    elif os.environ.get("REPOPEEK_OFFLINE", "").strip() in ("1", "true", "True", "yes"):
+        chosen = "fallback"
+    else:
+        from repopeek.llm.groq import collect_groq_api_keys
+
+        chosen = (
+            os.environ.get("REPOPEEK_LLM_PROVIDER")
+            or ("groq" if collect_groq_api_keys() else "fallback")
+        ).lower()
 
     if chosen == "groq":
         return GroqProvider(**kwargs)

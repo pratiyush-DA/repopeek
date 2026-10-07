@@ -502,6 +502,13 @@ def main(argv=None) -> int:
     print("\nScanning repository...")
     discovered = discover_repository(resolved_repo, config)
     print(f"Discovered {len(discovered)} files.")
+    if len(discovered) > 400:
+        print(
+            f"Error: repository has {len(discovered)} files (cap 400). "
+            "Add ignore rules or split the tree before indexing.",
+            file=sys.stderr,
+        )
+        return 2
 
     counts = {}
     for f in discovered:
@@ -514,6 +521,13 @@ def main(argv=None) -> int:
     builder = GraphBuilder()
     graph = builder.build_from_directory(resolved_repo)
     print(f"Graph assembled: {len(graph.nodes)} nodes, {len(graph.edges)} edges.")
+    if len(graph.nodes) > 8000:
+        print(
+            f"Error: graph has {len(graph.nodes)} nodes (cap 8000). "
+            "Refuse JSON flatten / ignore bulky trees and retry.",
+            file=sys.stderr,
+        )
+        return 2
 
     print("\nEnriching nodes with semantic stories (5-tier cascade)...")
     from repopeek.enrichment import StoryPipeline

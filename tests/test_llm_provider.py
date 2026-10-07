@@ -137,6 +137,9 @@ def test_provider_factory():
 def test_groq_provider_missing_key(monkeypatch):
     """Verify GroqProvider raises LLMAuthenticationError when no API key is available."""
     monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    monkeypatch.delenv("GROQ_API_KEY_1", raising=False)
+    monkeypatch.delenv("GROQ_API_KEY_2", raising=False)
+    monkeypatch.delenv("GROQ_API_KEY_3", raising=False)
     with pytest.raises(LLMAuthenticationError):
         GroqProvider(api_key=None, load_env=False)
 
@@ -157,7 +160,10 @@ def test_groq_provider_live_completion():
         tier=ModelTier.FAST,
         max_tokens=60,
     )
-    resp = provider.complete(req)
+    try:
+        resp = provider.complete(req)
+    except LLMRateLimitError:
+        pytest.skip("Groq rate-limited (429); skipping live completion")
 
     assert resp.content
     assert resp.prompt_tokens > 0

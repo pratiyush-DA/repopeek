@@ -8,7 +8,7 @@ tags: [phase3, retrieval, intent, fts5, bm25, rrf]
 code_refs: [repopeek/retrieval/__init__.py, repopeek/retrieval/intent.py, repopeek/storage/sqlite_cache.py, repopeek/query/engine.py, repopeek/cli.py, tests/test_retrieval.py, tests/test_retrieval_reliability.py]
 depends_on: ['[[plan-phase-3]]', '[[feat-query-cli]]', '[[feat-graph-persistence]]', '[[comp-query]]', '[[moc-features]]']
 affects: ['[[log-phase-3]]']
-last_verified: 2026-10-05
+last_verified: 2026-10-06
 ---
 # Intent-to-Symbol Task Matcher & SQLite FTS5 BM25 Index
 
@@ -19,6 +19,7 @@ Enables autonomous coding agents to resolve natural language engineering instruc
 1. **Task Normalization & Entity Extraction (`repopeek.retrieval.intent.extract_task_identifiers`):**
    - Normalizes whitespace and strips syntactic punctuation while strictly preserving dotted symbols (`a.b.c`), quoted names (`"process_payment"`), file paths, and API routes.
    - Extracts PascalCase, camelCase (`retryCount`), snake_case, and constants while filtering noise using stop words and 35+ code-action verbs.
+   - Negative clauses (`MUST NOT edit a.py or b.py`, `Do not change Django UserLoginView`) capture **all** paths/symbols in the clause; framework prefixes like `Django` are not exclusions.
    - Applies conservative linguistic stemming (`normalize_term_stem`) for noun/verb inflections (plurals, `-ing`, `-ed`, `-ation`) and engineering synonyms (`config`, `auth`, `init`, `param`) without destructive over-stemming.
 2. **Identifier Variant Generator (`generate_identifier_variants`):**
    - Synthesizes 6 canonical casings: `snake_case`, `camelCase`, `PascalCase`, `SCREAMING_SNAKE_CASE`, `kebab-case`, and `dot.notation` to match AST symbols irrespective of naming conventions.

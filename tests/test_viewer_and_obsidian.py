@@ -106,6 +106,7 @@ def test_viewer_http_api(sample_graph: CanonicalGraph):
             html = resp.read().decode("utf-8")
             assert "RepoPeek" in html
             assert "graph-canvas" in html
+            assert "IBM Plex Sans" in html
 
         # 2. Test /api/graph
         with urllib.request.urlopen("http://127.0.0.1:8799/api/graph?lens=all") as resp:
@@ -113,6 +114,9 @@ def test_viewer_http_api(sample_graph: CanonicalGraph):
             data = json.loads(resp.read().decode("utf-8"))
             assert len(data["nodes"]) == 3
             assert len(data["edges"]) == 2
+            labels = {n.get("label", "") for n in data["nodes"]}
+            assert any("process_invoice" in lab for lab in labels)
+            assert not any(lab.strip() == "<module>" for lab in labels)
 
         # 3. Test /api/impact
         with urllib.request.urlopen("http://127.0.0.1:8799/api/impact?target=process_invoice") as resp:

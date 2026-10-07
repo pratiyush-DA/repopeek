@@ -5,13 +5,13 @@ title: Semantic Enrichment
 summary: 5-tier story generation cascade, content-hash caching, bottom-up hierarchical summarization, and anti-hallucination fact verification.
 status: active
 tags: [phase5, enrichment, llm]
-code_refs: [repopeek/enrichment/cache.py, repopeek/enrichment/verifier.py, repopeek/enrichment/governor.py, repopeek/enrichment/templates.py, repopeek/enrichment/summarizer.py, repopeek/enrichment/pipeline.py, repopeek/enrichment/__init__.py]
+code_refs: [repopeek/enrichment/cache.py, repopeek/enrichment/verifier.py, repopeek/enrichment/governor.py, repopeek/enrichment/templates.py, repopeek/enrichment/summarizer.py, repopeek/enrichment/pipeline.py, repopeek/enrichment/__init__.py, repopeek/llm/groq.py, repopeek/llm/factory.py]
 depends_on: ['[[adr-007-story-cost-cascade]]', '[[comp-enrichment]]', '[[con-no-hallucination]]',
   '[[data-node-businessprocess]]', '[[data-node-story]]', '[[feat-graph-construction]]',
   '[[feat-graph-validation]]', '[[req-semantic-enrichment]]']
 affects: ['[[comp-enrichment]]', '[[data-node-businessprocess]]', '[[data-node-story]]',
   '[[feat-provenance-binding]]']
-last_verified: 2026-10-04
+last_verified: 2026-10-06
 source: "_sources/architecture_documentation.md §Semantic Enrichment"
 ---
 # Semantic Enrichment
@@ -34,7 +34,7 @@ Every candidate LLM story is verified against AST facts via `FactVerifier`:
 - Downgrades failed candidates to deterministic templates with `confidence="medium"`.
 
 ## Cost Governor & Budget Enforcement
-`CostGovernor` tracks prompt, completion, and cached tokens, enforcing `--max-tokens` and `--max-cost` hard caps with automated fallback to deterministic templates upon exhaustion.
+`CostGovernor` tracks prompt, completion, and cached tokens, enforcing `--max-tokens` and `--max-cost` hard caps with automated fallback to deterministic templates upon exhaustion. LLM overlay is optional: `external_symbol`/`variable`/`json_config`/`yaml_config`/`command` stay templates; LLM only top-K hotspots (`REPOPEEK_LLM_MAX_NODES`, default 200) with heartbeat logs. Groq uses `GROQ_API_KEY` plus optional `_2`/`_3` (separate orgs for RPM; same-org still isolates 429). Default concurrency 2. Never log keys.
 
 ## Impact (blast radius)
 - **Depends on:** [[feat-graph-construction]], [[feat-graph-validation]], [[req-semantic-enrichment]], [[adr-007-story-cost-cascade]]

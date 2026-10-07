@@ -293,3 +293,57 @@ def test_blast_radius_target_not_found():
     assert len(report.direct) == 0
     assert len(report.indirect) == 0
     assert len(report.excluded) == 0
+
+
+def test_impact_payload_is_bounded_on_hub_node():
+    """A high-degree hub must not emit a multi-hundred-KB impact payload.
+
+    Regression (dcnc LLMClient): BlastRadiusReport.to_dict() previously serialized the
+    full per-hop `paths` evidence per node, ballooning the MCP/CLI impact payload to
+    ~330KB. The serialized dict must stay compact (no `paths`) and within budget.
+    """
+    import json
+
+    graph = CanonicalGraph(schema_version="1.0.0", tool_version="0.1.0", repo_commit="hub", dirty=False)
+    hub = NodeCard(
+        id="python:core/hub.py::hub",
+        kind="function",
+        sig="def hub()",
+        span=Span(file="core/hub.py", start=1, end=10),
+        facts=NodeFacts(),
+        story=NodeStory(text="Central hub called from everywhere " * 10),
+        content_hash="hub",
+    )
+    graph.add_node(hub)
+    # 60 callers across many files, each 2 hops deep, to generate many/long paths.
+    prev_layer = [hub.id]
+    for layer in range(2):
+        new_layer = []
+        for i in range(60 if layer == 0 else 20):
+            nid = f"python:core/mod{layer}_{i}.py::caller_{layer}_{i}"
+            graph.add_node(NodeCard(
+                id=nid, kind="function", sig=f"def caller_{layer}_{i}()",
+                span=Span(file=f"core/mod{layer}_{i}.py", start=1, end=20),
+                facts=NodeFacts(),
+                story=NodeStory(text="A calling function with a reasonably long story. " * 6),
+                content_hash=f"c{layer}{i}",
+            ))
+            target = prev_layer[i % len(prev_layer)]
+            graph.add_edge(Edge(
+                src=nid, dst=target, type=EdgeType.CALLS, confidence=Confidence.RESOLVED,
+                evidence=Evidence(file=f"core/mod{layer}_{i}.py", start_line=5, end_line=5, how_derived="ast:call"),
+            ))
+            new_layer.append(nid)
+        prev_layer = new_layer
+
+    report = compute_blast_radius(graph, "python:core/hub.py::hub", max_depth=4, direction="upstream")
+    d = report.to_dict()
+    payload = json.dumps(d)
+
+    assert len(payload) <= 15000, f"impact payload too large: {len(payload)} chars"
+    # Compact node dicts must omit the verbose per-hop paths.
+    for bucket in ("affected_nodes", "direct", "indirect"):
+        for node in d.get(bucket, []):
+            assert "paths" not in node
+    # True counts are still reported even though the serialized lists are trimmed.
+    assert d["direct_count"] >= 1

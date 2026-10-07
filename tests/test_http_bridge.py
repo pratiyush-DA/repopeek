@@ -5,6 +5,7 @@ from pathlib import Path
 
 from repopeek.bridges.http import (
     HttpBoundaryBridge,
+    is_template_only_client_url,
     normalize_route_path,
     paths_match,
 )
@@ -46,6 +47,14 @@ def test_paths_match():
     assert paths_match("/users/:param", "/api/users/:param")
     assert not paths_match("/api/orders", "/api/users")
     assert not paths_match("", "/api/users")
+    assert not paths_match("/downloadurl", "/:param")
+    assert not paths_match("/wrapper", "/swagger/:param")
+
+
+def test_identifier_client_urls_are_skipped():
+    assert is_template_only_client_url("downloadUrl")
+    assert is_template_only_client_url("wrapper")
+    assert not is_template_only_client_url("${API_BASE_URL}auth/login")
 
 
 def test_cross_language_parsing_and_resolution(tmp_path: Path):
@@ -247,3 +256,19 @@ def fn_custom():
     assert "ROUTE:CUSTOM_ENDPOINT:/custom/endpoint" in nodes_by_name["fn_custom"].facts.reads
 
 
+
+
+def test_template_prefix_preserves_literal_path():
+    """A ${VAR} prefix concatenated with a literal (no slash) must keep the literal path.
+
+    Regression: ${API_BASE_URL}auth/login previously normalized to /login (dropping the
+    'auth' segment), which prevented the correct client->route match.
+    """
+    assert normalize_route_path("${API_BASE_URL}auth/login") == "/auth/login"
+    assert normalize_route_path("${API_BASE_URL}auth/logout/") == "/auth/logout"
+    assert normalize_route_path("${apiBaseUrl}/api/v1/generations/bulk-download/") == "/api/v1/generations/bulk-download"
+    # A bare template var with no literal path remains template-only (unmatchable).
+    assert is_template_only_client_url("${API_BASE_URL}")
+    # Preserving the literal lets the client path match the server route.
+    assert paths_match("/auth/login", "/auth/login/")
+    assert not paths_match("/login", "/auth/logout")

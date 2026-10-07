@@ -2,13 +2,13 @@
 id: feat-typescript-parser
 type: feature
 title: TypeScript & JavaScript Polyglot AST Parser
-summary: Deterministic lexical and syntactic AST parser extracting classes, methods, functions, interfaces, types, imports, and calls for .ts, .tsx, .js, .jsx files.
+summary: Deterministic lexical and syntactic AST parser extracting classes, methods, functions (incl. hook/HOC-wrapped arrows), SCREAMING_SNAKE module constants, interfaces, types, imports, and calls for .ts, .tsx, .js, .jsx files.
 status: verified
 tags: [parser, typescript, javascript, polyglot, ast]
-code_refs: [repopeek/parsers/typescript.py, repopeek/discovery/classifier.py, repopeek/graph/builder.py, repopeek/graph/resolver.py]
+code_refs: [repopeek/parsers/typescript.py, repopeek/discovery/classifier.py, repopeek/graph/builder.py, repopeek/graph/resolver.py, tests/test_typescript_parser.py]
 depends_on: ['[[comp-parsers]]', '[[feat-graph-construction]]', '[[plan-phase-3]]']
 affects: ['[[log-phase-3]]', '[[feat-http-bridge]]']
-last_verified: 2026-10-05
+last_verified: 2026-10-06
 ---
 
 # TypeScript & JavaScript Polyglot AST Parser
@@ -25,7 +25,8 @@ Provides offline, deterministic lexical and syntactic parsing of TypeScript (`.t
    - **Imports & Re-exports:** Handles ES6 named/default/aliased imports (`import { a, b as c } from './mod'`), bare imports, dynamic `import()`, and CommonJS `require()`.
    - **Interfaces & Types:** Extracts `interface` definitions with `extends` inheritance and `type` aliases.
    - **Classes & Inheritance:** Extracts ES6/TypeScript classes, constructor, methods, getters/setters, `extends` base classes, and `implements` interfaces.
-   - **Functions:** Standalone functions, async functions, and variable-assigned arrow functions (`const fn = (...) => ...`).
+   - **Functions:** Standalone functions, async functions, variable-assigned arrow functions (`const fn = (...) => ...`), and arrow functions wrapped in React hooks/HOCs (`const login = useCallback(async (...) => {...}, [])`, `useMemo`, `memo`, `forwardRef`).
+   - **Module constants:** SCREAMING_SNAKE_CASE module-level constants (`API_BASE_URL`, `REMEMBER_ME_DAYS`) are emitted as `variable` nodes so task-referenced config symbols are retrievable. Scoped to all-caps names to stay bounded (no node per local variable).
 3. **Fact & Metric Extraction:**
    - Cyclomatic complexity computed deterministically from branch keywords and logical operators.
    - Exception discovery tracking `throw` statements into `facts.raises`.

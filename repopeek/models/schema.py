@@ -101,6 +101,12 @@ class NodeCard(BaseModel):
         norm_path = Path(repo_rel_path).as_posix().lstrip("./")
         return f"{lang}:{norm_path}::{qualified_name}"
 
+    def display_label(self) -> str:
+        """Developer-facing label derived from identity, kind, and signature."""
+        from repopeek.graph.identity import format_node_label
+        file_path = self.span.file if self.span else None
+        return format_node_label(self.id, self.kind, file_path, self.sig)
+
 
 class Evidence(BaseModel):
     """Proof and location backing an extracted edge."""

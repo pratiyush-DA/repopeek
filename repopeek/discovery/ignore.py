@@ -21,6 +21,14 @@ DEFAULT_IGNORE_DIRS: Set[str] = {
     ".repopeek",
     "output",
     "scratch",
+    "postman",
+    "coverage",
+    "htmlcov",
+    ".next",
+    "repopeek",
+    "vendor",
+    ".tox",
+    "site-packages",
 }
 
 DEFAULT_IGNORE_PATTERNS: List[str] = [
@@ -34,6 +42,7 @@ DEFAULT_IGNORE_PATTERNS: List[str] = [
     "package-lock.json",
     "yarn.lock",
     "pnpm-lock.yaml",
+    "*.min.js",
 ]
 
 

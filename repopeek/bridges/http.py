@@ -69,11 +69,15 @@ def normalize_route_path(path: str) -> str:
         else:
             cleaned = "/"
 
-    # Strip template variable prefixes like ${API_URL}/... or ${this.apiUrl}/...
-    if cleaned.startswith("${") and "}/" in cleaned:
-        cleaned = "/" + cleaned.split("}/", 1)[-1]
+    # Strip a leading template variable like ${API_URL} or $apiUrl, preserving any literal
+    # path that follows even when it is concatenated without a slash
+    # (e.g. ${API_BASE_URL}auth/login -> /auth/login, not /login).
+    if cleaned.startswith("${"):
+        cleaned = re.sub(r"^\$\{[^}]*\}", "", cleaned)
     elif cleaned.startswith("$") and "/" in cleaned:
-        cleaned = "/" + cleaned.split("/", 1)[-1]
+        cleaned = cleaned.split("/", 1)[-1]
+    if cleaned and not cleaned.startswith("/"):
+        cleaned = "/" + cleaned
 
     raw_segments = [s.strip() for s in cleaned.strip("/").split("/") if s.strip()]
     norm_segments = []
@@ -93,8 +97,28 @@ def normalize_route_path(path: str) -> str:
     return "/" + "/".join(norm_segments)
 
 
+def is_template_only_client_url(raw_url: str) -> bool:
+    """True when the client URL has no literal path segment and cannot uniquely match a route."""
+    text = (raw_url or "").strip()
+    if not text:
+        return True
+    if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", text):
+        return True
+    if "${" in text and "path" in text.lower():
+        return True
+    norm = normalize_route_path(text)
+    segs = [p for p in norm.strip("/").split("/") if p]
+    return (not segs) or all(p == ":param" for p in segs)
+
+
+def _literal_segments(norm_path: str) -> List[str]:
+    return [s for s in norm_path.strip("/").split("/") if s and s != ":param"]
+
+
 def paths_match(client_norm: str, server_norm: str) -> bool:
     """Return True if normalized client request path matches server endpoint template."""
+    if is_template_only_client_url(client_norm):
+        return False
     if client_norm == server_norm:
         return True
 
@@ -104,17 +128,20 @@ def paths_match(client_norm: str, server_norm: str) -> bool:
     if not c_segs or not s_segs:
         return False
 
-    # Exact segment length match
+    def _compatible(a: List[str], b: List[str]) -> bool:
+        if not a or not b:
+            return False
+        if not all(c == s or c == ":param" or s == ":param" for c, s in zip(a, b)):
+            return False
+        shared = set(_literal_segments("/" + "/".join(a))) & set(_literal_segments("/" + "/".join(b)))
+        return len(shared) >= 1
+
     if len(c_segs) == len(s_segs):
-        return all(c == s or c == ":param" or s == ":param" for c, s in zip(c_segs, s_segs))
+        return _compatible(c_segs, s_segs)
 
-    # Suffix match e.g. client '/users/:param' matches server '/api/users/:param' or vice versa
     min_len = min(len(c_segs), len(s_segs))
-    if min_len >= 1:
-        c_sub = c_segs[-min_len:]
-        s_sub = s_segs[-min_len:]
-        return all(c == s or c == ":param" or s == ":param" for c, s in zip(c_sub, s_sub))
-
+    if min_len >= 2:
+        return _compatible(c_segs[-min_len:], s_segs[-min_len:])
     return False
 
 
@@ -156,7 +183,7 @@ class HttpBoundaryBridge:
         routes: List[RouteEndpoint] = []
 
         for nid, node in graph.nodes.items():
-            if node.kind not in ("function", "method"):
+            if node.kind not in ("function", "method", "class", "file", "module"):
                 continue
 
             file_path = node.span.file if node.span else ""
@@ -260,6 +287,8 @@ class HttpBoundaryBridge:
                         if parts[0].upper() in ("GET", "POST", "PUT", "DELETE", "PATCH"):
                             method = parts[0].upper()
                             raw_val = parts[1]
+                    if is_template_only_client_url(raw_val):
+                        continue
                     calls.append(
                         HttpClientCall(
                             caller_node_id=nid,
@@ -283,6 +312,8 @@ class HttpBoundaryBridge:
                         method = method.upper()
 
                     if raw_url:
+                        if is_template_only_client_url(raw_url):
+                            continue
                         norm_p = normalize_route_path(raw_url)
                         if not any(c.caller_node_id == nid and c.norm_path == norm_p for c in calls):
                             calls.append(
@@ -307,18 +338,27 @@ class HttpBoundaryBridge:
         seen = set()
 
         for client in client_calls:
+            candidates: List[Tuple[int, RouteEndpoint]] = []
             for server in server_routes:
-                if paths_match(client.norm_path, server.norm_path):
-                    # Verify HTTP method compatibility
-                    if client.method and server.method != "ANY":
-                        if client.method.upper() != server.method.upper():
-                            continue
-
-                    edge_key = (client.caller_node_id, server.node_id)
-                    if edge_key not in seen and client.caller_node_id != server.node_id:
-                        seen.add(edge_key)
-                        m_label = client.method or server.method or "HTTP"
-                        edge = Edge(
+                if not paths_match(client.norm_path, server.norm_path):
+                    continue
+                if client.method and server.method != "ANY":
+                    if client.method.upper() != server.method.upper():
+                        continue
+                n_lit = len(_literal_segments(server.norm_path))
+                candidates.append((n_lit, server))
+            if not candidates:
+                continue
+            best = max(n for n, _ in candidates)
+            for n_lit, server in candidates:
+                if n_lit != best:
+                    continue
+                edge_key = (client.caller_node_id, server.node_id)
+                if edge_key not in seen and client.caller_node_id != server.node_id:
+                    seen.add(edge_key)
+                    m_label = client.method or server.method or "HTTP"
+                    edges.append(
+                        Edge(
                             src=client.caller_node_id,
                             dst=server.node_id,
                             type=EdgeType.INVOKES,
@@ -330,6 +370,6 @@ class HttpBoundaryBridge:
                                 how_derived=f"http_boundary({m_label} {client.raw_url} -> {server.method} {server.raw_path})",
                             ),
                         )
-                        edges.append(edge)
+                    )
 
         return edges

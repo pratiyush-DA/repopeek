@@ -68,7 +68,10 @@ class GraphViewerHandler(BaseHTTPRequestHandler):
                 try:
                     lens_graph = load_lens(self.storage_dir, lens_name)
                     for n in lens_graph.nodes.values():
-                        nodes_out.append(n.model_dump(exclude_none=True))
+                        dump = n.model_dump(exclude_none=True)
+                        dump["label"] = n.display_label()
+                        dump["language"] = n.id.split(":")[0] if ":" in n.id else ""
+                        nodes_out.append(dump)
                     for e in lens_graph.edges:
                         edges_out.append({
                             "src": e.src,
@@ -82,7 +85,10 @@ class GraphViewerHandler(BaseHTTPRequestHandler):
         if not nodes_out and hasattr(self.engine, "graph"):
             graph = self.engine.graph
             for n in graph.nodes.values():
-                nodes_out.append(n.model_dump(exclude_none=True))
+                dump = n.model_dump(exclude_none=True)
+                dump["label"] = n.display_label()
+                dump["language"] = n.id.split(":")[0] if ":" in n.id else ""
+                nodes_out.append(dump)
             for e in graph.edges:
                 edges_out.append({
                     "src": e.src,

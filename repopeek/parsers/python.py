@@ -146,6 +146,7 @@ class PythonParser(BaseParser):
             nodes=nodes,
             edges=edges,
         )
+        self._attach_django_routes(tree, rel_path, nodes)
 
         return ParseResult(
             file_path=Path(rel_path),
@@ -155,6 +156,95 @@ class PythonParser(BaseParser):
             edges=edges,
             errors=[],
         )
+
+    def _attach_django_routes(
+        self,
+        tree: ast.AST,
+        rel_path: str,
+        nodes: List[NodeCard],
+    ) -> None:
+        """Tag Django/DRF declarative urlpatterns and router.register views with ROUTE facts."""
+        by_name: Dict[str, NodeCard] = {}
+        file_node = None
+        for n in nodes:
+            if n.kind in ("file", "module"):
+                file_node = n
+            if n.kind in ("function", "method", "class") and "::" in n.id:
+                qual = n.id.split("::")[-1]
+                by_name[qual] = n
+                by_name[qual.split(".")[-1]] = n
+
+        def _route_path_from_call(call: ast.Call) -> Optional[str]:
+            if call.args and isinstance(call.args[0], ast.Constant) and isinstance(call.args[0].value, str):
+                return call.args[0].value
+            return None
+
+        def _view_name(arg: ast.AST) -> Optional[str]:
+            if isinstance(arg, ast.Name):
+                return arg.id
+            if isinstance(arg, ast.Attribute):
+                if isinstance(arg.value, ast.Name):
+                    return arg.value.id if arg.attr == "as_view" else arg.attr
+            if isinstance(arg, ast.Call):
+                return _view_name(arg.func)
+            return None
+
+        def _tag(view: Optional[str], path_val: str, method: str = "ANY") -> None:
+            tag = f"ROUTE:{method}:{path_val}"
+            target = by_name.get(view) if view else None
+            card = target or file_node
+            if card and tag not in card.facts.reads:
+                card.facts.reads.append(tag)
+
+        for node in tree.body:
+            if not isinstance(node, (ast.Assign, ast.AnnAssign)):
+                continue
+            targets = node.targets if isinstance(node, ast.Assign) else ([node.target] if node.target else [])
+            if not any(isinstance(t, ast.Name) and t.id == "urlpatterns" for t in targets):
+                continue
+            value = node.value
+            elts = value.elts if isinstance(value, (ast.List, ast.Tuple)) else []
+            for elt in elts:
+                if not isinstance(elt, ast.Call):
+                    continue
+                func = elt.func
+                fname = ""
+                if isinstance(func, ast.Name):
+                    fname = func.id
+                elif isinstance(func, ast.Attribute):
+                    fname = func.attr
+                if fname not in ("path", "re_path", "url"):
+                    continue
+                path_val = _route_path_from_call(elt)
+                if path_val is None:
+                    continue
+                view = None
+                is_include = False
+                if len(elt.args) > 1:
+                    arg1 = elt.args[1]
+                    if isinstance(arg1, ast.Call) and (
+                        (isinstance(arg1.func, ast.Name) and arg1.func.id == "include")
+                        or (isinstance(arg1.func, ast.Attribute) and arg1.func.attr == "include")
+                    ):
+                        is_include = True
+                    else:
+                        view = _view_name(arg1)
+                prefix = path_val if path_val.startswith("/") else "/" + path_val.lstrip("^")
+                if is_include:
+                    _tag(None, prefix.rstrip("/") or "/", "ANY")
+                else:
+                    _tag(view, prefix if prefix.startswith("/") else "/" + prefix, "ANY")
+
+        for call in ast.walk(tree):
+            if not isinstance(call, ast.Call) or not isinstance(call.func, ast.Attribute):
+                continue
+            if call.func.attr != "register" or len(call.args) < 2:
+                continue
+            path_val = _route_path_from_call(call)
+            view = _view_name(call.args[1])
+            if path_val is not None:
+                prefix = path_val if path_val.startswith("/") else "/" + path_val
+                _tag(view, prefix, "ANY")
 
     def _extract_definitions(
         self,

@@ -48,6 +48,7 @@ scratch/
 output/
 data/
 .repopeek/
+.tmp_old_*/
 my_obsidian_vault/
 *obsidian_vault*/
 testing/

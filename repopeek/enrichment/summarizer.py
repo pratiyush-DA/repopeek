@@ -33,6 +33,7 @@ class HierarchicalStoryGenerator:
         self.cache = cache or StoryCache()
         self.governor = governor or CostGovernor()
         self.verifier = verifier or FactVerifier()
+        self.llm_allowlist: Optional[set] = None
 
     @staticmethod
     def is_trivial_node(node: NodeCard) -> bool:
@@ -47,7 +48,15 @@ class HierarchicalStoryGenerator:
             ):
                 return True
         # Plain tables and configurations
-        if node.kind in ("json_config", "yaml_config", "file"):
+        if node.kind in (
+            "json_config",
+            "yaml_config",
+            "file",
+            "external_symbol",
+            "variable",
+            "command",
+            "sql_table",
+        ):
             return True
         return False
 
@@ -67,6 +76,13 @@ class HierarchicalStoryGenerator:
         cached = self.cache.get(cache_key)
         if cached:
             return cached
+
+        allowlist = self.llm_allowlist
+        if allowlist is not None and node.id not in allowlist:
+            self.governor.record_fallback()
+            story = DeterministicStoryBuilder.build_story(node)
+            self.cache.put(cache_key, story)
+            return story
 
         # --- Budget & Capability Pre-check ---
         if isinstance(self.provider, DeterministicFallbackProvider) or not self.governor.can_call_llm(estimated_tokens=150):

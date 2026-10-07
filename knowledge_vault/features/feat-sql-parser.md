@@ -9,7 +9,7 @@ code_refs: [repopeek/parsers/sql.py]
 depends_on: ['[[adr-002-sqlglot-oracle-dialect]]', '[[comp-parsers]]', '[[data-node-file]]',
   '[[data-node-sqlquery]]', '[[feat-file-classification]]', '[[req-deterministic-extraction]]']
 affects: ['[[data-node-file]]', '[[data-node-sqlquery]]', '[[feat-graph-construction]]']
-last_verified: 2026-10-03
+last_verified: 2026-10-06
 source: "_sources/task_list.md §Phase 4"
 ---
 # SQL Parser
@@ -24,7 +24,7 @@ Produces the deterministic SQL substrate of the graph. Extracts queries and tabl
   - `SQLQuery` node per extractable statement with `query_text`
   - `DEFINED_IN` edge from `SQLQuery` to its `File`
   - Table references captured as metadata on `SQLQuery` nodes
-- Parser: `sqlglot` with `dialect="oracle"` (see [[adr-002-sqlglot-oracle-dialect]])
+- Parser: `sqlglot` (Oracle default, Postgres/ANSI fallback). `exp.Create` is dispatched by `kind`: only `TABLE` becomes a `sql_table` (with columns); `FUNCTION` is a `sql_query` function node (`function.<name>`), and `VIEW`/`INDEX`/`EXTENSION`/`SEQUENCE` never become false tables. `CREATE EXTENSION` / `GRANT` / `ALTER` stay command/query nodes. `CREATE TABLE` / `CREATE FUNCTION` buried in sqlglot `Command` fallback text are still recovered by name. This keeps the schema honest (e.g. Postgres `CREATE OR REPLACE FUNCTION fix_timezone_setting()` is a function, not a table).
 - PL/SQL constructs handled:
   - `EXCEPTION WHEN OTHERS THEN` blocks — parsed without breaking statement boundaries
   - `||` string concatenation in dynamic SQL — tokenized; unresolvable table names marked as dynamic (not omitted)

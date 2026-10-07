@@ -13,6 +13,8 @@ def test_default_config():
     assert ".py" in cfg.supported_extensions
     assert ".sql" in cfg.supported_extensions
     assert ".json" in cfg.supported_extensions
+    assert ".ts" in cfg.supported_extensions
+    assert ".tsx" in cfg.supported_extensions
     assert cfg.sql_dialect == "oracle"
     assert cfg.graph_output_path == Path("output/graph.json")
 

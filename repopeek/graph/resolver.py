@@ -1,9 +1,11 @@
 """Cross-file symbol and import resolver for RepoPeek canonical property graph."""
 
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Tuple
 
-from repopeek.models.schema import Confidence, Edge, EdgeType, NodeCard
+from repopeek.discovery.hasher import hash_content
+from repopeek.graph.identity import language_from_node_id, language_from_path, make_external_id
+from repopeek.models.schema import Confidence, Edge, EdgeType, NodeCard, NodeFacts, NodeStory
 
 
 class SymbolResolver:
@@ -12,15 +14,16 @@ class SymbolResolver:
     def __init__(self, nodes: List[NodeCard], edges: List[Edge]) -> None:
         self.nodes = {n.id: n for n in nodes}
         self.edges = edges
+        self.external_nodes: Dict[str, NodeCard] = {}
 
         # Indexes for fast lookup
         self.file_nodes: Dict[str, str] = {}  # norm_rel_path -> file_node_id
         self.module_to_file: Dict[str, str] = {}  # dotted.module.path -> file_node_id
         self.symbols_by_qualname: Dict[Tuple[str, str], str] = {}  # (norm_rel_path, qualname) -> node_id
-        self.symbols_by_name: Dict[str, List[str]] = {}  # bare_name -> [node_id, ...]
+        self.symbols_by_name: Dict[Tuple[str, str], List[str]] = {}  # (lang, bare_name) -> [node_id, ...]
         self.tables_by_name: Dict[str, str] = {}  # table_name -> table_node_id
         self.variables_by_qualname: Dict[Tuple[str, str], str] = {}  # (norm_rel_path, qualname) -> node_id
-        self.variables_by_name: Dict[str, List[str]] = {}  # bare_name -> [node_id, ...]
+        self.variables_by_name: Dict[Tuple[str, str], List[str]] = {}  # (lang, bare_name) -> [node_id, ...]
         self.configs_by_key: Dict[str, str] = {}  # key_path -> node_id
         self.configs_by_short_key: Dict[str, List[str]] = {}  # short_key -> [node_id, ...]
         self.env_vars: Dict[str, List[str]] = {}  # env_var_name -> [node_id, ...]
@@ -60,8 +63,9 @@ class SymbolResolver:
                     qualname = nid.split("::")[-1]
                     self.variables_by_qualname[(fpath, qualname)] = nid
                     bare_name = qualname.split(".")[-1]
-                    self.variables_by_name.setdefault(bare_name, []).append(nid)
-                    self.variables_by_name.setdefault(qualname, []).append(nid)
+                    lang = language_from_node_id(nid) or language_from_path(fpath)
+                    self.variables_by_name.setdefault((lang, bare_name), []).append(nid)
+                    self.variables_by_name.setdefault((lang, qualname), []).append(nid)
 
             elif card.kind in ("json_config", "yaml_config"):
                 if "::" in nid:
@@ -84,7 +88,8 @@ class SymbolResolver:
                 qualname = nid.split("::")[-1]
                 self.symbols_by_qualname[(fpath, qualname)] = nid
                 bare_name = qualname.split(".")[-1]
-                self.symbols_by_name.setdefault(bare_name, []).append(nid)
+                lang = language_from_node_id(nid) or language_from_path(fpath)
+                self.symbols_by_name.setdefault((lang, bare_name), []).append(nid)
 
         # Index IMPORTS edges per file
         for edge in self.edges:
@@ -108,24 +113,45 @@ class SymbolResolver:
 
             # Already resolved to a valid existing node ID
             if new_edge.dst in self.nodes:
+                dst_card = self.nodes[new_edge.dst]
+                src_lang = language_from_node_id(new_edge.src) or language_from_path(src_file)
+                dst_lang = language_from_node_id(dst_card.id)
+                if (
+                    src_lang
+                    and dst_lang
+                    and src_lang != dst_lang
+                    and new_edge.type in (EdgeType.CALLS, EdgeType.IMPORTS, EdgeType.INHERITS)
+                ):
+                    new_edge.dst = self._externalize(src_lang, Path(new_edge.dst).name, new_edge.type)
+                    new_edge.confidence = Confidence.EXTERNAL
                 resolved_edges.append(new_edge)
                 continue
 
             # Resolve based on edge relationship type
-            if new_edge.type in (EdgeType.CALLS, EdgeType.INHERITS):
-                target_id, conf = self._resolve_symbol(src_file, new_edge.dst)
+            if new_edge.type in (EdgeType.CALLS, EdgeType.INHERITS, EdgeType.IMPLEMENTS):
+                target_id, conf = self._resolve_symbol(src_file, new_edge.src, new_edge.dst)
                 if target_id:
                     new_edge.dst = target_id
                     new_edge.confidence = conf
                 else:
+                    src_lang = language_from_node_id(new_edge.src) or language_from_path(src_file)
+                    new_edge.dst = self._externalize(src_lang, new_edge.dst, new_edge.type)
                     new_edge.confidence = Confidence.EXTERNAL
 
             elif new_edge.type == EdgeType.IMPORTS:
                 target_id = self._resolve_import(src_file, new_edge.dst)
                 if target_id:
-                    new_edge.dst = target_id
-                    new_edge.confidence = Confidence.RESOLVED
+                    src_lang = language_from_node_id(new_edge.src) or language_from_path(src_file)
+                    dst_lang = language_from_node_id(target_id)
+                    if src_lang and dst_lang and src_lang != dst_lang:
+                        new_edge.dst = self._externalize(src_lang, new_edge.dst, new_edge.type)
+                        new_edge.confidence = Confidence.EXTERNAL
+                    else:
+                        new_edge.dst = target_id
+                        new_edge.confidence = Confidence.RESOLVED
                 else:
+                    src_lang = language_from_node_id(new_edge.src) or language_from_path(src_file)
+                    new_edge.dst = self._externalize(src_lang, new_edge.dst, new_edge.type)
                     new_edge.confidence = Confidence.EXTERNAL
 
             elif new_edge.type == EdgeType.RUNS_SCRIPT:
@@ -142,6 +168,8 @@ class SymbolResolver:
                     new_edge.dst = target_id
                     new_edge.confidence = conf
                 else:
+                    src_lang = language_from_node_id(new_edge.src) or language_from_path(src_file)
+                    new_edge.dst = self._externalize(src_lang, new_edge.dst, new_edge.type)
                     new_edge.confidence = Confidence.EXTERNAL
 
             resolved_edges.append(new_edge)
@@ -205,24 +233,52 @@ class SymbolResolver:
                 conf = Confidence.RESOLVED if len(candidates) == 1 or len(cand_files) == 1 else Confidence.AMBIGUOUS
                 return candidates[0], conf
 
-        # 6. Check repository-wide variable name
-        if clean_dst in self.variables_by_name:
-            candidates = self.variables_by_name[clean_dst]
+        # 6. Same-language repository-wide variable name
+        src_lang = language_from_node_id(src_card.id) if src_card else language_from_path(src_file)
+        candidates = self.variables_by_name.get((src_lang, clean_dst), [])
+        if candidates:
             same_file = [
                 c for c in candidates
                 if self.nodes[c].span and self.nodes[c].span.file == src_file
             ]
             if same_file:
                 return same_file[0], Confidence.RESOLVED
-            if len(candidates) == 1:
-                return candidates[0], Confidence.RESOLVED
-            return candidates[0], Confidence.AMBIGUOUS
+            ordered = sorted(candidates)
+            if len(ordered) == 1:
+                return ordered[0], Confidence.RESOLVED
+            return ordered[0], Confidence.AMBIGUOUS
 
         return None, Confidence.EXTERNAL
 
-    def _resolve_symbol(self, src_file: str, callee_name: str) -> Tuple[Optional[str], Confidence]:
-        """Resolve a function or class reference across local file, imports, or global symbols."""
+    def _src_lang(self, src_file: str, src_id: str = "") -> str:
+        return language_from_node_id(src_id) or language_from_path(src_file)
+
+    def _externalize(self, lang: str, name: str, edge_type: EdgeType) -> str:
+        kind = "import" if edge_type == EdgeType.IMPORTS else "call"
+        ext_id = make_external_id(lang or "unk", name, kind)
+        if ext_id not in self.nodes and ext_id not in self.external_nodes:
+            self.external_nodes[ext_id] = NodeCard(
+                id=ext_id,
+                kind="external_symbol",
+                facts=NodeFacts(),
+                story=NodeStory(
+                    text=f"External {lang} symbol {name}",
+                    source="deterministic",
+                    confidence="low",
+                ),
+                content_hash=hash_content(ext_id),
+            )
+        return ext_id
+
+    def _resolve_symbol(
+        self,
+        src_file: str,
+        src_id: str,
+        callee_name: str,
+    ) -> Tuple[Optional[str], Confidence]:
+        """Resolve a function or class reference across local file, imports, or same-language symbols."""
         bare_name = callee_name.split(".")[-1]
+        src_lang = self._src_lang(src_file, src_id)
 
         # 1. Local scope inside same file
         if (src_file, callee_name) in self.symbols_by_qualname:
@@ -236,10 +292,12 @@ class SymbolResolver:
             import_target = imports[bare_name]
             resolved = self._find_node_by_dotted_path(import_target)
             if resolved:
-                return resolved, Confidence.RESOLVED
+                dst_lang = language_from_node_id(resolved)
+                if not src_lang or not dst_lang or src_lang == dst_lang:
+                    return resolved, Confidence.RESOLVED
 
-        # 3. Global lookup across repository
-        candidates = self.symbols_by_name.get(bare_name, [])
+        # 3. Same-language global lookup (never cross language on bare names)
+        candidates = sorted(self.symbols_by_name.get((src_lang, bare_name), []))
         if len(candidates) == 1:
             return candidates[0], Confidence.RESOLVED
         elif len(candidates) > 1:

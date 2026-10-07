@@ -8,6 +8,7 @@ Operates completely offline without LLM, GPU, or vector DB.
 
 from collections import defaultdict
 from dataclasses import dataclass, field
+from pathlib import Path
 import fnmatch
 import re
 from typing import Any, Dict, List, Optional, Set, Tuple
@@ -55,11 +56,28 @@ _CONSTANT_RE = re.compile(r"[A-Z][A-Z0-9_]{2,}")
 _NUMBER_RE = re.compile(r"\b\d+\b")
 _API_PATH_RE = re.compile(r"/[a-z0-9_/{}:]+")
 
-# Pattern for capturing negative exclusions in task prompts (e.g. 'without modifying shipping', 'do not touch X')
-_EXCLUSION_PATTERN = re.compile(
-    r"(?:without|not|avoid|except|excluding)\s+(?:modifying|changing|altering|touching|updating|including)?\s*([A-Za-z0-9_./\\-]+)",
+# Pattern for capturing negative exclusion *clauses* (then split paths / symbols).
+_EXCLUSION_CLAUSE_RE = re.compile(
+    r"(?:"
+    r"must\s+not\s+(?:modify|edit|change|touch|alter|update|include)\s+"
+    r"|do\s+not\s+(?:modify|edit|change|touch|alter|update|include)\s+"
+    r"|don't\s+(?:modify|edit|change|touch|alter|update|include)\s+"
+    r"|without\s+(?:modifying|changing|altering|touching|updating|editing|including)\s+"
+    r"|avoid\s+(?:modifying|changing|touching|editing)?\s*"
+    r"|except(?:ing)?\s+"
+    r"|excluding\s+"
+    r")"
+    r"([^\n]+)",
     re.IGNORECASE,
 )
+_FRAMEWORK_EXCLUSION_NOISE = frozenset({
+    "django", "flask", "react", "fastapi", "express", "next", "the", "a", "an",
+})
+
+_INFRA_TERMS = frozenset({
+    "docker", "compose", "kubernetes", "k8s", "deploy", "deployment", "ci", "cd",
+    "infrastructure", "container", "helm", "terraform", "nginx", "yaml",
+})
 
 
 @dataclass
@@ -78,6 +96,7 @@ class TaskIntent:
     dotted_names: List[str] = field(default_factory=list)
     quoted_names: List[str] = field(default_factory=list)
     exclusions: List[str] = field(default_factory=list)
+    task_kind: str = "application"  # application | infrastructure
 
 
 @dataclass
@@ -327,37 +346,56 @@ def generate_identifier_variants(name: str) -> List[str]:
 
 def extract_task_identifiers(task: str) -> TaskIntent:
     """Extract structured identifiers, domain terms, compounds, and negative constraints from a task."""
-    normalized = normalize_task_text(task)
+    # Extract exclusions from the original text, then mask those spans so they
+    # cannot become positive retrieval signals.
+    exclusion_spans: List[Tuple[int, int]] = []
+    raw_exclusions: List[str] = []
+    for m in _EXCLUSION_CLAUSE_RE.finditer(task):
+        clause = m.group(1).strip()
+        exclusion_spans.append(m.span())
+        found_paths = _PATH_RE.findall(clause)
+        found_syms = re.findall(r"\b[A-Z][A-Za-z0-9_]{3,}\b", clause)
+        pieces = found_paths or found_syms or [clause.strip().strip("`\"'")]
+        for piece in pieces:
+            excl_target = piece.strip().strip("`\"'")
+            if not excl_target:
+                continue
+            if excl_target.lower() in _STOP_WORDS or excl_target.lower() in _FRAMEWORK_EXCLUSION_NOISE:
+                continue
+            raw_exclusions.append(excl_target)
+
+    chars = list(task)
+    for start, end in exclusion_spans:
+        for i in range(start, min(end, len(chars))):
+            chars[i] = " " if chars[i] != "\n" else "\n"
+    masked = "".join(chars)
+
+    normalized = normalize_task_text(masked)
     intent = TaskIntent(raw=task, normalized=normalized)
+    intent.exclusions = list(dict.fromkeys(raw_exclusions))
 
-    # 1. Extract explicit negative exclusions (e.g. 'without modifying shipping', 'do not touch X')
-    for m in _EXCLUSION_PATTERN.finditer(task):
-        excl_target = m.group(1).strip()
-        if excl_target and excl_target.lower() not in _STOP_WORDS:
-            intent.exclusions.append(excl_target)
-
-    # 2. Extract quoted code references (highest signal)
-    for m in _QUOTED_RE.finditer(task):
+    # 2. Extract quoted code references (highest signal) from masked text
+    for m in _QUOTED_RE.finditer(masked):
         intent.quoted_names.append(m.group(1))
 
     # 3. Extract dotted names (e.g. PaymentService.retry, InvoiceParser.parse)
-    for m in _DOTTED_NAME_RE.finditer(task):
+    for m in _DOTTED_NAME_RE.finditer(masked):
         name = m.group()
         if "/" not in name and "\\" not in name:
             intent.dotted_names.append(name)
 
     # 4. Extract file paths
-    for m in _PATH_RE.finditer(task):
+    for m in _PATH_RE.finditer(masked):
         path = m.group()
         if "/" in path or "\\" in path or path.count(".") == 1:
             intent.paths.append(path)
 
     # 5. Extract API paths
-    for m in _API_PATH_RE.finditer(task):
+    for m in _API_PATH_RE.finditer(masked):
         intent.api_paths.append(m.group())
 
     # 6. Extract numeric values
-    for m in _NUMBER_RE.finditer(task):
+    for m in _NUMBER_RE.finditer(masked):
         intent.values.append(m.group())
 
     # 7. Tokenize for identifiers and concepts
@@ -428,6 +466,15 @@ def extract_task_identifiers(task: str) -> TaskIntent:
         if name not in intent.identifiers:
             intent.identifiers.append(name)
 
+    lowered = {t.lower() for t in intent.concepts + intent.identifiers + intent.paths}
+    if lowered & _INFRA_TERMS or any(
+        "docker" in p.lower() or "compose" in p.lower() or p.lower().endswith((".yml", ".yaml"))
+        for p in intent.paths
+    ):
+        intent.task_kind = "infrastructure"
+    else:
+        intent.task_kind = "application"
+
     return intent
 
 
@@ -472,6 +519,15 @@ def _build_fts_query(intent: TaskIntent) -> str:
             seen.add(tl)
             unique_terms.append(t)
 
+    if not unique_terms:
+        return ""
+
+    excl_tokens: Set[str] = set()
+    for ex in intent.exclusions:
+        for tok in re.findall(r"[A-Za-z0-9_]+", ex.lower()):
+            if tok not in _STOP_WORDS and len(tok) > 1:
+                excl_tokens.add(tok)
+    unique_terms = [t for t in unique_terms if t.lower() not in excl_tokens]
     if not unique_terms:
         return ""
 
@@ -644,8 +700,8 @@ def compute_retrieval_score(
         for v in generate_identifier_variants(ident):
             query_stems.add(normalize_term_stem(v.lower()))
 
-    # Build node token set
-    node_tokens = set(re.findall(r"[A-Za-z0-9_]+", sym_lower + " " + sig_lower))
+    # Build node token set including story so application concepts match handlers
+    node_tokens = set(re.findall(r"[A-Za-z0-9_]+", sym_lower + " " + sig_lower + " " + story_lower))
     node_stems = {normalize_term_stem(t) for t in node_tokens if len(t) > 1}
 
     if query_stems and node_stems:
@@ -670,15 +726,45 @@ def compute_retrieval_score(
         if path_matches > 0:
             score.path_relevance = min(1.0, 0.4 * path_matches)
 
-    # 6. Kind Preference Component [0..1]
+    # 6. Kind Preference Component [0..1] — task-aware config weighting
     if kind in ("function", "method", "class"):
         score.kind_preference = 1.0
-    elif kind in ("sql_query", "json_config", "yaml_config"):
+    elif kind in ("sql_query",):
         score.kind_preference = 0.7
+    elif kind in ("json_config", "yaml_config"):
+        score.kind_preference = 0.95 if intent.task_kind == "infrastructure" else 0.15
     elif kind in ("file", "module"):
         score.kind_preference = 0.3
     else:
         score.kind_preference = 0.2
+
+    if intent.task_kind == "application":
+        infra_hit = "docker" in file_lower or "compose" in file_lower or file_lower.endswith((".yml", ".yaml"))
+        if infra_hit or kind in ("json_config", "yaml_config"):
+            score.kind_preference = min(score.kind_preference, 0.05)
+            score.path_relevance = 0.0
+            score.token_overlap = min(score.token_overlap * 0.1, 0.03)
+            score.identifier = min(score.identifier * 0.1, 0.03)
+            score.lexical *= 0.1
+            score.exact_match = 0.0
+
+    raw_l = (intent.raw or "").lower()
+    frontend_intent = any(
+        w in raw_l for w in ("login", "frontend", "jsx", "react", "authcontext", "ui", "remember-me", "remember_me")
+    )
+    stem = Path(file_lower).stem.lower() if file_lower else ""
+    ident_l = [i.lower() for i in intent.identifiers if i]
+    if stem and any(stem == i or stem.replace("_", "") == i.replace("_", "") for i in ident_l):
+        score.path_relevance = max(score.path_relevance, 1.0)
+        score.exact_match = max(score.exact_match, 0.8)
+    if frontend_intent:
+        if file_lower.endswith((".jsx", ".js", ".tsx", ".ts")):
+            score.path_relevance = max(score.path_relevance, 0.85)
+            score.kind_preference = max(score.kind_preference, 0.9)
+        if stem and any(tok in stem for tok in ("login", "auth", "remember")):
+            score.path_relevance = max(score.path_relevance, 1.0)
+        if "views.py" in file_lower.replace("\\", "/") and not any("view" in i for i in ident_l):
+            score.path_relevance = min(score.path_relevance, 0.2)
 
     return score
 
@@ -732,9 +818,28 @@ def resolve_task_to_symbols(
     if not enable_compounds:
         intent.compounds = []
 
+    from repopeek.graph.blast_radius import is_node_excluded
+
     # Stage 1: Broad Candidate Pool Generation (top 100 from each source)
     ast_candidates = _ast_identifier_search(intent, node_index, limit=100)
     fts_ranked = fts_results or []
+
+    def _allowed(nid: str) -> bool:
+        if not intent.exclusions:
+            return True
+        ndata = node_index.get(nid, {}) if isinstance(node_index.get(nid), dict) else {}
+        class _Card:
+            kind = ndata.get("kind", "")
+            span = None
+        card = _Card()
+        file_path = ndata.get("file") or ""
+        return not (
+            is_node_excluded(nid, None, intent.exclusions)
+            or (file_path and is_node_excluded(file_path, None, intent.exclusions))
+        )
+
+    ast_candidates = [(nid, s) for nid, s in ast_candidates if _allowed(nid)]
+    fts_ranked = [(nid, s) for nid, s in fts_ranked if _allowed(nid)]
 
     if use_rrf_scoring:
         # PR19 Baseline: Pure RRF ranking on AST and BM25 candidates

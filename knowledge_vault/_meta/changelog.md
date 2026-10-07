@@ -27,7 +27,12 @@
 2026-10-05 | feat-agent-mcp, feat-watch-daemon, feat-query-cli, feat-context-compiler, feat-traversal-confidence, feat-graph-persistence, feat-graph-construction, moc-features, Phase-3/plan, Phase-3/log, _meta/changelog | PR 18 Agent MCP Suite & Incremental Watch Daemon (Phase 3 Complete)
 2026-10-05 | feat-evaluation-benchmarking, moc-features, Phase-3/plan, Phase-3/log, _meta/changelog | PR 19 Agent Evaluation & Benchmarking Subsystem (4 levels, 50 frozen tasks, calibration, and token reduction)
 2026-10-05 | feat-intent-retrieval, feat-traversal-confidence, feat-evaluation-benchmarking, _meta/changelog | PR 20 Reliability overhaul: linguistic stemming, 6-casing variants, multi-component ranking, hard negative pruning, inverted index acceleration, Recall@5 26%->80%, MRR 0.22->0.75
-2026-10-05 | feat-real-world-validation, feat-evaluation-benchmarking, moc-features, Phase-3/log, _meta/changelog | Real-world 12-task validation experiment on da-assistant (70% token savings, 8 issues cataloged)
+2026-10-06 | feat-http-bridge, feat-graph-construction, feat-context-compiler, _meta/changelog | MVP lock: namespace isolation, Django/wrapper HTTP, negative constraints, context neighbor filter, optional LLM concurrency
+2026-10-06 | feat-context-compiler, feat-semantic-enrichment, feat-intent-retrieval, feat-http-bridge, comp-enrichment | Precision pack: file-cap+spans, Groq top-K/key pool, hard NL exclusions, skip template HTTP
+2026-10-06 | feat-context-compiler, feat-http-bridge, feat-sql-parser, feat-intent-retrieval | Trusted map: file-grain rank, 40-line spans, literal HTTP match, SQL Command TABLE/FUNCTION recovery
+2026-10-06 | 00-index, con-scope-languages, moc-features | Handoff: language scope matches TS/JS; pointer to Workflow_Documentation/07-Agent-Handoff.md
 
 
 
+2026-10-06 | feat-context-compiler, feat-http-bridge, feat-sql-parser, feat-typescript-parser | Trust+precision pass: relative file-score trim + token-budget enforcement (dais file precision 0.33->0.79, packs <=1.6k), ${VAR} literal-preserving HTTP norm, SQL Create dispatched by kind (no false tables), TS hook-wrapped arrows + SCREAMING_SNAKE consts (DAIS-003 login/API_BASE_URL now nodes)
+2026-10-06 | feat-traversal-confidence | dcnc pre-prod eval: cap serialized impact payload (compact nodes, no per-hop paths, hard <15k char guard) after a hub node (LLMClient) emitted ~336k chars; regression test added. Report: Workflow_Documentation/08-DCNC-Real-World-Evaluation.md

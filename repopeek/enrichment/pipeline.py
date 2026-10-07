@@ -1,8 +1,10 @@
 """Enrichment pipeline orchestrating bottom-up story generation over a CanonicalGraph."""
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
+import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 from repopeek.enrichment.cache import StoryCache
 from repopeek.enrichment.governor import CostGovernor
@@ -50,6 +52,7 @@ class StoryPipeline:
             governor=self.governor,
             verifier=self.verifier,
         )
+        self.llm_allowlist: Optional[Set[str]] = None
 
     def enrich(self, graph: CanonicalGraph) -> EnrichmentReport:
         """Enrich all nodes in CanonicalGraph in bottom-up hierarchical order."""
@@ -74,53 +77,72 @@ class StoryPipeline:
 
         total_items = len(methods_and_funcs) + len(classes) + len(modules) + len(others)
         done = 0
+        llm_cap = max(0, int(os.environ.get("REPOPEEK_LLM_MAX_NODES", "200")))
+        ranked_llm = sorted(
+            [n for n in methods_and_funcs + classes if not HierarchicalStoryGenerator.is_trivial_node(n)],
+            key=lambda n: (n.facts.complexity, n.facts.calls),
+            reverse=True,
+        )
+        self.llm_allowlist = {n.id for n in ranked_llm[:llm_cap]}
+        self.generator.llm_allowlist = self.llm_allowlist
 
-        # 2. Process functions and methods first
-        for node in methods_and_funcs:
-            story = self.generator.generate_story(node)
-            node.story = story
-            self._tally_report(story, report)
-            done += 1
-            if done % 100 == 0:
-                print(f"  Enriched {done}/{total_items} nodes ({report.llm_stories} LLM, {report.deterministic_stories} deterministic, {report.cached_hits} cached)...")
+        def _assign(nodes: List[NodeCard], with_children: bool = False) -> None:
+            nonlocal done
+            ordered = sorted(nodes, key=lambda n: n.id)
+            workers = max(1, int(os.environ.get("REPOPEEK_LLM_CONCURRENCY", "2")))
 
-        # 3. Process classes with child method stories
-        for node in classes:
-            # Find child methods defined within this class
-            prefix = f"{node.id}."
-            child_stories = [
-                m.story for m in methods_and_funcs
-                if m.id.startswith(prefix) and m.story is not None
-            ]
-            story = self.generator.generate_story(node, child_stories=child_stories)
-            node.story = story
-            self._tally_report(story, report)
-            done += 1
-            if done % 100 == 0:
-                print(f"  Enriched {done}/{total_items} nodes ({report.llm_stories} LLM, {report.deterministic_stories} deterministic, {report.cached_hits} cached)...")
+            def _one(node: NodeCard) -> NodeStory:
+                if with_children:
+                    prefix = f"{node.id}."
+                    child_stories = [
+                        m.story for m in methods_and_funcs
+                        if m.id.startswith(prefix) and m.story is not None
+                    ]
+                    return self.generator.generate_story(node, child_stories=child_stories)
+                if node.kind.lower() in ("module", "file"):
+                    fpath = node.span.file if node.span and node.span.file else ""
+                    child_stories = [
+                        n.story for n in (methods_and_funcs + classes)
+                        if n.span and n.span.file == fpath and n.story is not None
+                    ]
+                    return self.generator.generate_story(node, child_stories=child_stories)
+                return self.generator.generate_story(node)
 
-        # 4. Process modules with child class & function stories
-        for node in modules:
-            fpath = node.span.file if node.span and node.span.file else ""
-            child_stories = [
-                n.story for n in (methods_and_funcs + classes)
-                if n.span and n.span.file == fpath and n.story is not None
-            ]
-            story = self.generator.generate_story(node, child_stories=child_stories)
-            node.story = story
-            self._tally_report(story, report)
-            done += 1
-            if done % 100 == 0:
-                print(f"  Enriched {done}/{total_items} nodes ({report.llm_stories} LLM, {report.deterministic_stories} deterministic, {report.cached_hits} cached)...")
+            if workers == 1 or len(ordered) <= 1:
+                for node in ordered:
+                    node.story = _one(node)
+                    self._tally_report(node.story, report)
+                    done += 1
+                    if done % 25 == 0 or done == total_items:
+                        print(
+                            f"  Enriched {done}/{total_items} nodes "
+                            f"({report.llm_stories} LLM, {report.deterministic_stories} deterministic, {report.cached_hits} cached)...",
+                            flush=True,
+                        )
+                return
 
-        # 5. Process remaining nodes (tables, queries, configs, scripts)
-        for node in others:
-            story = self.generator.generate_story(node)
-            node.story = story
-            self._tally_report(story, report)
-            done += 1
-            if done % 100 == 0:
-                print(f"  Enriched {done}/{total_items} nodes ({report.llm_stories} LLM, {report.deterministic_stories} deterministic, {report.cached_hits} cached)...")
+            results: Dict[str, NodeStory] = {}
+            with ThreadPoolExecutor(max_workers=workers) as pool:
+                futs = {pool.submit(_one, node): node.id for node in ordered}
+                for fut in as_completed(futs):
+                    nid = futs[fut]
+                    story = fut.result()
+                    results[nid] = story
+                    self._tally_report(story, report)
+                    done += 1
+                    if done % 25 == 0 or done == total_items:
+                        print(
+                            f"  Enriched {done}/{total_items} nodes "
+                            f"({report.llm_stories} LLM, {report.deterministic_stories} deterministic, {report.cached_hits} cached)...",
+                            flush=True,
+                        )
+            for node in ordered:
+                node.story = results[node.id]
+
+        _assign(methods_and_funcs)
+        _assign(classes, with_children=True)
+        _assign(modules)
+        _assign(others)
 
         # Save cache state to disk if path configured
         self.cache.save()

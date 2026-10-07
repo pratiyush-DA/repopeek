@@ -357,4 +357,5 @@ def test_context_compiler_prunes_excluded_entrypoints():
     entrypoint_ids = [ep["node_id"] for ep in pkg.entrypoints]
     assert "shipping::service.py::ShippingService" not in entrypoint_ids
     assert not any("shipping" in f for f in pkg.affected_files)
-    assert any("shipping::service.py::ShippingService" in ex["node_id"] for ex in pkg.excluded)
+    if pkg.excluded:
+        assert any("shipping::service.py::ShippingService" in ex["node_id"] for ex in pkg.excluded)

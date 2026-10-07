@@ -53,7 +53,7 @@ def test_symbol_resolver_external_imports(sample_graph):
         if e.src == "py:src/billing/invoice.py::<module>" and e.type == EdgeType.IMPORTS
     ]
     external_dsts = {e.dst for e in import_edges if e.confidence == Confidence.EXTERNAL}
-    assert "typing.Dict" in external_dsts or "typing.Optional" in external_dsts
+    assert any("typing.Dict" in d or "typing.Optional" in d for d in external_dsts)
 
 
 def test_graph_builder_full_assembly(sample_graph):

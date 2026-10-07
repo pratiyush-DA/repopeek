@@ -1,6 +1,7 @@
 """Content-hash based story cache for zero-redundancy incremental summarization."""
 
 import json
+import threading
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -16,6 +17,7 @@ class StoryCache:
         self._entries: Dict[str, Dict[str, Any]] = {}
         self.hits: int = 0
         self.misses: int = 0
+        self._lock = threading.Lock()
         if self.cache_file and self.cache_file.exists():
             self.load()
 
@@ -27,24 +29,26 @@ class StoryCache:
 
     def get(self, key: str) -> Optional[NodeStory]:
         """Retrieve cached story if key exists, returning story with source='cached'."""
-        if key in self._entries:
-            self.hits += 1
-            entry = self._entries[key]
-            return NodeStory(
-                text=entry["text"],
-                source="cached",
-                confidence=entry.get("confidence", "high"),
-            )
-        self.misses += 1
-        return None
+        with self._lock:
+            if key in self._entries:
+                self.hits += 1
+                entry = self._entries[key]
+                return NodeStory(
+                    text=entry["text"],
+                    source="cached",
+                    confidence=entry.get("confidence", "high"),
+                )
+            self.misses += 1
+            return None
 
     def put(self, key: str, story: NodeStory) -> None:
         """Store story record indexed by stable key."""
-        self._entries[key] = {
-            "text": story.text,
-            "source": story.source,
-            "confidence": story.confidence,
-        }
+        with self._lock:
+            self._entries[key] = {
+                "text": story.text,
+                "source": story.source,
+                "confidence": story.confidence,
+            }
 
     def load(self) -> None:
         """Load cache entries from JSON file."""

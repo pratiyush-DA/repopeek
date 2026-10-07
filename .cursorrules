@@ -16,6 +16,7 @@ This project is a Repository Intelligence / Semantic Code Graph system. It build
 12. Do not rewrite working components unnecessarily.
 13. Do not change the architecture merely because another technology might be more sophisticated.
 14. Update documentation when an explicitly approved architectural decision changes the implementation.
+15. New-agent onboarding: `Workflow_Documentation/07-Agent-Handoff.md`. Tests: `python -m pytest tests` only.
 
 # Scope Protection
 The agent must NEVER automatically turn the MVP into:

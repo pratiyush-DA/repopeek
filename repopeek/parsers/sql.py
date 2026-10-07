@@ -103,8 +103,34 @@ class SqlParser(BaseParser):
             curr_line = end_line + 1
 
             if isinstance(expression, exp.Create):
-                self._process_create_table(
-                    create_exp=expression,
+                create_kind = str(expression.args.get("kind") or "").upper()
+                if create_kind and create_kind != "TABLE":
+                    # Non-table CREATE (FUNCTION/VIEW/INDEX/EXTENSION/SEQUENCE/...):
+                    # recover a function by name or keep it as a generic statement, but
+                    # never label a non-table as a schema table — that would make the
+                    # graph lie about the schema (e.g. CREATE FUNCTION fix_timezone_setting).
+                    self._process_command_sql(
+                        expression=expression,
+                        rel_path=norm_path,
+                        file_id=file_id,
+                        start_line=start_line,
+                        end_line=end_line,
+                        nodes=nodes,
+                        edges=edges,
+                    )
+                else:
+                    self._process_create_table(
+                        create_exp=expression,
+                        rel_path=norm_path,
+                        file_id=file_id,
+                        start_line=start_line,
+                        end_line=end_line,
+                        nodes=nodes,
+                        edges=edges,
+                    )
+            elif isinstance(expression, exp.Command):
+                self._process_command_sql(
+                    expression=expression,
                     rel_path=norm_path,
                     file_id=file_id,
                     start_line=start_line,
@@ -131,6 +157,103 @@ class SqlParser(BaseParser):
             nodes=nodes,
             edges=edges,
             errors=errors,
+        )
+
+    def _process_command_sql(
+        self,
+        expression: exp.Expression,
+        rel_path: str,
+        file_id: str,
+        start_line: int,
+        end_line: int,
+        nodes: List[NodeCard],
+        edges: List[Edge],
+    ) -> None:
+        """Recover TABLE/FUNCTION from sqlglot Command nodes; leave EXTENSION/GRANT as commands."""
+        raw = (expression.sql() or str(expression) or "").strip()
+        table_m = re.search(
+            r"(?i)CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([a-zA-Z0-9_\.]+)",
+            raw,
+        )
+        func_m = re.search(
+            r"(?i)CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+([a-zA-Z0-9_\.]+)",
+            raw,
+        )
+        if table_m:
+            tname = table_m.group(1).split(".")[-1]
+            tid = NodeCard.make_id("sql", rel_path, f"table.{tname}")
+            nodes.append(
+                NodeCard(
+                    id=tid,
+                    kind="sql_table",
+                    sig=f"CREATE TABLE {tname}",
+                    span=Span(file=rel_path, start=start_line, end=end_line),
+                    facts=NodeFacts(writes=[tname]),
+                    story=NodeStory(
+                        text=f"Table {tname} recovered from Command fallback",
+                        source="deterministic",
+                        confidence="medium",
+                    ),
+                    content_hash=hash_content(raw),
+                )
+            )
+            edges.append(
+                Edge(
+                    src=tid,
+                    dst=file_id,
+                    type=EdgeType.DEFINED_IN,
+                    confidence=Confidence.RESOLVED,
+                    evidence=Evidence(
+                        file=rel_path,
+                        start_line=start_line,
+                        end_line=end_line,
+                        how_derived="sql_command_create_table",
+                    ),
+                )
+            )
+            return
+        if func_m:
+            fname = func_m.group(1).split(".")[-1]
+            fid = NodeCard.make_id("sql", rel_path, f"function.{fname}")
+            nodes.append(
+                NodeCard(
+                    id=fid,
+                    kind="sql_query",
+                    sig=f"CREATE FUNCTION {fname}",
+                    span=Span(file=rel_path, start=start_line, end=end_line),
+                    facts=NodeFacts(writes=[fname]),
+                    story=NodeStory(
+                        text=f"Function {fname} recovered from Command fallback",
+                        source="deterministic",
+                        confidence="medium",
+                    ),
+                    content_hash=hash_content(raw),
+                )
+            )
+            edges.append(
+                Edge(
+                    src=fid,
+                    dst=file_id,
+                    type=EdgeType.DEFINED_IN,
+                    confidence=Confidence.RESOLVED,
+                    evidence=Evidence(
+                        file=rel_path,
+                        start_line=start_line,
+                        end_line=end_line,
+                        how_derived="sql_command_create_function",
+                    ),
+                )
+            )
+            return
+        self._process_query_statement(
+            expression=expression,
+            rel_path=rel_path,
+            file_id=file_id,
+            stmt_idx=start_line,
+            start_line=start_line,
+            end_line=end_line,
+            nodes=nodes,
+            edges=edges,
         )
 
     def _process_create_table(
@@ -313,11 +436,17 @@ class SqlParser(BaseParser):
         edges: List[Edge],
     ) -> None:
         """Regex-based fallback extraction when full SQL parsing fails."""
-        create_re = re.compile(r"(?i)^\s*CREATE\s+TABLE\s+([a-zA-Z0-9_]+)")
+        create_re = re.compile(
+            r"(?i)CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([a-zA-Z0-9_\.]+)"
+        )
+        func_re = re.compile(
+            r"(?i)CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+([a-zA-Z0-9_\.]+)"
+        )
         query_re = re.compile(r"(?i)^\s*(SELECT|INSERT\s+INTO|UPDATE|DELETE\s+FROM)\b")
 
         for idx, line in enumerate(source_lines, start=1):
-            create_m = create_re.match(line)
+            create_m = create_re.search(line)
+            func_m = func_re.search(line)
             if create_m:
                 tname = create_m.group(1)
                 tid = NodeCard.make_id("sql", rel_path, f"table.{tname}")
@@ -339,6 +468,33 @@ class SqlParser(BaseParser):
                 edges.append(
                     Edge(
                         src=tid,
+                        dst=file_id,
+                        type=EdgeType.DEFINED_IN,
+                        confidence=Confidence.UNRESOLVED,
+                        evidence=Evidence(file=rel_path, start_line=idx, end_line=idx,                         how_derived="fallback_sql_regex"),
+                    )
+                )
+            elif func_m:
+                fname = func_m.group(1).split(".")[-1]
+                fid = NodeCard.make_id("sql", rel_path, f"function.{fname}")
+                nodes.append(
+                    NodeCard(
+                        id=fid,
+                        kind="sql_query",
+                        sig=f"CREATE FUNCTION {fname}",
+                        span=Span(file=rel_path, start=idx, end=idx),
+                        facts=NodeFacts(writes=[fname]),
+                        story=NodeStory(
+                            text=f"Recovered function {fname} via fallback regex",
+                            source="deterministic",
+                            confidence="unresolved",
+                        ),
+                        content_hash=hash_content(line),
+                    )
+                )
+                edges.append(
+                    Edge(
+                        src=fid,
                         dst=file_id,
                         type=EdgeType.DEFINED_IN,
                         confidence=Confidence.UNRESOLVED,

@@ -21,11 +21,12 @@ from repopeek.storage.provenance import compute_repo_blob_shas, get_git_provenan
 class GraphBuilder:
     """Builds and validates the canonical property graph from multi-language parse results."""
 
-    def __init__(self) -> None:
+    def __init__(self, sql_dialect: Optional[str] = None) -> None:
         ts_parser = TypeScriptParser()
+        dialect = sql_dialect or "oracle"
         self.parsers: Dict[str, BaseParser] = {
             "python": PythonParser(),
-            "sql": SqlParser(),
+            "sql": SqlParser(default_dialect=dialect),
             "shell": ShellParser(),
             "json": JsonConfigParser(),
             "yaml": YamlConfigParser(),
@@ -77,6 +78,8 @@ class GraphBuilder:
         # Cross-file symbol resolution
         resolver = SymbolResolver(nodes=raw_nodes, edges=raw_edges)
         resolved_edges = resolver.resolve()
+        for extra in resolver.external_nodes.values():
+            graph.add_node(extra)
 
         for edge in resolved_edges:
             graph.add_edge(edge)
@@ -99,7 +102,18 @@ class GraphBuilder:
         repo_commit: Optional[str] = None,
     ) -> CanonicalGraph:
         """Discover, classify, and parse all repository files, returning the unified graph."""
+        import os
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
         root = Path(repo_root).resolve()
+        if (root / "postgres").is_dir() or (root / "docker-compose.yml").is_file():
+            compose = ""
+            try:
+                compose = (root / "docker-compose.yml").read_text(encoding="utf-8", errors="ignore")
+            except OSError:
+                compose = ""
+            if (root / "postgres").is_dir() or "postgres:" in compose:
+                self.parsers["sql"] = SqlParser(default_dialect="postgres")
         files = discover_repository(root)
 
         prov = get_git_provenance(root)
@@ -107,14 +121,28 @@ class GraphBuilder:
         dirty = prov.dirty if repo_commit is None else False
         blob_shas = compute_repo_blob_shas(root, [f.path for f in files])
 
-        results: List[ParseResult] = []
-        for finfo in files:
+        def _parse_one(finfo):
             ftype = classify_file(finfo.path)
             lang = ftype.value
             parser = self.parsers.get(lang)
-            if parser:
-                res = parser.parse_file(finfo.path, repo_root=root)
-                results.append(res)
+            if not parser:
+                return finfo.rel_path, None
+            return finfo.rel_path, parser.parse_file(finfo.path, repo_root=root)
+
+        results_by_path = {}
+        workers = min(8, max(1, os.cpu_count() or 4))
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = [pool.submit(_parse_one, finfo) for finfo in files]
+            for fut in as_completed(futures):
+                rel, res = fut.result()
+                if res is not None:
+                    results_by_path[rel] = res
+
+        results: List[ParseResult] = [
+            results_by_path[finfo.rel_path]
+            for finfo in files
+            if finfo.rel_path in results_by_path
+        ]
 
         graph = self.build(
             results,
@@ -178,6 +206,8 @@ class GraphBuilder:
         # 4. Resolve local and cross-file edges
         resolver = SymbolResolver(nodes=list(graph.nodes.values()), edges=res.edges)
         new_edges = resolver.resolve()
+        for extra in resolver.external_nodes.values():
+            graph.add_node(extra)
         for e in new_edges:
             graph.add_edge(e)
 

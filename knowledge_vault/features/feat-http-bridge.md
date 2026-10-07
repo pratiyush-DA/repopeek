@@ -2,13 +2,13 @@
 id: feat-http-bridge
 type: feature
 title: Cross-Language HTTP Boundary Bridge
-summary: Bridges TypeScript/JavaScript client API calls to backend route handlers (FastAPI, Flask, Express) using wildcard path parameter normalization and typed INVOKES edges.
+summary: Bridges TypeScript/JavaScript client API calls to backend handlers including FastAPI/Flask/Express decorators, Django urlpatterns, and inferred fetch/axios wrappers.
 status: verified
 tags: [http, bridge, cross-language, routes, blast-radius]
 code_refs: [repopeek/bridges/http.py, repopeek/bridges/__init__.py, repopeek/parsers/python.py, repopeek/parsers/typescript.py, repopeek/graph/builder.py, repopeek/graph/lenses.py, repopeek/query/engine.py, repopeek/cli.py]
 depends_on: ['[[feat-python-parser]]', '[[feat-typescript-parser]]', '[[feat-graph-construction]]', '[[plan-phase-3]]']
 affects: ['[[log-phase-3]]']
-last_verified: 2026-10-05
+last_verified: 2026-10-06
 ---
 
 # Cross-Language HTTP Boundary Bridge
@@ -25,7 +25,8 @@ The `HttpBoundaryBridge` resolves this boundary deterministically by:
 ## 2. Path Parameter Normalization Algorithm
 - Query strings (`?foo=bar`) and URL fragments (`#section`) are stripped.
 - Scheme and authority prefixes (`http://localhost:8000/api/...`) are stripped to domain-relative paths.
-- Template string interpolations (e.g. `${API_URL}/users`, `${this.baseUrl}/users`) are stripped to root path segments.
+- A leading template variable (`${API_BASE_URL}`, `$apiUrl`) is stripped while **preserving the literal path that follows**, even with no slash between them: `${API_BASE_URL}auth/login` → `/auth/login` (not `/login`). This keeps the match specific rather than discarding real segments.
+- Client URLs that are only `${API_BASE_URL}${path}`, identifier tokens (`downloadUrl`), or all-`:param` tokens are **not** linked. Matches require ≥1 shared literal path segment; the most specific server wins.
 - Path tokens matching `:param`, `{param}`, `<type:param>`, `${param}`, or numeric IDs are normalized to `:param`.
 - Suffix matching links relative frontend requests (e.g. `/users/:param`) to reverse-proxied or mounted backend routes (e.g. `/api/users/:param`).
 

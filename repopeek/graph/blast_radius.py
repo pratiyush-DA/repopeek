@@ -21,13 +21,49 @@ defined in the Phase 3 architecture specification:
 from collections import deque
 from dataclasses import asdict, dataclass, field
 import fnmatch
+import json
 import math
 from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 
+# Hard ceiling on the serialized impact payload so a high-degree hub node cannot emit a
+# multi-hundred-KB report. Budgeted on the compact (no-indent) dict; the MCP layer may
+# pretty-print (~+15%), so this stays well below the neighbors < 15k bar.
+MAX_IMPACT_PAYLOAD_CHARS = 11500
+
 from repopeek.models.schema import CanonicalGraph, Confidence, Edge, EdgeType
+from repopeek.graph.identity import is_config_kind, is_sql_table_kind, language_from_node_id
 
 
-# ── Edge Prior Confidence Table ──
+# Safety bounds so a query can never emit an effectively unbounded report.
+MAX_EXPANSION_NODES = 200
+MAX_FANOUT = 24
+HIGH_DEGREE_THRESHOLD = 40
+MAX_TRAVERSED_EDGES = 400
+MAX_DIRECT_REPORT = 80
+MAX_INDIRECT_REPORT = 40
+
+_CROSS_LANG_EDGE_TYPES = {
+    EdgeType.INVOKES,
+    EdgeType.CO_CHANGED_WITH,
+    EdgeType.EMBEDS_SQL,
+    EdgeType.READS,
+    EdgeType.WRITES,
+}
+
+_EDGE_EXPAND_PRIORITY = {
+    "CALLS": 0,
+    "INHERITS": 1,
+    "IMPLEMENTS": 2,
+    "INVOKES": 3,
+    "DEFINED_IN": 4,
+    "TESTS_CODE": 5,
+    "WRITES": 6,
+    "READS": 7,
+    "EMBEDS_SQL": 8,
+    "IMPORTS": 9,
+    "RUNS_SCRIPT": 10,
+    "CO_CHANGED_WITH": 11,
+}
 # Calibrated priors for relationship types and confidence enums
 EDGE_CONFIDENCE_PRIORS: Dict[str, float] = {
     # Relational types
@@ -140,9 +176,27 @@ class AffectedNode:
     story: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
-        d = asdict(self)
-        d["confidence"] = self.combined_confidence
-        return d
+        # Compact serialization. The full per-hop ``paths`` evidence is intentionally
+        # omitted: on hub nodes it balloons the payload to hundreds of KB, and no consumer
+        # (compiler, MCP, CLI, viewer) reads it from the dict — they use confidence,
+        # citation, distance, and graph_score. Hop detail stays on the dataclass object.
+        story = self.story
+        if story and len(story) > 160:
+            story = story[:160] + "…"
+        return {
+            "node_id": self.node_id,
+            "kind": self.kind,
+            "file": self.file,
+            "citation": self.citation,
+            "distance": self.distance,
+            "combined_confidence": self.combined_confidence,
+            "confidence": self.combined_confidence,
+            "graph_score": self.graph_score,
+            "category": self.category,
+            "path_count": len(self.paths),
+            "top_path_confidence": self.paths[0].path_confidence if self.paths else 0.0,
+            "story": story,
+        }
 
 
 @dataclass
@@ -175,15 +229,21 @@ class BlastRadiusReport:
     metrics: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
-        """Serialize report to a dictionary compatible with existing engine.impact() contracts."""
-        all_affected = self.direct + self.indirect
-        affected_nodes_dict = [n.to_dict() for n in all_affected]
+        """Serialize report to a dictionary compatible with existing engine.impact() contracts.
+
+        Node lists are compact (no per-hop paths) and capped, and the whole payload is
+        trimmed to ``MAX_IMPACT_PAYLOAD_CHARS`` so hub nodes stay within the neighbors
+        budget. The true counts are preserved in ``*_count`` and ``truncated``.
+        """
+        all_affected = [n for n in (self.direct + self.indirect) if not str(n.node_id).startswith("ext:")]
+        cap = 25
+        affected_nodes_dict = [n.to_dict() for n in all_affected[:cap]]
         # Also provide simplified fields matching legacy API
         for item in affected_nodes_dict:
             item["id"] = item["node_id"]
             item["depth"] = item["distance"]
 
-        return {
+        result: Dict[str, Any] = {
             "target": self.target_id,
             "target_citation": self.target_citation,
             "found": self.found,
@@ -192,15 +252,36 @@ class BlastRadiusReport:
             "direct_count": len(self.direct),
             "indirect_count": len(self.indirect),
             "excluded_count": len(self.excluded),
-            "direct": [n.to_dict() for n in self.direct],
-            "indirect": [n.to_dict() for n in self.indirect],
-            "excluded": [e.to_dict() for e in self.excluded],
+            "direct": [n.to_dict() for n in self.direct[:15] if not str(n.node_id).startswith("ext:")],
+            "indirect": [n.to_dict() for n in self.indirect[:15] if not str(n.node_id).startswith("ext:")],
+            "excluded": [e.to_dict() for e in self.excluded[:10]],
             "affected_files": sorted(self.affected_files),
             "affected_tables": sorted(self.affected_tables),
             "affected_configs": sorted(self.affected_configs),
-            "traversed_edges": self.traversed_edges,
+            "traversed_edges": self.traversed_edges[:20],
             "metrics": self.metrics,
+            "truncated": len(all_affected) > cap,
         }
+
+        # Hard budget guard: shed the lowest-value material (indirect → extra affected →
+        # traversed edges → direct) until the serialized payload is within budget.
+        def _too_big() -> bool:
+            return len(json.dumps(result, default=str)) > MAX_IMPACT_PAYLOAD_CHARS
+
+        while _too_big():
+            if len(result["indirect"]) > 3:
+                result["indirect"].pop()
+            elif len(result["affected_nodes"]) > 5:
+                result["affected_nodes"].pop()
+            elif result["traversed_edges"]:
+                result["traversed_edges"] = result["traversed_edges"][: max(0, len(result["traversed_edges"]) - 3)]
+            elif len(result["direct"]) > 3:
+                result["direct"].pop()
+            else:
+                break
+            result["truncated"] = True
+
+        return result
 
 
 _EXCLUSION_CACHE: Dict[Tuple[str, Tuple[str, ...]], bool] = {}
@@ -229,11 +310,15 @@ def is_node_excluded(
     file_path = ""
     if node_card and getattr(node_card, "span", None) and node_card.span.file:
         file_path = node_card.span.file.replace("\\", "/").strip()
-    elif "::" in node_id:
-        for part in node_id.split("::"):
-            if "/" in part or "\\" in part or part.endswith((".py", ".ts", ".js", ".sql", ".sh", ".json", ".yaml", ".yml")):
-                file_path = part.replace("\\", "/").strip()
-                break
+    if not file_path:
+        raw_id = node_id.replace("\\", "/")
+        if "::" in raw_id:
+            for part in raw_id.split("::"):
+                if "/" in part or part.endswith((".py", ".ts", ".js", ".jsx", ".tsx", ".sql", ".sh", ".json", ".yaml", ".yml")):
+                    file_path = part.strip()
+                    break
+        elif "/" in raw_id or raw_id.endswith((".py", ".ts", ".js", ".jsx", ".tsx", ".sql", ".sh", ".json", ".yaml", ".yml")):
+            file_path = raw_id.strip()
 
     # Extract symbol name and parent symbol from node_id
     id_parts = node_id.split("::")
@@ -289,7 +374,11 @@ def is_node_excluded(
                 if file_path == exc_norm or norm_file == "/" + exc_norm.lstrip("/"):
                     _EXCLUSION_CACHE[cache_key] = True
                     return True
-                if file_path.endswith("/" + exc_norm):
+                if file_path.endswith("/" + exc_norm) or file_path.endswith(exc_norm):
+                    _EXCLUSION_CACHE[cache_key] = True
+                    return True
+                from pathlib import PurePosixPath
+                if PurePosixPath(file_path).name == PurePosixPath(exc_norm).name and exc_norm.endswith(PurePosixPath(file_path).suffix):
                     _EXCLUSION_CACHE[cache_key] = True
                     return True
                 # If exc_norm is a directory name without trailing slash
@@ -400,7 +489,25 @@ def compute_blast_radius(
             for e in outgoing_edges.get(curr_id, []):
                 candidate_hops.append((e, e.dst, "downstream"))
 
+        curr_degree = len(incoming_edges.get(curr_id, [])) + len(outgoing_edges.get(curr_id, []))
+        if depth >= 1 and curr_degree >= HIGH_DEGREE_THRESHOLD:
+            continue
+        if len(node_paths) >= MAX_EXPANSION_NODES:
+            break
+
+        candidate_hops.sort(
+            key=lambda item: (
+                _EDGE_EXPAND_PRIORITY.get(item[0].type.value, 20),
+                item[1],
+                item[2],
+            )
+        )
+        if len(candidate_hops) > MAX_FANOUT:
+            candidate_hops = candidate_hops[:MAX_FANOUT]
+
         for edge, next_id, flow_dir in candidate_hops:
+            if len(traversed_edges_list) >= MAX_TRAVERSED_EDGES:
+                break
             edge_key = (edge.src, edge.dst, edge.type.value, flow_dir)
             if edge_key not in seen_edges:
                 seen_edges.add(edge_key)
@@ -413,7 +520,20 @@ def compute_blast_radius(
                 })
 
             if next_id in path_visited:
-                # Avoid cycles in this path
+                continue
+
+            conf_enum = edge.confidence.value if hasattr(edge.confidence, "value") else str(edge.confidence)
+
+            src_lang = language_from_node_id(curr_id)
+            dst_lang = language_from_node_id(next_id)
+            if (
+                edge.type not in _CROSS_LANG_EDGE_TYPES
+                and src_lang
+                and dst_lang
+                and src_lang != dst_lang
+            ):
+                continue
+            if not dst_lang and depth >= 1:
                 continue
 
             step_prior = get_edge_prior(edge)
@@ -451,12 +571,15 @@ def compute_blast_radius(
             new_steps = current_steps + [step]
             node_paths.setdefault(next_id, []).append(new_steps)
 
-            # Update shortest distance
             if next_id not in node_min_dist or depth + 1 < node_min_dist[next_id]:
                 node_min_dist[next_id] = depth + 1
 
-            # Bounded exploration: continue queue if paths to next_id <= 3
-            if len(node_paths[next_id]) <= 3:
+            expand = True
+            if conf_enum.lower() in ("external", "unresolved"):
+                expand = False
+            if next_node and next_node.kind == "external_symbol":
+                expand = False
+            if expand and len(node_paths[next_id]) <= 3:
                 queue.append((next_id, new_steps, path_visited | {next_id}))
 
     # 3. Compute mathematical confidence scores & partitions
@@ -470,9 +593,9 @@ def compute_blast_radius(
 
     if target_node.span and target_node.span.file:
         affected_files.add(target_node.span.file)
-    if "table" in target_node.id:
+    if is_sql_table_kind(target_node.kind):
         affected_tables.add(target_node.id.split("::")[-1])
-    if "config" in target_node.id or target_node.kind in ("json_config", "yaml_config"):
+    if is_config_kind(target_node.kind):
         affected_configs.add(target_node.id.split("::")[-1])
 
     for node_id, paths in node_paths.items():
@@ -536,18 +659,20 @@ def compute_blast_radius(
         # Aggregate affected artifacts
         if file_path:
             affected_files.add(file_path)
-        if "table" in node_id:
+        if is_sql_table_kind(kind):
             affected_tables.add(node_id.split("::")[-1])
-        if "config" in node_id or kind in ("json_config", "yaml_config"):
+        if is_config_kind(kind):
             affected_configs.add(node_id.split("::")[-1])
 
     # Merge explicit exclusions and confidence-pruned nodes
     all_excluded_nodes = explicit_excluded_nodes + excluded_nodes
 
     # Sort partitions by graph_score descending
-    direct_nodes.sort(key=lambda n: n.graph_score, reverse=True)
-    indirect_nodes.sort(key=lambda n: n.graph_score, reverse=True)
-    all_excluded_nodes.sort(key=lambda e: e.confidence, reverse=True)
+    direct_nodes.sort(key=lambda n: (-n.graph_score, n.node_id))
+    indirect_nodes.sort(key=lambda n: (-n.graph_score, n.node_id))
+    all_excluded_nodes.sort(key=lambda e: (-e.confidence, e.node_id))
+    direct_nodes = direct_nodes[:MAX_DIRECT_REPORT]
+    indirect_nodes = indirect_nodes[:MAX_INDIRECT_REPORT]
 
     # Filter affected_files to ensure no excluded paths remain
     if exclusions:

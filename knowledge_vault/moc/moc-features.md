@@ -3,7 +3,7 @@ id: moc-features
 type: moc
 title: "Features \u2014 Map of Content"
 summary: Hub for all end-user and agent-facing capabilities in Repopeek.
-last_verified: 2026-10-03
+last_verified: 2026-10-06
 affects: ['[[plan]]', '[[feat-evaluation-benchmarking]]', '[[feat-real-world-validation]]']
 depends_on: []
 ---

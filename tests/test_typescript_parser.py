@@ -266,3 +266,40 @@ export async function renderProfile(userId: string) {
     edge = call_edges[0]
     assert edge.dst == "ts:src/api.ts::fetchUserData"
     assert edge.confidence == Confidence.RESOLVED
+
+
+def test_hook_wrapped_arrow_and_screaming_const_emission():
+    """useCallback/useMemo-wrapped arrows and SCREAMING_SNAKE consts must become nodes.
+
+    Regression (dais DAIS-003): `const login = useCallback(async () => {...}, [])` and
+    module-level `const API_BASE_URL = ...` were never emitted, so symbol recall was 0.
+    """
+    source = """import { useCallback } from 'react';
+
+const API_BASE_URL = `${import.meta.env.VITE_API}/api/v1/`;
+const REMEMBER_ME_DAYS = 30;
+
+export const AuthProvider = ({ children }) => {
+  const login = useCallback(async (email, password) => {
+    const res = await fetch(`${API_BASE_URL}auth/login`, { method: 'POST' });
+    return res.json();
+  }, []);
+
+  const logout = useCallback(() => {
+    setUser(null);
+  }, []);
+
+  return children;
+};
+"""
+    res = TypeScriptParser().parse_source(source, "app/src/contexts/AuthContext.jsx")
+    by_name = {n.id.split("::")[-1]: n for n in res.nodes}
+
+    # Hook-wrapped arrow functions are captured as function nodes.
+    assert "login" in by_name and by_name["login"].kind == "function"
+    assert "logout" in by_name and by_name["logout"].kind == "function"
+    # SCREAMING_SNAKE module constants are captured as variable nodes.
+    assert "API_BASE_URL" in by_name and by_name["API_BASE_URL"].kind == "variable"
+    assert "REMEMBER_ME_DAYS" in by_name and by_name["REMEMBER_ME_DAYS"].kind == "variable"
+    # The login function's HTTP call is attributed to it for the cross-language bridge.
+    assert any(r.startswith("HTTP:") for r in by_name["login"].facts.reads)

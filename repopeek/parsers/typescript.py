@@ -67,6 +67,21 @@ FUNC_EXPR_RE = re.compile(
     r"(?::\s*[^=]+)?\s*=\s*(?:async\s+)?function(?:\s*\*)?\s*"
     r"(?:<[^>]+>)?\s*\(([^)]*)\)(?:\s*:\s*([^{]+))?\s*\{"
 )
+# Arrow function wrapped in a React hook / HOC, e.g.
+#   const login = useCallback(async (email, password) => { ... }, [])
+#   const Row = memo(({ item }) => { ... })
+# ARROW_FUNC_RE cannot see these because a call expression sits between '=' and '=>'.
+WRAPPED_ARROW_RE = re.compile(
+    r"\b(?:export\s+)?(?:const|let|var)\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=\s*"
+    r"(?:React\.)?(?:useCallback|useMemo|memo|forwardRef)\s*(?:<[^>]*>)?\s*\(\s*"
+    r"(?:async\s+)?(?:\(([^)]*)\)|([a-zA-Z_$][a-zA-Z0-9_$]*))\s*(?::[^=]+?)?=>\s*\{"
+)
+# Module-level SCREAMING_SNAKE_CASE constants (API_BASE_URL, REMEMBER_ME_DAYS, …) that
+# tasks frequently reference. Scoped to all-caps names to stay bounded and avoid emitting
+# a node for every local variable.
+CONST_DECL_RE = re.compile(
+    r"\b(?:export\s+)?const\s+([A-Z][A-Z0-9_]{2,})\s*(?::\s*[^=;]+)?=\s*([^;\n]+)"
+)
 
 # Method inside class body (captures entire declaration in group 1, method name in group 2)
 METHOD_DEF_RE = re.compile(
@@ -91,8 +106,8 @@ HTTP_CALL_RE = re.compile(
 )
 
 
-def _extract_http_calls(code: str) -> List[str]:
-    """Extract client HTTP requests with optional HTTP methods."""
+def _extract_http_calls(code: str, extra_wrappers: Optional[List[str]] = None) -> List[str]:
+    """Extract client HTTP requests with optional HTTP methods and wrapper helpers."""
     reads = []
     for m in HTTP_CALL_RE.finditer(code):
         if m.group(1):
@@ -101,7 +116,65 @@ def _extract_http_calls(code: str) -> List[str]:
             reads.append(f"HTTP:{m.group(2).upper()}:{m.group(3)}")
         elif m.group(4):
             reads.append(f"HTTP:{m.group(4)}")
+    if extra_wrappers:
+        names = [n for n in extra_wrappers if n and n not in ("fetch", "if", "for")]
+        if names:
+            alt = "|".join(re.escape(n) for n in sorted(set(names), key=len, reverse=True))
+            wr = re.compile(
+                rf"\b(?:{alt})\s*(?:<[^>]*>)?\s*\(\s*['\"`]([^'\"`]+)['\"`]",
+                re.IGNORECASE,
+            )
+            for m in wr.finditer(code):
+                url = m.group(1)
+                if url.startswith("/") or url.startswith("http") or "/api" in url.lower():
+                    tag = f"HTTP:{url}"
+                    if tag not in reads:
+                        reads.append(tag)
     return reads
+
+
+def _looks_like_http_client_impl(code: str) -> bool:
+    if not code:
+        return False
+    return bool(
+        HTTP_CALL_RE.search(code)
+        or re.search(r"\b(?:fetch|axios)\s*\(", code)
+        or re.search(r"\baxios\.(get|post|put|delete|patch)\s*\(", code)
+    )
+
+
+def _propagate_http_wrapper_calls(nodes: List[NodeCard], source: str = "") -> None:
+    """If a function wraps fetch/axios, treat its callers' URL arguments as HTTP calls."""
+    wrappers: List[str] = []
+    for n in nodes:
+        if n.kind not in ("function", "method"):
+            continue
+        body = n.snippet or ""
+        if any(r.startswith("HTTP:") for r in n.facts.reads) or _looks_like_http_client_impl(body):
+            name = n.id.split("::")[-1].split(".")[-1]
+            if name and name not in ("fetch", "axios"):
+                wrappers.append(name)
+    if source:
+        for m in re.finditer(
+            r"(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*(?:<[^>]*>)?\s*\(",
+            source,
+        ):
+            name = m.group(1)
+            window = source[m.start() : m.start() + 900]
+            if name not in ("fetch", "axios") and _looks_like_http_client_impl(window):
+                wrappers.append(name)
+    wrappers = list(dict.fromkeys(wrappers))
+    if not wrappers:
+        return
+    for n in nodes:
+        if n.kind not in ("function", "method") or not n.snippet:
+            continue
+        extra = _extract_http_calls(n.snippet, wrappers)
+        for tag in extra:
+            if tag not in n.facts.reads:
+                n.facts.reads.append(tag)
+        if _looks_like_http_client_impl(n.snippet) and not any(r.startswith("HTTP:") for r in n.facts.reads):
+            n.facts.reads.append("HTTP:wrapper")
 
 
 # ---------------------------------------------------------------------------
@@ -943,6 +1016,113 @@ class TypeScriptParser(BaseParser):
                         ),
                     )
                 )
+
+        # -------------------------------------------------------------------
+        # 6. Hook / HOC-wrapped arrow functions (useCallback/useMemo/memo/forwardRef)
+        # -------------------------------------------------------------------
+        existing_ids = {n.id for n in nodes}
+        for m in WRAPPED_ARROW_RE.finditer(sanitized):
+            func_name = m.group(1)
+            func_id = NodeCard.make_id(lang_code, norm_path, func_name)
+            if func_id in existing_ids:
+                continue
+            params_str = m.group(2) if m.group(2) is not None else (m.group(3) or "")
+
+            open_brace_idx = m.end() - 1
+            close_brace_idx = _find_matching_brace(sanitized, open_brace_idx)
+            start_line = _get_line_number(line_starts, m.start())
+            end_line = _get_line_number(line_starts, close_brace_idx)
+
+            raw_func_code = source[m.start() : close_brace_idx + 1]
+            func_body = source[open_brace_idx + 1 : close_brace_idx]
+
+            parsed_params = _parse_params(params_str)
+            raises_list = list(dict.fromkeys(THROW_RE.findall(func_body)))
+            complexity_score = 1 + len(COMPLEXITY_RE.findall(func_body))
+            func_calls = _extract_calls_from_code(func_body, line_starts, open_brace_idx + 1, norm_path)
+            http_reads = _extract_http_calls(func_body)
+
+            func_card = NodeCard(
+                id=func_id,
+                kind="function",
+                sig=f"const {func_name} = ({params_str.strip()}) => ...",
+                span=Span(file=norm_path, start=start_line, end=end_line),
+                facts=NodeFacts(
+                    params=parsed_params,
+                    raises=raises_list,
+                    complexity=complexity_score,
+                    calls=len(func_calls),
+                    reads=http_reads,
+                ),
+                story=NodeStory(
+                    text=jsdoc_map.get(start_line, f"Arrow function {func_name}"),
+                    source="deterministic",
+                    confidence="high",
+                ),
+                snippet=raw_func_code if len(raw_func_code) <= 1500 else raw_func_code[:1500] + "...",
+                content_hash=hash_content(raw_func_code),
+            )
+            nodes.append(func_card)
+            existing_ids.add(func_id)
+            edges.append(
+                Edge(
+                    src=file_id,
+                    dst=func_id,
+                    type=EdgeType.DEFINED_IN,
+                    confidence=Confidence.RESOLVED,
+                    evidence=Evidence(file=norm_path, start_line=start_line, end_line=end_line, how_derived="ts_hook_arrow"),
+                )
+            )
+            for callee, call_line in func_calls:
+                edges.append(
+                    Edge(
+                        src=func_id,
+                        dst=callee,
+                        type=EdgeType.CALLS,
+                        confidence=Confidence.RESOLVED,
+                        evidence=Evidence(file=norm_path, start_line=call_line, end_line=call_line, how_derived="ts_call"),
+                    )
+                )
+
+        # -------------------------------------------------------------------
+        # 7. Module-level SCREAMING_SNAKE constants (API_BASE_URL, REMEMBER_ME_DAYS, …)
+        # -------------------------------------------------------------------
+        for m in CONST_DECL_RE.finditer(sanitized):
+            const_name = m.group(1)
+            const_id = NodeCard.make_id(lang_code, norm_path, const_name)
+            if const_id in existing_ids:
+                continue
+            value_expr = m.group(2) or ""
+            # Skip function-valued constants: those are captured as function nodes above.
+            if "=>" in value_expr or value_expr.lstrip().startswith("function"):
+                continue
+            start_line = _get_line_number(line_starts, m.start())
+            const_card = NodeCard(
+                id=const_id,
+                kind="variable",
+                sig=f"const {const_name}",
+                span=Span(file=norm_path, start=start_line, end=start_line),
+                facts=NodeFacts(),
+                story=NodeStory(
+                    text=jsdoc_map.get(start_line, f"Module constant {const_name}"),
+                    source="deterministic",
+                    confidence="high",
+                ),
+                content_hash=hash_content(f"{const_name}={value_expr.strip()}"),
+            )
+            nodes.append(const_card)
+            existing_ids.add(const_id)
+            edges.append(
+                Edge(
+                    src=file_id,
+                    dst=const_id,
+                    type=EdgeType.DEFINED_IN,
+                    confidence=Confidence.RESOLVED,
+                    evidence=Evidence(file=norm_path, start_line=start_line, end_line=start_line, how_derived="ts_const"),
+                )
+            )
+
+        _propagate_http_wrapper_calls(nodes, source)
 
         return ParseResult(
             file_path=Path(rel_path),

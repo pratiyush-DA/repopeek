@@ -1,5 +1,6 @@
 """Cost governor tracking token consumption and enforcing budget thresholds."""
 
+import threading
 from typing import Any, Dict
 
 
@@ -31,6 +32,7 @@ class CostGovernor:
         self.llm_calls: int = 0
         self.fallback_calls: int = 0
         self.estimated_cost_usd: float = 0.0
+        self._lock = threading.Lock()
 
     @property
     def total_tokens(self) -> int:
@@ -38,13 +40,14 @@ class CostGovernor:
 
     def can_call_llm(self, estimated_tokens: int = 200) -> bool:
         """Check if an LLM completion can be made within budget and run-mode limits."""
-        if self.dry_run:
-            return False
-        if (self.total_tokens + estimated_tokens) > self.max_tokens:
-            return False
-        if self.estimated_cost_usd >= self.max_cost_usd:
-            return False
-        return True
+        with self._lock:
+            if self.dry_run:
+                return False
+            if (self.total_tokens + estimated_tokens) > self.max_tokens:
+                return False
+            if self.estimated_cost_usd >= self.max_cost_usd:
+                return False
+            return True
 
     def record_usage(
         self,
@@ -54,22 +57,23 @@ class CostGovernor:
         model: str = "default",
     ) -> None:
         """Account for tokens processed and update cumulative dollar spend."""
-        self.prompt_tokens += prompt_tokens
-        self.completion_tokens += completion_tokens
-        self.cached_tokens += cached_tokens
-        self.llm_calls += 1
+        with self._lock:
+            self.prompt_tokens += prompt_tokens
+            self.completion_tokens += completion_tokens
+            self.cached_tokens += cached_tokens
+            self.llm_calls += 1
 
-        rate = self.RATES_PER_1M.get(model, self.RATES_PER_1M["default"])
-        # Cached tokens receive ~50% discount on prompt input
-        billable_prompt = max(0, prompt_tokens - (cached_tokens // 2))
-        cost = (billable_prompt / 1_000_000.0) * rate["input"] + (
-            completion_tokens / 1_000_000.0
-        ) * rate["output"]
-        self.estimated_cost_usd += cost
+            rate = self.RATES_PER_1M.get(model, self.RATES_PER_1M["default"])
+            billable_prompt = max(0, prompt_tokens - (cached_tokens // 2))
+            cost = (billable_prompt / 1_000_000.0) * rate["input"] + (
+                completion_tokens / 1_000_000.0
+            ) * rate["output"]
+            self.estimated_cost_usd += cost
 
     def record_fallback(self) -> None:
         """Record an operation delegated to zero-cost deterministic fallback."""
-        self.fallback_calls += 1
+        with self._lock:
+            self.fallback_calls += 1
 
     def get_summary(self) -> Dict[str, Any]:
         """Return cumulative financial and volume audit figures."""
