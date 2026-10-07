@@ -376,6 +376,21 @@ class ContextCompiler:
             or bool(re.search(r"\.(jsx|tsx|vue|svelte)\b", raw_l))
             or any(str(p).lower().endswith((".jsx", ".tsx", ".ts")) for p in intent.paths)
         )
+        # Data/schema intent: when a task is about DDL, prefer files that actually host a
+        # schema definition (a .sql file, or a .py file with embedded CREATE TABLE) over an
+        # eponymous module that merely shares the table's name.
+        data_intent = any(
+            w in raw_l for w in (
+                "schema", "create table", "database schema", "migration", " ddl ",
+                "table definition", "drop table", "alter table",
+            )
+        )
+        ddl_host_files: Set[str] = set()
+        if data_intent:
+            for _n in self.graph.nodes.values():
+                fp = _n.span.file if _n.span else None
+                if fp and (is_sql_table_kind(_n.kind) or "::table." in _n.id):
+                    ddl_host_files.add(fp.replace("\\", "/"))
 
         def _score_file(path: str, base: float) -> float:
             p = path.replace("\\", "/")
@@ -386,6 +401,8 @@ class ContextCompiler:
                 s += 5.0
             elif any(len(i) > 3 and (i in stem or stem in i) for i in ident_l):
                 s += 2.0
+            if data_intent and (pl.endswith(".sql") or p in ddl_host_files):
+                s += 4.0
             if frontend_intent:
                 if pl.endswith((".jsx", ".js", ".tsx", ".ts")):
                     s += 3.0
@@ -462,6 +479,38 @@ class ContextCompiler:
                     if evictable:
                         keep_files.discard(evictable[-1])
                 keep_files.add(best_fp)
+
+        # Data/schema recall backstop: for a DDL task, ensure every file that defines a
+        # table matching the task (by table-name overlap) is in the pack — even when the
+        # table was defined via embedded SQL and outranked by an eponymous module, and even
+        # when the same table name is defined in more than one file (genuine ambiguity).
+        if data_intent:
+            schema_toks = {t.lower() for t in (intent.identifiers + intent.concepts + intent.stemmed_concepts) if t}
+            file_match: Dict[str, float] = {}
+            for node in self.graph.nodes.values():
+                fp = node.span.file if node.span else None
+                if not fp or _file_blocked(fp):
+                    continue
+                if not (is_sql_table_kind(node.kind) or "::table." in node.id):
+                    continue
+                tname = node.id.split("::")[-1].split(".")[-1].lower()
+                tname_toks = set(re.findall(r"[a-z0-9]+", tname))
+                score = len(tname_toks & schema_toks) + (2.0 if tname in schema_toks else 0.0)
+                if score > 0:
+                    fpn = fp.replace("\\", "/")
+                    file_match[fpn] = max(file_match.get(fpn, 0.0), score)
+            if file_match:
+                best = max(file_match.values())
+                for fp, sc in sorted(file_match.items(), key=lambda kv: (-kv[1], kv[0])):
+                    if sc < best or fp in keep_files:
+                        continue
+                    if len(keep_files) >= 4:
+                        evictable = [f for f in ranked_files if f in keep_files and f != ranked_files[0]]
+                        if evictable:
+                            keep_files.discard(evictable[-1])
+                        else:
+                            break
+                    keep_files.add(fp)
 
         all_affected_files = {f for f in keep_files if not _file_blocked(f)}
         entrypoints = [ep for ep in entrypoints if not ep.get("file") or ep.get("file") in keep_files]

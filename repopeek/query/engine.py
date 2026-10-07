@@ -281,13 +281,19 @@ class GraphQueryEngine:
                         if e.src in self.graph.nodes and self.graph.nodes[e.src].story else None,
                     })
 
-        return {
+        result = {
             "entity": entity_id,
             "writers_count": len(writers),
             "readers_count": len(readers),
             "writers": writers[:30],
             "readers": readers[:30],
         }
+        if not writers and not readers:
+            result["note"] = (
+                f"No reads/writes found for '{entity_query}'. It may not be a tracked data "
+                "entity, table, or variable in this graph (try repopeek_lookup or repopeek_resolve)."
+            )
+        return result
 
     def context_pack(
         self,
@@ -624,7 +630,7 @@ class GraphQueryEngine:
             for e in resolved_edges
         ]
 
-        return {
+        result = {
             "routes": routes_data[:40],
             "calls": calls_data[:40],
             "links": links_data[:40],
@@ -632,5 +638,11 @@ class GraphQueryEngine:
             "total_calls": len(calls_data),
             "total_links": len(links_data),
         }
+        if not routes_data and not links_data:
+            result["note"] = (
+                "No HTTP routes or client calls detected — this repository has no recognized "
+                "web/API layer (FastAPI/Flask/Express/Django routes or fetch/axios clients)."
+            )
+        return result
 
 

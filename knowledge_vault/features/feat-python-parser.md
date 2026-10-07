@@ -2,14 +2,14 @@
 id: feat-python-parser
 type: feature
 title: Python Parser
-summary: Mechanically extract function definitions, call relationships, imports, and embedded SQL from .py files via AST analysis with syntax-error fallback.
+summary: Mechanically extract function definitions, call relationships, imports, and embedded SQL (incl. file-anchored CREATE TABLE/FUNCTION nodes) from .py files via AST analysis with syntax-error fallback.
 status: active
 tags: [phase3, parser, deterministic]
-code_refs: [repopeek/parsers/python.py, repopeek/parsers/base.py]
+code_refs: [repopeek/parsers/python.py, repopeek/parsers/base.py, tests/test_python_parser.py]
 depends_on: ['[[adr-005-python-parser-tbd]]', '[[comp-parsers]]', '[[data-node-file]]',
   '[[data-node-function]]', '[[feat-file-classification]]', '[[req-deterministic-extraction]]']
 affects: ['[[data-node-file]]', '[[data-node-function]]', '[[feat-graph-construction]]', '[[feat-http-bridge]]']
-last_verified: 2026-10-05
+last_verified: 2026-10-06
 source: "_sources/task_list.md §Phase 3"
 ---
 # Python Parser
@@ -27,7 +27,7 @@ Produces the deterministic Python substrate of the graph. Every function, method
   - `CALLS` edges from caller functions to invoked functions/methods with line evidence.
   - `RAISES` edges to raised exceptions.
   - `DEFINED_IN` edges anchoring functions and classes to parent lexical scopes.
-  - `EMBEDS_SQL` edges and `sql_query` nodes for detected SQL query literals.
+  - `EMBEDS_SQL` edges and `sql_query` nodes for detected SQL query literals. Embedded DDL is dispatched by kind: a `CREATE TABLE` / `CREATE FUNCTION` inside a string literal becomes a **file-anchored, name-searchable** node (`sql:<pyfile>::table.<name>` / `function.<name>`, `facts.writes=[name]`) rather than an unresolved external read of the created object — so "schema defined in Python" is first-class and retrievable.
 - **Resilient Fallback:** When `ast.parse` encounters `SyntaxError`, the parser shifts to line-by-line regex scanning (`FALLBACK_FUNC_RE`, `FALLBACK_CLASS_RE`, `FALLBACK_IMPORT_RE`), producing partial nodes flagged with `confidence="unresolved"` so broken files never crash repo crawls.
 
 ## Impact (blast radius)

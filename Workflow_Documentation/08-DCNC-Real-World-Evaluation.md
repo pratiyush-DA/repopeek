@@ -101,3 +101,41 @@ RepoPeek cuts files to open by **~97%** and the token proxy by **~98%**, surfaci
 On a cold, unseen pure-Python repository with no tuning, RepoPeek delivered **0.875 file precision, 0.875 file recall, zero exclusion leaks, ~1 file / ~1.35k-token packs, and ~97% navigation reduction vs grep** — production-grade for the navigation/shortlist use case. The one hard failure (embedded SQL DDL, DCNC-005) and the hub-payload bug (now fixed) are specific, root-caused, and addressed by the P1 plan. Honest ceiling unchanged: a trusted shortlist + spans — **open the listed files; skip repo-wide grep** — not a closed-world oracle.
 
 Raw artifacts (gitignored under `testing/dcnc/`): `results/mcp_matrix.json`, `results/live_comparison.json`, `tasks.yaml`.
+
+
+## Post-improvement results (2026-10-06)
+
+Implemented the P1–P3 plan (see `09-Production-Readiness-Plan.md`) and re-indexed dcnc offline
+(harness scripts excluded via `.repopeekignore`; 116 files, 2,959 nodes).
+
+| Metric | Before | After |
+| --- | ---: | ---: |
+| Mean file recall | 0.875 | **1.000** |
+| Mean file precision | 0.875 | **0.938** |
+| Mean mixed recall | 0.875 | **0.938** |
+| Exclusion leaks | 0/8 | 0/8 |
+| DCNC-005 file recall | 0.0 | **1.0** |
+| `repopeek_impact` chars | 13,032 | 13,032 (bounded) |
+| Live compare: gold reachable | 7/8 | **8/8** (RepoPeek ~1.1 files / ~1.36k tok vs grep 28.9 / ~65k) |
+
+What changed and why it moved the numbers:
+- **P1a (embedded SQL DDL anchoring):** `CREATE TABLE` inside a Python string is now a
+  file-anchored `sql_table` node (`table.<name>`), not an unresolved external read. This made
+  the dcnc `pattern_cache` table retrievable by name.
+- **Finding — genuine duplicate-table ambiguity:** dcnc defines a `pattern_cache` table in
+  **both** `db_manager.py` (unified cache) and `backend/core/llm/pattern_cache.py` (legacy LLM
+  cache). Both legitimately "store LLM-generated patterns keyed by fingerprint_hash", so DCNC-005
+  now surfaces both files (file recall 1.0, precision 0.5 against a single-file gold). This is the
+  correct, honest behavior for an ambiguous schema reference, not a miss.
+- **P1b + data/schema recall backstop:** DDL tasks now ensure every file defining a matching
+  table is in the pack (narrow `data_intent` trigger: schema / create table / ddl / migration —
+  not the over-broad "column", which had briefly pulled a 2nd file into DCNC-007).
+- **P2b (honest empties):** `routes` (279 chars) and `co_changes` (140 chars) now carry an
+  explanatory `note` instead of a bare empty payload on this web-less, squashed-history repo.
+- **P3a/P3b:** systemic MCP payload guard (every tool ≤ 15k) and an index-time
+  "Ignored (not indexed): .git, output, venv" transparency line.
+- **P2a:** already covered — the Python parser emits module/class-level `variable` nodes
+  (`STRATEGY_MAP` et al.); per-parameter defaults (`max_retries`) are intentionally not nodes
+  (one node per parameter = inflation for little gain), so DCNC-001 symbol recall stays 0.75.
+
+Full suite after changes: **207 passed**. Honest ceiling unchanged — a trusted shortlist + spans.

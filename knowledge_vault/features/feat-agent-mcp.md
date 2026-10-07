@@ -8,7 +8,7 @@ tags: [mcp, agent, json-rpc, context-pack, blast-radius]
 code_refs: [repopeek/query/mcp_server.py, repopeek/query/engine.py, repopeek/cli.py]
 depends_on: ['[[feat-query-cli]]', '[[feat-context-compiler]]', '[[feat-traversal-confidence]]', '[[plan-phase-3]]']
 affects: ['[[log-phase-3]]']
-last_verified: 2026-10-05
+last_verified: 2026-10-06
 ---
 
 # Agent Model Context Protocol (MCP) Suite
@@ -28,6 +28,15 @@ The server exposes 10 standardized agent tools:
 8. `repopeek_neighbors`: Direct relational traversal returning incoming and outgoing edges.
 9. `repopeek_data_trace`: Cross-language def-use tracing for variables and SQL database tables.
 10. `repopeek_context_pack`: Compact token-budget-governed context packs (<500 tokens).
+
+## 2b. Payload Discipline & Honest Empties
+- **Systemic budget guard:** every tool response is capped at ~15k chars at the serialization
+  boundary; an oversized payload is replaced with a valid-JSON `{truncated, reason, preview}`
+  notice rather than a broken fragment (backstop over the per-tool caps and the blast-radius
+  impact cap).
+- **Honest empties:** `repopeek_routes` / `repopeek_data_trace` / `repopeek_co_changes` return an
+  explanatory `note` when there is no web layer / data entity / git co-change history, instead of
+  a bare empty payload.
 
 ## 3. Invocation Protocol
 - Agents launch the server via `repopeek --serve-mcp`.

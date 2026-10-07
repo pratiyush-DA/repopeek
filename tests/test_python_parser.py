@@ -158,3 +158,33 @@ def test_syntax_error_resilience(parser: PythonParser):
     assert fn_node is not None
     assert fn_node.kind == "function"
     assert fn_node.story.confidence == "unresolved"
+
+
+def test_embedded_create_table_is_file_anchored_sql_table(parser: PythonParser):
+    """CREATE TABLE inside a Python string becomes a file-anchored, name-searchable node.
+
+    Regression (dcnc DCNC-005): embedded DDL was emitted as a generic query_L node and the
+    created table surfaced as an unresolved external READ, so schema tasks could not resolve
+    to the hosting .py file.
+    """
+    code = '''import sqlite3
+
+def init_db(conn):
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS pattern_cache (
+            id INTEGER PRIMARY KEY,
+            fingerprint_hash TEXT UNIQUE NOT NULL,
+            patterns TEXT NOT NULL
+        )
+    """)
+'''
+    res = parser.parse_source(source=code, rel_path="backend/db.py")
+
+    tbl = next((n for n in res.nodes if n.kind == "sql_table" and "pattern_cache" in n.id), None)
+    assert tbl is not None
+    assert tbl.id == "sql:backend/db.py::table.pattern_cache"
+    assert tbl.span.file == "backend/db.py"
+    assert "pattern_cache" in tbl.facts.writes
+    # The created table is a definition, not an unresolved external read.
+    read_dsts = [e.dst for e in res.edges if e.type == EdgeType.READS]
+    assert "pattern_cache" not in read_dsts

@@ -238,3 +238,16 @@ def test_cli_snippet_and_incremental_update(tmp_path, capsys):
     out_update = capsys.readouterr().out
     assert "Updated graph for" in out_update
 
+
+
+def test_empty_tool_responses_carry_a_note(sample_engine):
+    """data_trace and http_routes return an explicit note instead of a silent empty result."""
+    # A clearly non-existent data entity.
+    trace = sample_engine.data_trace("ZzNoSuchEntity12345")
+    assert trace["writers_count"] == 0 and trace["readers_count"] == 0
+    assert "note" in trace and trace["note"]
+
+    # http_routes on a repo with no web layer should explain the empty result.
+    routes = sample_engine.http_routes()
+    if routes["total_routes"] == 0 and routes["total_links"] == 0:
+        assert "note" in routes and routes["note"]

@@ -502,6 +502,16 @@ def main(argv=None) -> int:
     print("\nScanning repository...")
     discovered = discover_repository(resolved_repo, config)
     print(f"Discovered {len(discovered)} files.")
+    try:
+        from repopeek.discovery.ignore import DEFAULT_IGNORE_DIRS
+        skipped = sorted(
+            d.name for d in resolved_repo.iterdir()
+            if d.is_dir() and d.name in DEFAULT_IGNORE_DIRS
+        )
+        if skipped:
+            print(f"Ignored (not indexed): {', '.join(skipped)}")
+    except Exception:
+        pass
     if len(discovered) > 400:
         print(
             f"Error: repository has {len(discovered)} files (cap 400). "

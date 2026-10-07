@@ -865,18 +865,35 @@ class PythonParser(BaseParser):
                 if SQL_KEYWORD_PATTERN.search(val):
                     sql_line = sub_node.lineno
                     end_sql_line = getattr(sub_node, "end_lineno", sql_line)
-                    sql_id = NodeCard.make_id("sql", rel_path, f"query_L{sql_line}")
                     preview = " ".join(val.split())
                     if len(preview) > 60:
                         preview = preview[:57] + "..."
 
-                    # Extract referenced SQL tables
+                    # Extract referenced tables and detect embedded DDL. A CREATE TABLE /
+                    # CREATE FUNCTION defined inside a Python string becomes a first-class,
+                    # file-anchored, name-searchable node (table.<name> / function.<name>)
+                    # rather than an unresolved external read reference.
                     sql_reads: Set[str] = set()
                     sql_writes: Set[str] = set()
+                    ddl_table: Optional[str] = None
+                    ddl_func: Optional[str] = None
                     try:
                         for stmt in sqlglot.parse(val):
                             if stmt is None:
                                 continue
+                            if isinstance(stmt, exp.Create):
+                                create_kind = str(stmt.args.get("kind") or "").upper()
+                                tnode = next(stmt.find_all(exp.Table), None)
+                                cname = (
+                                    tnode.name if tnode and tnode.name
+                                    else getattr(getattr(stmt, "this", None), "name", "")
+                                ) or ""
+                                if create_kind == "TABLE" and cname:
+                                    ddl_table = cname.lower()
+                                    continue  # a definition, not a read of the table
+                                if create_kind == "FUNCTION" and cname:
+                                    ddl_func = cname.lower()
+                                    continue
                             for tbl in stmt.find_all(exp.Table):
                                 if tbl.name:
                                     sql_reads.add(tbl.name.lower())
@@ -885,26 +902,44 @@ class PythonParser(BaseParser):
                                 if tgt and tgt.name:
                                     sql_writes.add(tgt.name.lower())
                     except Exception:
-                        for m in re.findall(
-                            r"(?i)\b(?:FROM|JOIN)\s+([a-zA-Z_][a-zA-Z0-9_]*)", val
-                        ):
-                            sql_reads.add(m.lower())
-                        for m in re.findall(
-                            r"(?i)\b(?:INTO|UPDATE)\s+([a-zA-Z_][a-zA-Z0-9_]*)", val
-                        ):
-                            sql_writes.add(m.lower())
+                        m_tbl = re.search(
+                            r"(?i)CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([a-zA-Z_][a-zA-Z0-9_]*)", val
+                        )
+                        if m_tbl:
+                            ddl_table = m_tbl.group(1).lower()
+                        else:
+                            for m in re.findall(r"(?i)\b(?:FROM|JOIN)\s+([a-zA-Z_][a-zA-Z0-9_]*)", val):
+                                sql_reads.add(m.lower())
+                            for m in re.findall(r"(?i)\b(?:INTO|UPDATE)\s+([a-zA-Z_][a-zA-Z0-9_]*)", val):
+                                sql_writes.add(m.lower())
+
+                    if ddl_table:
+                        sql_id = NodeCard.make_id("sql", rel_path, f"table.{ddl_table}")
+                        sql_kind = "sql_table"
+                        sql_story = f"Table {ddl_table} defined via embedded CREATE TABLE in {rel_path}"
+                        node_writes = sorted(set(sql_writes) | {ddl_table})
+                    elif ddl_func:
+                        sql_id = NodeCard.make_id("sql", rel_path, f"function.{ddl_func}")
+                        sql_kind = "sql_query"
+                        sql_story = f"Function {ddl_func} defined via embedded CREATE FUNCTION in {rel_path}"
+                        node_writes = sorted(set(sql_writes) | {ddl_func})
+                    else:
+                        sql_id = NodeCard.make_id("sql", rel_path, f"query_L{sql_line}")
+                        sql_kind = "sql_query"
+                        sql_story = f"Embedded SQL query: {preview}"
+                        node_writes = sorted(list(sql_writes))
 
                     sql_card = NodeCard(
                         id=sql_id,
-                        kind="sql_query",
+                        kind=sql_kind,
                         sig=preview,
                         span=Span(file=rel_path, start=sql_line, end=end_sql_line),
                         facts=NodeFacts(
                             reads=sorted(list(sql_reads)),
-                            writes=sorted(list(sql_writes)),
+                            writes=node_writes,
                         ),
                         story=NodeStory(
-                            text=f"Embedded SQL query: {preview}",
+                            text=sql_story,
                             source="deterministic",
                             confidence="high",
                         ),

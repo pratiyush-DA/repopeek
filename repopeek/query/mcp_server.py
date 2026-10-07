@@ -212,7 +212,13 @@ class RepoPeekMCPServer:
             elif tool_name == "repopeek_co_changes":
                 target = args.get("target", "")
                 res = self.engine.co_changes(target)
-                res_text = json.dumps(res, indent=2)
+                if not res:
+                    res_text = json.dumps({
+                        "co_changes": [],
+                        "note": f"No git co-change history found for '{target}' (shallow clone or squashed history).",
+                    }, indent=2)
+                else:
+                    res_text = json.dumps(res, indent=2)
 
             elif tool_name == "repopeek_resolve":
                 task_str = args.get("task", "")
@@ -249,6 +255,21 @@ class RepoPeekMCPServer:
                     "id": req_id,
                     "error": {"code": -32601, "message": f"Unknown tool '{tool_name}'"},
                 }
+
+            # Systemic payload guard: no tool may emit an unbounded blob. Per-tool caps keep
+            # normal results small; this is the structural backstop that keeps any tool within
+            # the ~15k budget (returns valid JSON, not a truncated/invalid fragment).
+            MAX_TOOL_TEXT_CHARS = 15000
+            if len(res_text) > MAX_TOOL_TEXT_CHARS:
+                res_text = json.dumps({
+                    "truncated": True,
+                    "tool": tool_name,
+                    "reason": (
+                        f"payload {len(res_text)} chars exceeded the {MAX_TOOL_TEXT_CHARS}-char tool "
+                        "budget; narrow the query or use repopeek_context for a focused pack"
+                    ),
+                    "preview": res_text[:2000],
+                }, indent=2)
 
             return {
                 "jsonrpc": "2.0",
