@@ -7,8 +7,8 @@ status: active
 tags: [phase3, context-compiler, constraints, change-plan]
 code_refs: [repopeek/context/__init__.py, repopeek/context/compiler.py, repopeek/query/engine.py, repopeek/cli.py, tests/test_context_compiler.py]
 depends_on: ['[[plan-phase-3]]', '[[feat-intent-retrieval]]', '[[feat-traversal-confidence]]', '[[comp-query]]', '[[moc-features]]']
-affects: ['[[log-phase-3]]', '[[feat-agent-mcp]]']
-last_verified: 2026-10-06
+affects: ['[[log-phase-3]]', '[[feat-agent-mcp]]', '[[feat-session-telemetry]]']
+last_verified: 2026-10-09
 ---
 # Context Compiler, Constraint Extractor & Change Plan Generator
 

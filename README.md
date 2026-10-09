@@ -28,7 +28,8 @@ It is the **primary navigation map**, not a closed-world dump of the repo. Agent
   - `data_trace`: Traces who writes and who reads any table or variable entity.
   - `context_pack`: Compact pack for known symbol ids.
   - `compile_context` / `repopeek_context`: NL task → ≤4 files, exclusions, snippets, `coverage`.
-- **Stdio JSON-RPC MCP Server**: Standard Model Context Protocol server exposing **10 tools** directly to AI IDEs (Antigravity, Cursor, Claude Desktop).
+- **Stdio JSON-RPC MCP Server**: Standard Model Context Protocol server exposing **11 tools** (10 intelligence tools + `repopeek_session_stats`) directly to any MCP-compatible agent (Kiro, Cursor, Claude Desktop, Antigravity, VS Code, Windsurf).
+- **Session Savings Telemetry**: Reports *estimated* tokens and file reads the agent avoided, with optional OpenTelemetry export (no network egress by default).
 
 ---
 
@@ -36,12 +37,27 @@ It is the **primary navigation map**, not a closed-world dump of the repo. Agent
 
 ### 1. Installation
 
+**Recommended (end users): `pipx`** — installs the `repopeek` CLI into its own isolated environment and puts it on your PATH:
+
 ```bash
-# Clone the repository
+pipx install git+https://github.com/pratiyush-DA/repopeek.git
+repopeek --version   # verify the entry point resolved
+```
+
+> **Note:** Under `pipx` the package lives in an isolated venv, so `python -m repopeek` from an arbitrary interpreter will not find it. Use the `repopeek` console script (as shown throughout) — that is the entry point `pipx` exposes.
+
+**Optional telemetry extras** (for the session savings stats via OpenTelemetry):
+
+```bash
+pipx install "repopeek[telemetry] @ git+https://github.com/pratiyush-DA/repopeek.git"       # console export
+pipx install "repopeek[telemetry-otlp] @ git+https://github.com/pratiyush-DA/repopeek.git"   # OTLP export
+```
+
+**Development install (from source):**
+
+```bash
 git clone https://github.com/pratiyush-DA/repopeek.git
 cd repopeek
-
-# Install dependencies in a virtual environment
 python -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 pip install -e .
@@ -111,27 +127,46 @@ python -m repopeek.cli --serve-mcp
 
 ## MCP Server Configuration
 
-To connect RepoPeek to AI coding agents, add the server configuration to your tool's MCP configuration file (e.g. `mcp_config.json` or `claude_desktop_config.json`):
+RepoPeek is a standard stdio JSON-RPC MCP server, so it works with **any MCP-compatible coding agent** — Kiro, Cursor, Claude Desktop, VS Code, Windsurf, Antigravity. Only the config-file location differs; the JSON shape is identical.
+
+### Step A — Index the target repo once (recommended)
+
+```bash
+repopeek --repo-path /absolute/path/to/target-repo --offline
+```
+
+This writes `<target-repo>/.repopeek/graph.json`. The MCP server loads it instantly on launch instead of rebuilding the graph in-process on every start. Re-run after large code changes to refresh the index.
+
+### Step B — Register the server
+
+Use the `repopeek` **console script** as the command (not `python -m`, which breaks under `pipx` isolation):
 
 ```json
 {
   "mcpServers": {
     "repopeek": {
-      "command": "python",
-      "args": [
-        "-m",
-        "repopeek.cli",
-        "--repo-path",
-        "/absolute/path/to/target-repo",
-        "--serve-mcp"
-      ],
-      "env": {
-        "PYTHONUNBUFFERED": "1"
-      }
+      "command": "repopeek",
+      "args": ["--repo-path", "/absolute/path/to/target-repo", "--serve-mcp"],
+      "env": { "PYTHONUNBUFFERED": "1" }
     }
   }
 }
 ```
+
+Where this config lives, per agent:
+
+| Agent | MCP config location |
+|---|---|
+| Kiro | `.kiro/settings/mcp.json` (workspace) or `~/.kiro/settings/mcp.json` (user) |
+| Cursor | `.cursor/mcp.json` (project) or `~/.cursor/mcp.json` |
+| Claude Desktop | `claude_desktop_config.json` |
+| VS Code / Windsurf / Antigravity | the agent's MCP settings file |
+
+### Step C — Make the agent prefer RepoPeek
+
+Tools being *available* is not the same as the agent *using* them. Add a short rule to your agent's instructions file (`AGENTS.md`, `.kiro/steering/*.md`, `.cursorrules`, …) so the agent reaches for RepoPeek before blind reads:
+
+> Before grepping or opening files, call `repopeek_context` (or `repopeek_resolve`) to get a task-scoped pack, then open only the files it lists. RepoPeek is the navigation map; trust it, then open the cited files.
 
 ### Available MCP Tools
 
@@ -147,6 +182,31 @@ To connect RepoPeek to AI coding agents, add the server configuration to your to
 | `repopeek_routes` | | List detected HTTP client calls and server routes. |
 | `repopeek_co_changes` | `target` (str) | Show temporally coupled files from git co-change mining. |
 | `repopeek_resolve` | `task` (str) | Rank symbol candidates for a natural-language engineering task. |
+| `repopeek_session_stats` | `format` (str) | Session rollup with **estimated** context savings (tokens and file reads avoided). |
+
+---
+
+## Session Savings Stats (estimated)
+
+RepoPeek tracks how much context it saved the agent over a session and exposes it two ways:
+
+- **On demand:** the agent calls `repopeek_session_stats` and gets a one-line rollup plus a per-tool breakdown.
+- **On shutdown:** the server prints the same one-line summary to **stderr** when it exits, so savings are visible even if the agent never asks.
+
+Example:
+
+```
+RepoPeek this session: 7 tool calls · ~2.9k tokens returned · est. ~34k tokens / ~19 file reads avoided (est. 92% reduction).
+```
+
+**How the number is derived (and why it's an estimate):** the MCP server cannot observe the host agent's prompt boundaries or the file reads it *didn't* make, so savings are **modeled, not measured**. For each `repopeek_context` call the baseline is the compiler's own `raw_file_tokens` (what an agent would spend reading the full affected files); savings = baseline − tokens actually returned. `repopeek_context_pack` uses an average-file model (~1200 tokens/file) for its baseline. Lookup/impact/trace calls count tokens returned but contribute no savings estimate, since they don't displace a full-file read.
+
+**OpenTelemetry (optional):** metrics (`repopeek.tool.calls`, `repopeek.tool.latency_ms`, `repopeek.pack.tokens_returned`, `repopeek.tokens_saved_estimate`, `repopeek.files_avoided_estimate`) are emitted only when opted in. There is **no network egress by default**:
+
+- `REPOPEEK_OTEL=1` → local console exporter (requires `repopeek[telemetry]`).
+- `REPOPEEK_OTEL_ENDPOINT=<url>` → OTLP/HTTP export (requires `repopeek[telemetry-otlp]`).
+
+Without either variable, the pure-Python accumulator still powers the summary — no extra dependencies needed.
 
 ---
 

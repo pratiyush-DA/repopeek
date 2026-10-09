@@ -3,7 +3,7 @@ id: moc-features
 type: moc
 title: "Features \u2014 Map of Content"
 summary: Hub for all end-user and agent-facing capabilities in Repopeek.
-last_verified: 2026-10-06
+last_verified: 2026-10-09
 affects: ['[[plan]]', '[[feat-evaluation-benchmarking]]', '[[feat-real-world-validation]]']
 depends_on: []
 ---
@@ -43,7 +43,8 @@ depends_on: []
 - [[feat-intent-retrieval]] — resolve natural language tasks to candidate symbols via AST + FTS5 BM25 + RRF
 - [[feat-traversal-confidence]] — mathematical traversal confidence, multi-path reinforcement, and blast radius partitioning
 - [[feat-context-compiler]] — task-driven context compilation, constraint extraction, and change plans
-- [[feat-agent-mcp]] — standard Model Context Protocol (MCP) server exposing 10 agent intelligence tools
+- [[feat-agent-mcp]] — standard Model Context Protocol (MCP) server exposing 10 agent intelligence tools (plus session stats)
+- [[feat-session-telemetry]] — MCP session-rollup telemetry: estimated tokens/file reads saved, optional OpenTelemetry export
 - [[feat-evaluation-benchmarking]] — 4-level evaluation suite: Recall@K, graph accuracy, calibration, and token reduction
 - [[feat-real-world-validation]] — real-world 12-task controlled validation on da-assistant (70% token reduction, 65% exploration reduction)
 

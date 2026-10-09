@@ -3,16 +3,20 @@
 import json
 from pathlib import Path
 import sys
+import time
 from typing import Any, Dict, Optional
 
 from repopeek.query.engine import GraphQueryEngine
+from repopeek.query.pack import ContextPack
+from repopeek.query.telemetry import TelemetrySession, build_session
 
 
 class RepoPeekMCPServer:
     """Stdio JSON-RPC MCP server exposing RepoPeek intelligence tools to AI coding agents."""
 
-    def __init__(self, engine: GraphQueryEngine) -> None:
+    def __init__(self, engine: GraphQueryEngine, telemetry: Optional[TelemetrySession] = None) -> None:
         self.engine = engine
+        self.telemetry = telemetry if telemetry is not None else build_session()
 
     def handle_request(self, req: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Process incoming JSON-RPC protocol message."""
@@ -157,6 +161,16 @@ class RepoPeekMCPServer:
                                 "required": ["targets"],
                             },
                         },
+                        {
+                            "name": "repopeek_session_stats",
+                            "description": "Session rollup of RepoPeek usage with ESTIMATED context savings (tokens and file reads the agent avoided this session). Savings are modeled, not measured.",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "format": {"type": "string", "enum": ["markdown", "json"], "default": "markdown", "description": "Output rendering format"},
+                                },
+                            },
+                        },
                     ]
                 },
             }
@@ -175,8 +189,34 @@ class RepoPeekMCPServer:
 
     def _execute_tool(self, req_id: Any, tool_name: str, args: Dict[str, Any]) -> Dict[str, Any]:
         """Dispatch tool calls to GraphQueryEngine."""
+        start = time.perf_counter()
+        # Savings attribution for this call; only context/pack tools set a non-zero
+        # baseline, because only they displace real file reads.
+        tokens_saved_estimate = 0
+        files_avoided_estimate = 0
         try:
-            if tool_name == "repopeek_context":
+            if tool_name == "repopeek_session_stats":
+                fmt = args.get("format", "markdown")
+                if fmt == "json":
+                    res_text = json.dumps(self.telemetry.to_dict(), indent=2)
+                else:
+                    d = self.telemetry.to_dict()
+                    res_text = "\n".join([
+                        "# RepoPeek Session Stats (estimated savings)",
+                        "",
+                        self.telemetry.summary_line(),
+                        "",
+                        f"- Uptime: {d['session_uptime_sec']}s",
+                        f"- Tool calls: {d['total_tool_calls']}",
+                        f"- Tokens returned: ~{d['tokens_returned']}",
+                        f"- Tokens saved (est.): ~{d['tokens_saved_estimate']}",
+                        f"- File reads avoided (est.): ~{d['files_avoided_estimate']}",
+                        f"- Estimated reduction: {d['estimated_reduction_pct']}%",
+                        "",
+                        f"> {d['note']}",
+                    ])
+
+            elif tool_name == "repopeek_context":
                 task_str = args.get("task", "")
                 budget = int(args.get("budget", 1500))
                 level = int(args.get("level", 2))
@@ -186,6 +226,10 @@ class RepoPeekMCPServer:
                     res_text = json.dumps(pkg.to_dict(), indent=2)
                 else:
                     res_text = pkg.to_markdown(level=level)
+                # The compiler already computed the raw-read baseline; savings is the
+                # difference between that baseline and the pack we actually returned.
+                tokens_saved_estimate = max(0, pkg.raw_file_tokens - pkg.estimated_tokens)
+                files_avoided_estimate = len(pkg.affected_files)
 
             elif tool_name == "repopeek_plan":
                 task_str = args.get("task", "")
@@ -248,6 +292,11 @@ class RepoPeekMCPServer:
                 include_snip = bool(args.get("include_snippet", False))
                 pack = self.engine.context_pack(targets, token_budget=budget, include_snippet=include_snip)
                 res_text = pack.to_markdown()
+                # ContextPack has no raw_file_tokens, so model the baseline from the
+                # count of affected files (same avg-file assumption as the compiler).
+                files_avoided_estimate = len(pack.affected_files)
+                baseline = TelemetrySession.estimate_pack_baseline_tokens(files_avoided_estimate)
+                tokens_saved_estimate = max(0, baseline - pack.estimated_tokens)
 
             else:
                 return {
@@ -271,6 +320,18 @@ class RepoPeekMCPServer:
                     "preview": res_text[:2000],
                 }, indent=2)
 
+            # Record session telemetry. The session_stats tool is excluded so that
+            # merely reading the rollup does not inflate the rollup it reports.
+            if tool_name != "repopeek_session_stats":
+                latency_ms = (time.perf_counter() - start) * 1000.0
+                self.telemetry.record_call(
+                    tool_name=tool_name,
+                    latency_ms=latency_ms,
+                    tokens_returned=ContextPack.estimate_tokens_from_text(res_text),
+                    tokens_saved_estimate=tokens_saved_estimate,
+                    files_avoided_estimate=files_avoided_estimate,
+                )
+
             return {
                 "jsonrpc": "2.0",
                 "id": req_id,
@@ -286,21 +347,28 @@ class RepoPeekMCPServer:
 
     def run_stdio(self) -> None:
         """Run infinite stdio read-write loop processing MCP commands."""
-        for line in sys.stdin:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                req = json.loads(line)
-                resp = self.handle_request(req)
-                if resp:
-                    sys.stdout.write(json.dumps(resp) + "\n")
+        try:
+            for line in sys.stdin:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    req = json.loads(line)
+                    resp = self.handle_request(req)
+                    if resp:
+                        sys.stdout.write(json.dumps(resp) + "\n")
+                        sys.stdout.flush()
+                except Exception as e:
+                    err_resp = {
+                        "jsonrpc": "2.0",
+                        "id": None,
+                        "error": {"code": -32700, "message": f"Parse error: {e}"},
+                    }
+                    sys.stdout.write(json.dumps(err_resp) + "\n")
                     sys.stdout.flush()
-            except Exception as e:
-                err_resp = {
-                    "jsonrpc": "2.0",
-                    "id": None,
-                    "error": {"code": -32700, "message": f"Parse error: {e}"},
-                }
-                sys.stdout.write(json.dumps(err_resp) + "\n")
-                sys.stdout.flush()
+        finally:
+            # Emit the session rollup on shutdown so savings are visible even when
+            # the agent never calls repopeek_session_stats. stderr keeps the stdio
+            # JSON-RPC channel clean.
+            if self.telemetry.total_calls:
+                print(self.telemetry.summary_line(), file=sys.stderr)
