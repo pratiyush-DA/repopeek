@@ -76,5 +76,7 @@ def test_export_html():
         assert html_path.exists()
         content = html_path.read_text(encoding="utf-8")
         assert "<title>RepoPeek Knowledge Graph</title>" in content
-        assert "vis.Network" in content
+        assert "canvas-viewport" in content
+        assert "#161618" in content
+        assert "d3.forceSimulation" in content
         assert "MainApp" in content

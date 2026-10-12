@@ -5,7 +5,7 @@ title: Agent Model Context Protocol (MCP) Suite
 summary: Exposes the full Phase 3 intelligence engine via stdio JSON-RPC MCP server with context compilation, change plans, blast radius, HTTP routes, and temporal co-change.
 status: verified
 tags: [mcp, agent, json-rpc, context-pack, blast-radius]
-code_refs: [repopeek/query/mcp_server.py, repopeek/query/engine.py, repopeek/cli.py, repopeek/query/telemetry.py]
+code_refs: [repopeek/query/mcp_server.py, repopeek/query/engine.py, repopeek/cli.py, repopeek/query/telemetry.py, repopeek/mcp_installer.py]
 depends_on: ['[[feat-query-cli]]', '[[feat-context-compiler]]', '[[feat-traversal-confidence]]', '[[plan-phase-3]]', '[[feat-graph-analysis]]', '[[feat-graph-report]]']
 affects: ['[[log-phase-3]]', '[[feat-session-telemetry]]']
 last_verified: 2026-10-12
@@ -43,3 +43,7 @@ The server exposes 10 intelligence tools plus `repopeek_session_stats` (see [[fe
 - Agents launch the server via `repopeek --serve-mcp`.
 - Follows MCP JSON-RPC 2.0 handshake: `initialize` -> `notifications/initialized` -> `tools/list` -> `tools/call`.
 - Completely deterministic, offline, and sub-10ms response time per query.
+
+## 4. One-Click Client Auto-Configuration
+- Command: `repopeek mcp install --client [cursor|claude|windsurf|antigravity|vscode]` (or default `all`).
+- Safely discovers and patches assistant configuration files (`mcp.json`, `claude_desktop_config.json`, etc.) with automatic `.bak` backups.

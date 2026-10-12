@@ -46,8 +46,10 @@ htmlcov/
 # Local data, environment, and scratch files
 scratch/
 output/
+repopeek-out/
 data/
 .repopeek/
+.playwright-mcp/
 .tmp_old_*/
 my_obsidian_vault/
 *obsidian_vault*/

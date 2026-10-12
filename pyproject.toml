@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "repopeek"
-version = "0.1.0"
+version = "0.3.0"
 description = "Repository Intelligence Engine and Semantic Code Property Graph for Agentic Workflows"
 readme = "README.md"
 requires-python = ">=3.10"

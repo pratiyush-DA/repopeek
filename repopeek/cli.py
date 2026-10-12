@@ -89,6 +89,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="Run stdio JSON-RPC MCP server for autonomous coding agents",
     )
     parser.add_argument(
+        "--install-mcp",
+        type=str,
+        nargs="?",
+        const="all",
+        default=None,
+        choices=["all", "cursor", "claude", "windsurf", "antigravity", "vscode"],
+        help="Automatically register RepoPeek MCP server in AI assistant configuration (default: all)",
+    )
+    parser.add_argument(
         "--view",
         action="store_true",
         help="Launch interactive local web-based code property graph viewer in browser",
@@ -276,6 +285,21 @@ def main(argv=None) -> int:
         argv = ["--analyze"] + argv[1:]
     if argv and argv[0] == "cluster":
         argv = ["--cluster"] + argv[1:]
+    if argv and argv[0] == "view":
+        argv = ["--view"] + argv[1:]
+    if argv and argv[0] == "mcp":
+        if len(argv) > 1 and argv[1] == "install":
+            if len(argv) > 2 and not argv[2].startswith("-"):
+                target = argv[2]
+                rest = argv[3:]
+            else:
+                target = "all"
+                rest = argv[2:]
+            argv = ["--install-mcp", target] + rest
+        elif len(argv) > 1 and argv[1] == "serve":
+            argv = ["--serve-mcp"] + argv[2:]
+        else:
+            argv = ["--serve-mcp"] + argv[1:]
     if argv and argv[0] == "export":
         # e.g. repopeek export html -> --export-format html
         if len(argv) > 1 and not argv[1].startswith("-"):
@@ -325,6 +349,7 @@ def main(argv=None) -> int:
         or args.analyze
         or args.cluster
         or args.export_format
+        or args.install_mcp
     )
     if not is_query_mode:
         print(f"Repopeek v{__version__} - Repository Intelligence Engine")
@@ -343,6 +368,26 @@ def main(argv=None) -> int:
 
     # Query dispatch handling
     if is_query_mode:
+        if args.install_mcp:
+            from repopeek.mcp_installer import install_all_clients, install_mcp_config
+            target = args.install_mcp
+            if target == "all":
+                results = install_all_clients(repo_path=resolved_repo)
+            else:
+                results = {target: install_mcp_config(target, repo_path=resolved_repo)}
+
+            print("RepoPeek MCP Client Configuration:")
+            for client, res in results.items():
+                status = res.get("status")
+                path = res.get("path", "")
+                msg = res.get("message", "")
+                if status == "success":
+                    backup = f" (backup: {res.get('backup')})" if res.get("backup") else ""
+                    print(f"  [{client.upper()}] Configured successfully -> {path}{backup}")
+                else:
+                    print(f"  [{client.upper()}] Notice: {msg or path}")
+            return 0
+
         import json
         from repopeek.query import GraphQueryEngine, RepoPeekMCPServer
 

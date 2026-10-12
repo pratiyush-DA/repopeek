@@ -1,7 +1,7 @@
 """Canonical graph builder aggregating multi-language parsed outputs into NetworkX."""
 
 from pathlib import Path
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Sequence, Set
 
 import networkx as nx
 
@@ -167,6 +167,63 @@ class GraphBuilder:
                 graph.add_edge(edge)
         except Exception:
             pass
+
+        return graph
+
+    def build_from_directories(
+        self,
+        repo_roots: Sequence[Path],
+        repo_commit: Optional[str] = None,
+    ) -> CanonicalGraph:
+        """Federated discovery across multiple repository roots (e.g., monorepo or frontend+backend)."""
+        import os
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        all_results: List[ParseResult] = []
+        all_blob_shas: Dict[str, str] = {}
+        all_files = []
+
+        for r in repo_roots:
+            root = Path(r).resolve()
+            if not root.exists():
+                continue
+            files = discover_repository(root)
+            all_files.extend(files)
+            blob_shas = compute_repo_blob_shas(root, [f.path for f in files])
+            all_blob_shas.update(blob_shas)
+
+            def _parse_one(finfo):
+                ftype = classify_file(finfo.path)
+                parser = self.parsers.get(ftype.value)
+                if not parser:
+                    return finfo.rel_path, None
+                return finfo.rel_path, parser.parse_file(finfo.path, repo_root=root)
+
+            workers = min(8, max(1, os.cpu_count() or 4))
+            with ThreadPoolExecutor(max_workers=workers) as pool:
+                futures = [pool.submit(_parse_one, f) for f in files]
+                for fut in as_completed(futures):
+                    _, res = fut.result()
+                    if res is not None:
+                        all_results.append(res)
+
+        graph = self.build(
+            all_results,
+            repo_commit=repo_commit,
+            dirty=False,
+            blob_shas=all_blob_shas,
+        )
+
+        for r in repo_roots:
+            root = Path(r).resolve()
+            try:
+                from repopeek.temporal.miner import GitTemporalMiner
+                miner = GitTemporalMiner(repo_root=root)
+                co_edges = miner.build_graph_edges(graph)
+                for edge in co_edges:
+                    graph.add_edge(edge)
+            except Exception:
+                pass
 
         return graph
 

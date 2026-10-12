@@ -5,7 +5,7 @@ title: Graph Persistence
 summary: Serialize and deserialize the in-memory property graph to and from local disk storage.
 status: active
 tags: [phase4, storage, persistence]
-code_refs: [repopeek/storage/json_store.py, repopeek/storage/provenance.py, repopeek/storage/sqlite_cache.py, repopeek/storage/obsidian_exporter.py, repopeek/storage/__init__.py]
+code_refs: [repopeek/storage/json_store.py, repopeek/storage/provenance.py, repopeek/storage/sqlite_cache.py, repopeek/storage/obsidian_exporter.py, repopeek/storage/__init__.py, repopeek/export/html.py]
 depends_on: ['[[adr-004-graph-persistence-tbd]]', '[[comp-graph]]', '[[data-graph-lenses]]',
   '[[feat-graph-construction]]', '[[feat-graph-validation]]', '[[feat-wiki-export]]']
 affects: ['[[comp-query]]', '[[feat-query-cli]]', '[[feat-watch-daemon]]']
@@ -26,6 +26,7 @@ Enables storing the constructed code intelligence graph locally so that subseque
 - **Incremental Single-File Updates:** `GraphBuilder.update_file` incrementally parses a modified file, updates AST nodes and caller edges, and synchronizes the shard via `update_file_shard` and SQLite tables via `update_sqlite_file` in <50ms without full-repo rebuilds.
 - **SQLite Cache:** Ephemeral SQLite schema (`nodes`, `edges`, `metadata`) with recursive CTE query engine (`query_sqlite_impact`) for sub-millisecond impact traversal.
 - **Obsidian Vault Export:** `export_to_obsidian_vault` generates atomic markdown notes with YAML frontmatter, `[[wikilinks]]`, and native Obsidian `.obsidian/graph.json` color groupings. `find_default_obsidian_vault` auto-detects the system active vault from local config (`%APPDATA%/obsidian/obsidian.json`), and `open_in_obsidian` dispatches `obsidian://open?path=` to launch the desktop application. `read_obsidian_node` allows fast querying of documentation notes.
+- **Obsidian-Style Interactive HTML Engine:** `export_html` generates a standalone, zero-dependency HTML file (`graph.html`) featuring a dual-layer architecture: HTML5 Canvas 2D with HiDPI backing store for >5,000 nodes and >15,000 edges at 60 FPS, D3.js v7 force simulation with community-ring spatial dispersion and distance-capped Barnes-Hut repulsion, optical screen-space font size clamping (`10px` to `13px` constant readability), 4-tier semantic text LOD, two-tier Coral Red (`#e05561`) spotlighting with incident edge emphasis and background dimming, instant hover micro-cards with 2-hop blast radius, pinned selection inspector drawer, and glassmorphic physics controls drawer.
 
 ## Impact (blast radius)
 - **Depends on:** [[feat-graph-construction]], [[comp-graph]]
