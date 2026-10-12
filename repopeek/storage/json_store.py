@@ -1,8 +1,10 @@
 """Deterministic canonical JSON serializer and sharded graph persistence engine."""
 
 import json
+import os
 from pathlib import Path
 import shutil
+import stat
 from typing import Any, Dict, List, Optional
 import uuid
 
@@ -173,7 +175,6 @@ def save_canonical_graph(
             if not p.exists():
                 return
             def _remove_readonly(func, target_path, exc_info):
-                import stat
                 try:
                     os.chmod(target_path, stat.S_IWRITE)
                     func(target_path)
