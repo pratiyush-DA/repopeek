@@ -6,7 +6,13 @@ from typing import Iterator, List, Literal, Optional
 from pydantic import BaseModel, Field
 
 from repopeek.config import RepopeekConfig
-from repopeek.discovery.classifier import FileType, SUPPORTED_TYPES, classify_file, is_binary_file
+from repopeek.discovery.classifier import (
+    FileType,
+    SUPPORTED_TYPES,
+    classify_file,
+    is_binary_file,
+    is_sensitive_file,
+)
 from repopeek.discovery.hasher import compute_file_hashes
 from repopeek.discovery.ignore import IgnoreRuleSet
 
@@ -21,7 +27,7 @@ class DiscoveredFile(BaseModel):
     is_supported: bool = Field(default=True, description="Whether file type is supported for AST parsing")
     sha256: str = Field(description="SHA-256 of file content")
     blob_sha: str = Field(description="Git-compatible blob SHA")
-    parse_status: Literal["pending", "ok", "error", "skipped_size", "skipped_binary", "unsupported"] = Field(
+    parse_status: Literal["pending", "ok", "error", "skipped_size", "skipped_binary", "unsupported", "skipped_sensitive"] = Field(
         default="pending", description="Initial parsing status"
     )
 
@@ -69,7 +75,10 @@ def discover_repository(
             sha256, blob_sha = compute_file_hashes(file_path)
 
             # Determine initial parse status
-            if is_bin:
+            if is_sensitive_file(file_path):
+                status = "skipped_sensitive"
+                is_supported = False
+            elif is_bin:
                 status = "skipped_binary"
                 is_supported = False
             elif size_bytes > max_size_bytes:

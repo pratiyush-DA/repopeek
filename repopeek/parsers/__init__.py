@@ -5,6 +5,11 @@ from repopeek.parsers.config import JsonConfigParser, YamlConfigParser
 from repopeek.parsers.python import PythonParser
 from repopeek.parsers.shell import ShellParser
 from repopeek.parsers.sql import SqlParser
+from repopeek.parsers.polyglot import (
+    LANGUAGE_CONFIGS,
+    LanguageConfig,
+    PolyglotTreeSitterParser,
+)
 from repopeek.parsers.typescript import TypeScriptParser
 
 __all__ = [
@@ -16,4 +21,7 @@ __all__ = [
     "JsonConfigParser",
     "YamlConfigParser",
     "TypeScriptParser",
+    "PolyglotTreeSitterParser",
+    "LanguageConfig",
+    "LANGUAGE_CONFIGS",
 ]

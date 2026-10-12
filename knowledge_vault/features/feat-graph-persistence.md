@@ -7,9 +7,9 @@ status: active
 tags: [phase4, storage, persistence]
 code_refs: [repopeek/storage/json_store.py, repopeek/storage/provenance.py, repopeek/storage/sqlite_cache.py, repopeek/storage/obsidian_exporter.py, repopeek/storage/__init__.py]
 depends_on: ['[[adr-004-graph-persistence-tbd]]', '[[comp-graph]]', '[[data-graph-lenses]]',
-  '[[feat-graph-construction]]', '[[feat-graph-validation]]']
+  '[[feat-graph-construction]]', '[[feat-graph-validation]]', '[[feat-wiki-export]]']
 affects: ['[[comp-query]]', '[[feat-query-cli]]', '[[feat-watch-daemon]]']
-last_verified: 2026-10-05
+last_verified: 2026-10-12
 source: "_sources/task_list.md §Phase 4"
 ---
 # Graph Persistence

@@ -4,9 +4,9 @@ type: moc
 title: "Architecture \u2014 Map of Content"
 summary: Hub for all architectural components, multi-agent pipeline stages, and data
   flows in Repopeek.
-last_verified: 2026-10-03
-affects: ['[[plan]]']
-depends_on: []
+last_verified: 2026-10-12
+affects: ['[[plan]]', '[[plan-phase-4]]']
+depends_on: ['[[log-phase-4]]']
 ---
 # Architecture — Map of Content
 
@@ -57,4 +57,4 @@ graph TD
 - Decisions: [[moc-decisions]]
 - Data Models & Lenses: [[moc-data-models]]
 - Features: [[moc-features]]
-- Implementation Plan: [[plan-phase-2]]
+- Implementation Plan: [[plan-phase-2]], [[plan-phase-3]], [[plan-phase-4]] (and [[log-phase-4]])

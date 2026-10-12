@@ -3,9 +3,9 @@ id: moc-features
 type: moc
 title: "Features \u2014 Map of Content"
 summary: Hub for all end-user and agent-facing capabilities in Repopeek.
-last_verified: 2026-10-09
-affects: ['[[plan]]', '[[feat-evaluation-benchmarking]]', '[[feat-real-world-validation]]']
-depends_on: []
+last_verified: 2026-10-12
+affects: ['[[plan]]', '[[feat-evaluation-benchmarking]]', '[[feat-real-world-validation]]', '[[plan-phase-4]]', '[[feat-polyglot-engine]]', '[[feat-graph-analysis]]', '[[feat-community-clustering]]', '[[feat-wiki-export]]', '[[feat-graph-report]]']
+depends_on: ['[[log-phase-4]]']
 ---
 # Features — Map of Content
 
@@ -14,7 +14,7 @@ depends_on: []
 ## Discovery & classification
 
 - [[feat-file-discovery]] — recursively traverse a repo to find candidate files
-- [[feat-file-classification]] — classify files as Python / SQL / JSON
+- [[feat-file-classification]] — classify files as Python / SQL / JSON / 36+ polyglot languages
 
 ## Deterministic parsing
 
@@ -22,6 +22,7 @@ depends_on: []
 - [[feat-sql-parser]] — SQL query and table extraction (Oracle PL/SQL capable)
 - [[feat-json-parser]] — config key structure extraction
 - [[feat-typescript-parser]] — TypeScript and JavaScript AST extraction (classes, methods, functions, interfaces, types, imports, calls)
+- [[feat-polyglot-engine]] — universal Tree-Sitter AST & regex fallback parsing across 36+ languages
 
 ## Graph
 
@@ -31,6 +32,8 @@ depends_on: []
 - [[feat-git-temporal]] — git commit history mining, exponential time decay, and CO_CHANGED_WITH edges
 - [[feat-http-bridge]] — cross-language HTTP boundary bridging between frontend clients and backend routes
 - [[feat-watch-daemon]] — real-time incremental file watching and background sync daemon (<50ms)
+- [[feat-community-clustering]] — unsupervised Louvain/Leiden modular community detection and cohesion scoring
+- [[feat-graph-analysis]] — topological analysis: god nodes, surprising connections, import cycles, questions
 
 ## Semantic layer
 

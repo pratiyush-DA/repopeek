@@ -169,11 +169,29 @@ def save_canonical_graph(
         dump_deterministic_json(manifest, manifest_file)
 
         # 5. Atomic directory swap
+        def _clean_dir(p: Path) -> None:
+            if not p.exists():
+                return
+            def _remove_readonly(func, target_path, exc_info):
+                import stat
+                try:
+                    os.chmod(target_path, stat.S_IWRITE)
+                    func(target_path)
+                except Exception:
+                    pass
+            try:
+                shutil.rmtree(p, onerror=_remove_readonly)
+            except Exception:
+                shutil.rmtree(p, ignore_errors=True)
+
         if out_dir.exists():
             backup_dir = out_dir.parent / f".tmp_old_{uuid.uuid4().hex[:12]}"
             out_dir.rename(backup_dir)
             staging_dir.rename(out_dir)
-            shutil.rmtree(backup_dir, ignore_errors=True)
+            _clean_dir(backup_dir)
+            for leftover in out_dir.parent.glob(".tmp_old_*"):
+                if leftover.is_dir():
+                    _clean_dir(leftover)
         else:
             staging_dir.rename(out_dir)
 

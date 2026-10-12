@@ -224,6 +224,39 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["all", "retrieval", "graph", "temporal", "context", "agent"],
         help="Evaluation level to run (default: all)",
     )
+    parser.add_argument(
+        "--graph-report",
+        action="store_true",
+        help="Generate comprehensive GRAPH_REPORT.md audit report",
+    )
+    parser.add_argument(
+        "--wiki",
+        action="store_true",
+        help="Generate Wikipedia-style Markdown agent wiki directory",
+    )
+    parser.add_argument(
+        "--analyze",
+        action="store_true",
+        help="Run topological analysis: god nodes, surprising connections, import cycles, and questions",
+    )
+    parser.add_argument(
+        "--cluster",
+        action="store_true",
+        help="Detect and evaluate modular community clusters and cohesion scores",
+    )
+    parser.add_argument(
+        "--export-format",
+        type=str,
+        choices=["html", "json", "obsidian", "wiki", "graphml"],
+        default=None,
+        help="Export graph into format: html, json, obsidian, wiki, or graphml",
+    )
+    parser.add_argument(
+        "--out",
+        type=Path,
+        default=Path("./repopeek-out"),
+        help="Output directory for generated reports, wiki, or exported formats (default: ./repopeek-out)",
+    )
     return parser
 
 
@@ -235,6 +268,20 @@ def main(argv=None) -> int:
         argv = ["--evaluate"] + argv[1:]
     if argv and argv[0] == "explain":
         argv = ["--explain"] + argv[1:]
+    if argv and argv[0] in ("report", "graph-report"):
+        argv = ["--graph-report"] + argv[1:]
+    if argv and argv[0] == "wiki":
+        argv = ["--wiki"] + argv[1:]
+    if argv and argv[0] == "analyze":
+        argv = ["--analyze"] + argv[1:]
+    if argv and argv[0] == "cluster":
+        argv = ["--cluster"] + argv[1:]
+    if argv and argv[0] == "export":
+        # e.g. repopeek export html -> --export-format html
+        if len(argv) > 1 and not argv[1].startswith("-"):
+            argv = ["--export-format", argv[1]] + argv[2:]
+        else:
+            argv = ["--export-format"] + argv[1:]
 
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -273,6 +320,11 @@ def main(argv=None) -> int:
         or args.watch
         or args.evaluate
         or args.explain
+        or args.graph_report
+        or args.wiki
+        or args.analyze
+        or args.cluster
+        or args.export_format
     )
     if not is_query_mode:
         print(f"Repopeek v{__version__} - Repository Intelligence Engine")
@@ -493,6 +545,87 @@ def main(argv=None) -> int:
             print(f"Token Reduction: {report.context.token_reduction_pct:.1f}% | Negative Precision: {report.context.negative_precision * 100:.1f}%")
             print(f"Determinism: {'PASS' if report.determinism_passed else 'FAIL'}")
             print(f"Agent Status: {report.agent.status_message}")
+            return 0
+
+        if args.graph_report:
+            from repopeek.export.report import generate_graph_report
+            out_target = args.out / "GRAPH_REPORT.md" if (args.out.is_dir() or not args.out.suffix) else args.out
+            generate_graph_report(engine.graph, project_name=resolved_repo.name, out_path=out_target)
+            print(f"Graph report generated at: {out_target}")
+            return 0
+
+        if args.wiki:
+            from repopeek.export.wiki import export_wiki
+            wiki_dir = args.out / "wiki" if args.out.name != "wiki" else args.out
+            cnt = export_wiki(engine.graph, out_dir=wiki_dir)
+            print(f"Agent wiki exported: {cnt} articles written to {wiki_dir}/")
+            print(f"  Entry point: {wiki_dir / 'index.md'}")
+            return 0
+
+        if args.analyze:
+            from repopeek.graph.analysis import find_import_cycles, god_nodes, suggest_questions, surprising_connections
+            gods = god_nodes(engine.graph, top_n=5)
+            surprises = surprising_connections(engine.graph, top_n=5)
+            cycles = find_import_cycles(engine.graph)
+            questions = suggest_questions(engine.graph, top_n=5)
+            print("\n=== TOP GOD NODES ===")
+            for g in gods:
+                print(f"  - {g['label']} ({g['kind']}): degree={g['degree']} in {g['file']}")
+            print("\n=== IMPORT CYCLES ===")
+            if cycles:
+                for c in cycles:
+                    print(f"  - Cycle: {' -> '.join(Path(p).name for p in c)}")
+            else:
+                print("  - Zero cycles detected.")
+            print("\n=== SURPRISING CONNECTIONS ===")
+            for s in surprises:
+                print(f"  - {s['src_label']} -> {s['dst_label']} ({s['type']}): {'; '.join(s['reasons'])}")
+            print("\n=== SUGGESTED QUESTIONS ===")
+            for q in questions:
+                print(f"  - {q}")
+            return 0
+
+        if args.cluster:
+            from repopeek.graph.clustering import compute_cohesion_scores, detect_communities, generate_community_labels
+            comms = detect_communities(engine.graph)
+            cohesion = compute_cohesion_scores(engine.graph, comms)
+            labels = generate_community_labels(engine.graph, comms)
+            print(f"\nDetected {len(comms)} modular communities:")
+            for cid, members in sorted(comms.items(), key=lambda x: len(x[1]), reverse=True):
+                lbl = labels.get(cid, f"Community {cid}")
+                coh = cohesion.get(cid, 0.0)
+                print(f"  - #{cid} {lbl}: {len(members)} nodes (cohesion={coh:.2f})")
+            return 0
+
+        if args.export_format:
+            fmt = args.export_format.lower()
+            out_dir = args.out
+            out_dir.mkdir(parents=True, exist_ok=True)
+            if fmt == "html":
+                from repopeek.export.html import export_html
+                html_path = export_html(engine.graph, out_dir / "graph.html")
+                print(f"Interactive graph HTML exported to: {html_path}")
+            elif fmt == "wiki":
+                from repopeek.export.wiki import export_wiki
+                cnt = export_wiki(engine.graph, out_dir=out_dir / "wiki")
+                print(f"Wiki exported: {cnt} articles in {out_dir / 'wiki'}")
+            elif fmt == "obsidian":
+                from repopeek.storage import export_to_obsidian_vault
+                res = export_to_obsidian_vault(engine.graph, out_dir / "obsidian")
+                print(f"Obsidian vault exported to: {res['vault_dir']} ({res['exported_notes']} notes)")
+            elif fmt == "json":
+                from repopeek.storage import save_canonical_graph
+                save_canonical_graph(engine.graph, out_dir, repo_root=resolved_repo)
+                print(f"Canonical graph JSON exported to: {out_dir / 'graph.json'}")
+            elif fmt == "graphml":
+                import networkx as nx
+                G = nx.MultiDiGraph()
+                for nid, n in engine.graph.nodes.items():
+                    G.add_node(nid, kind=n.kind, sig=n.sig or "", file=n.span.file if n.span else "")
+                for e in engine.graph.edges:
+                    G.add_edge(e.src, e.dst, type=e.type.value if hasattr(e.type, "value") else str(e.type))
+                nx.write_graphml(G, str(out_dir / "graph.graphml"))
+                print(f"GraphML exported to: {out_dir / 'graph.graphml'}")
             return 0
 
     from repopeek.discovery import discover_repository

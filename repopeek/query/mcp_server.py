@@ -171,6 +171,54 @@ class RepoPeekMCPServer:
                                 },
                             },
                         },
+                        {
+                            "name": "repopeek_god_nodes",
+                            "description": "Identify top god nodes (most connected core abstractions) with degree centrality and file citations",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "top_n": {"type": "integer", "default": 10, "description": "Number of top god nodes to return"},
+                                },
+                            },
+                        },
+                        {
+                            "name": "repopeek_cycles",
+                            "description": "Detect circular dependencies and import cycles in the repository",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {},
+                            },
+                        },
+                        {
+                            "name": "repopeek_communities",
+                            "description": "Partition graph into modular functional communities with cohesion scores and member counts",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "resolution": {"type": "number", "default": 1.0, "description": "Clustering resolution (>1.0: smaller, <1.0: larger)"},
+                                },
+                            },
+                        },
+                        {
+                            "name": "repopeek_suggest_questions",
+                            "description": "Generate actionable architectural questions concerning god nodes, cycles, and cross-boundary couplings",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "top_n": {"type": "integer", "default": 7, "description": "Number of suggested questions"},
+                                },
+                            },
+                        },
+                        {
+                            "name": "repopeek_report",
+                            "description": "Generate the full Markdown Graph Report (GRAPH_REPORT.md) audit trail",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "project_name": {"type": "string", "description": "Optional human project name"},
+                                },
+                            },
+                        },
                     ]
                 },
             }
@@ -297,6 +345,50 @@ class RepoPeekMCPServer:
                 files_avoided_estimate = len(pack.affected_files)
                 baseline = TelemetrySession.estimate_pack_baseline_tokens(files_avoided_estimate)
                 tokens_saved_estimate = max(0, baseline - pack.estimated_tokens)
+
+            elif tool_name == "repopeek_god_nodes":
+                from repopeek.graph.analysis import god_nodes
+                top_n = int(args.get("top_n", 10))
+                gods = god_nodes(self.engine.graph, top_n=top_n)
+                res_text = json.dumps(gods, indent=2)
+
+            elif tool_name == "repopeek_cycles":
+                from repopeek.graph.analysis import find_import_cycles
+                cycles = find_import_cycles(self.engine.graph)
+                res_text = json.dumps(cycles, indent=2)
+
+            elif tool_name == "repopeek_communities":
+                from repopeek.graph.clustering import (
+                    compute_cohesion_scores,
+                    detect_communities,
+                    generate_community_labels,
+                )
+                resolution = float(args.get("resolution", 1.0))
+                comms = detect_communities(self.engine.graph, resolution=resolution)
+                cohesion = compute_cohesion_scores(self.engine.graph, comms)
+                labels = generate_community_labels(self.engine.graph, comms)
+                summary = [
+                    {
+                        "id": cid,
+                        "label": labels.get(cid, f"Community {cid}"),
+                        "size": len(members),
+                        "cohesion": round(cohesion.get(cid, 0.0), 3),
+                        "top_members": members[:10],
+                    }
+                    for cid, members in comms.items()
+                ]
+                res_text = json.dumps(summary, indent=2)
+
+            elif tool_name == "repopeek_suggest_questions":
+                from repopeek.graph.analysis import suggest_questions
+                top_n = int(args.get("top_n", 7))
+                questions = suggest_questions(self.engine.graph, top_n=top_n)
+                res_text = json.dumps(questions, indent=2)
+
+            elif tool_name == "repopeek_report":
+                from repopeek.export.report import generate_graph_report
+                pname = args.get("project_name") or (self.engine.repo_root.name if self.engine.repo_root else "Repository")
+                res_text = generate_graph_report(self.engine.graph, project_name=pname)
 
             else:
                 return {

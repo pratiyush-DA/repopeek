@@ -10,8 +10,8 @@ code_refs: [repopeek/discovery/crawler.py, repopeek/discovery/classifier.py, rep
 depends_on: ['[[adr-009-provenance-incremental-updates]]', '[[comp-config]]', '[[con-determinism]]',
   '[[con-local-execution]]', '[[con-scope-languages]]', '[[feat-file-discovery]]',
   '[[req-local-repo-analysis]]']
-affects: ['[[comp-parsers]]', '[[feat-file-classification]]', '[[feat-file-discovery]]']
-last_verified: 2026-10-03
+affects: ['[[comp-parsers]]', '[[feat-file-classification]]', '[[feat-file-discovery]]', '[[feat-polyglot-engine]]']
+last_verified: 2026-10-12
 source: "_sources/task_list.md \xA7Phase 2"
 ---
 # Discovery Component

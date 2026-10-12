@@ -8,9 +8,10 @@ tags: [phase6, query, cli, mcp]
 code_refs: [repopeek/query/engine.py, repopeek/query/pack.py, repopeek/query/mcp_server.py, repopeek/query/__init__.py, repopeek/viewer/server.py, repopeek/viewer/__init__.py, repopeek/cli.py]
 depends_on: ['[[adr-011-mcp-interface]]', '[[comp-cli]]', '[[comp-graph]]', '[[comp-query]]',
   '[[data-node-card-spec]]', '[[feat-graph-construction]]', '[[feat-graph-persistence]]',
+  '[[feat-graph-report]]', '[[feat-wiki-export]]',
   '[[req-queryable-graph]]']
 affects: ['[[comp-cli]]', '[[comp-query]]', '[[feat-agent-mcp]]']
-last_verified: 2026-10-05
+last_verified: 2026-10-12
 source: "_sources/task_list.md §Phase 6"
 ---
 # Query CLI and Low-Context Retrieval Service

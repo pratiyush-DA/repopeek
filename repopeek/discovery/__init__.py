@@ -6,6 +6,7 @@ from repopeek.discovery.classifier import (
     FileType,
     classify_file,
     is_binary_file,
+    is_sensitive_file,
 )
 from repopeek.discovery.crawler import DiscoveredFile, discover_repository
 from repopeek.discovery.hasher import compute_file_hashes, compute_hashes_from_bytes

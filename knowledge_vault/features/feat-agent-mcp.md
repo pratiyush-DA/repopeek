@@ -6,9 +6,9 @@ summary: Exposes the full Phase 3 intelligence engine via stdio JSON-RPC MCP ser
 status: verified
 tags: [mcp, agent, json-rpc, context-pack, blast-radius]
 code_refs: [repopeek/query/mcp_server.py, repopeek/query/engine.py, repopeek/cli.py, repopeek/query/telemetry.py]
-depends_on: ['[[feat-query-cli]]', '[[feat-context-compiler]]', '[[feat-traversal-confidence]]', '[[plan-phase-3]]']
+depends_on: ['[[feat-query-cli]]', '[[feat-context-compiler]]', '[[feat-traversal-confidence]]', '[[plan-phase-3]]', '[[feat-graph-analysis]]', '[[feat-graph-report]]']
 affects: ['[[log-phase-3]]', '[[feat-session-telemetry]]']
-last_verified: 2026-10-09
+last_verified: 2026-10-12
 ---
 
 # Agent Model Context Protocol (MCP) Suite

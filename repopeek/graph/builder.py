@@ -10,6 +10,7 @@ from repopeek.discovery.crawler import discover_repository
 from repopeek.models.schema import CanonicalGraph, Edge, NodeCard, NodeProvenance
 from repopeek.parsers.base import BaseParser, ParseResult
 from repopeek.parsers.config import JsonConfigParser, YamlConfigParser
+from repopeek.parsers.polyglot import LANGUAGE_CONFIGS, PolyglotTreeSitterParser
 from repopeek.parsers.python import PythonParser
 from repopeek.parsers.shell import ShellParser
 from repopeek.parsers.sql import SqlParser
@@ -32,7 +33,13 @@ class GraphBuilder:
             "yaml": YamlConfigParser(),
             "typescript": ts_parser,
             "javascript": ts_parser,
+            "vue": ts_parser,
+            "svelte": ts_parser,
+            "astro": ts_parser,
         }
+        for lang_name, config in LANGUAGE_CONFIGS.items():
+            if lang_name not in self.parsers:
+                self.parsers[lang_name] = PolyglotTreeSitterParser(config)
 
     def build(
         self,
