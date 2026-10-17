@@ -2,9 +2,9 @@
 
 **Version:** `0.3.0` | **Status:** Production | **Protocol:** Model Context Protocol (MCP) | **Python:** `>=3.10`
 
-RepoPeek is a lightweight, local Semantic Code Property Graph (SCPG) engine and agent navigation platform. It parses 36+ programming languages into a unified relational graph, performs topological graph analysis (god nodes, import cycles, community clusters), provides a high-performance 60 FPS interactive Canvas graph visualizer, and compiles task-specific context packs of **≤4 files with ~40-line spans** (~1–2k tokens, **82.5% context token reduction**) for autonomous AI coding agents.
+RepoPeek is a lightweight, local Semantic Code Property Graph (SCPG) engine and agent navigation platform. It parses 36+ programming languages into a unified relational graph, performs topological graph analysis (god nodes, import cycles, community clusters), provides a high-performance 60 FPS interactive Canvas graph visualizer, and compiles task-specific context packs of **≤4 files with ~40-line spans** (~1–2k tokens, delivering **16.3% context token reduction overall, and up to 55.7% on cross-module tasks**) for autonomous AI coding agents.
 
-RepoPeek serves as the **primary navigation map**, not a closed-world dump of the repository. Coding agents trust `repopeek_context`, `repopeek_resolve`, and `repopeek_lookup`, and then inspect only the cited files.
+RepoPeek serves as an **on-demand navigation index**, not a closed-world dump of the repository. Coding agents lead with `repopeek_context` for multi-file feature or architectural tasks, and use `repopeek_lookup` for surgical single-symbol inspection, inspecting only the cited files.
 
 **Agent Handoff Guide:** [Workflow_Documentation/07-Agent-Handoff.md](Workflow_Documentation/07-Agent-Handoff.md)
 
@@ -15,7 +15,7 @@ RepoPeek serves as the **primary navigation map**, not a closed-world dump of th
 ## Key Capabilities
 
 1. **Universal Polyglot Engine (36+ Languages)**
-   Tree-Sitter AST extraction with graceful regex/heuristic fallbacks across 36+ languages:
+   Robust AST extraction (pure-Python `ast` for Python, deterministic recursive-descent parsers for TypeScript/JavaScript/SQL) with graceful regex/heuristic fallbacks across 36+ languages:
    Python, TypeScript, JavaScript, Go, Rust, Java, C, C++, C#, Ruby, PHP, Swift, Kotlin, SQL (PostgreSQL, SQLite, MySQL, Oracle), Shell/Bash, HTML, CSS, JSON, YAML, TOML, Markdown. Includes automated sensitive file shielding (skips `.env`, credentials, private keys, lockfiles, minified bundles).
 
 2. **Cross-Language Bridges & Data Flow**
@@ -237,9 +237,10 @@ To ensure your AI assistant prioritizes RepoPeek over exhaustive, brute-force fi
 
 ```markdown
 Before reading files or running broad ripgrep searches, use RepoPeek MCP tools:
-1. Call `repopeek_context` or `repopeek_resolve` to obtain a task-scoped pack of <=4 relevant files.
-2. Call `repopeek_impact` before modifying shared functions, classes, or interfaces to verify blast radius.
-3. Call `repopeek_lookup` with `include_snippet: true` for surgical single-symbol inspection.
+1. Lead with `repopeek_context` for multi-file features or unfamiliar architectural tasks to obtain a task-scoped pack of <=4 relevant files.
+2. Call `repopeek_lookup` with `include_snippet: true` for surgical single-symbol inspection (<80 tokens).
+3. Call `repopeek_impact` before modifying shared functions, classes, or interfaces to verify blast radius.
+4. For trivial single-file edits, direct file opening is preferred over tool dispatch.
 Trust RepoPeek as the navigation index; open only the specific files and spans it cites.
 ```
 

@@ -1,0 +1,8 @@
+[
+  {"name": "repopeek_context", "arguments": {"task": "accept space-separated ZIP+4 like 12345 6789 in zip code validation", "budget": 1500, "level": 2}},
+  {"name": "repopeek_context", "arguments": {"task": "reject consecutive dots in the local part of email validation", "budget": 1500, "level": 2}},
+  {"name": "repopeek_context", "arguments": {"task": "add a new MAC address validation engine as a registered validator plugin", "budget": 1500, "level": 2}},
+  {"name": "repopeek_context", "arguments": {"task": "add a category property to the validator interface and implement it on every engine", "budget": 1500, "level": 2}},
+  {"name": "repopeek_context", "arguments": {"task": "thread a new evidence field from DetectionResult through the detector into the correction report", "budget": 1500, "level": 2}},
+  {"name": "repopeek_session_stats", "arguments": {"format": "json"}}
+]

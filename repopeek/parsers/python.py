@@ -444,6 +444,41 @@ class PythonParser(BaseParser):
                 )
             )
 
+        # Class decorators (registries, plugins, dataclasses)
+        for dec in cls_node.decorator_list:
+            dec_name = ""
+            args_str = ""
+            if isinstance(dec, ast.Name):
+                dec_name = dec.id
+            elif isinstance(dec, ast.Attribute):
+                dec_name = ast.unparse(dec)
+            elif isinstance(dec, ast.Call):
+                dec_name = ast.unparse(dec.func)
+                if dec.args:
+                    arg_vals = [ast.unparse(a) for a in dec.args]
+                    args_str = f"({', '.join(arg_vals)})"
+                    for a in dec.args:
+                        if isinstance(a, ast.Constant) and isinstance(a.value, str):
+                            card.facts.reads.append(f"REGISTRY_KEY:{a.value}")
+            if dec_name:
+                card.facts.reads.append(f"DECORATOR:{dec_name}")
+                if any(k in dec_name.lower() for k in ("register", "plugin", "component", "handler")):
+                    card.facts.reads.append(f"REGISTRY:@{dec_name}{args_str}")
+                edges.append(
+                    Edge(
+                        src=class_id,
+                        dst=dec_name,
+                        type=EdgeType.CALLS,
+                        confidence=Confidence.AMBIGUOUS,
+                        evidence=Evidence(
+                            file=rel_path,
+                            start_line=start_line,
+                            end_line=start_line,
+                            how_derived="ast_decorator",
+                        ),
+                    )
+                )
+
         # Recurse for member methods and nested classes
         self._extract_definitions(
             parent_node=cls_node,

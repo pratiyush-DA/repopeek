@@ -1,0 +1,68 @@
+{
+  "arm": "file-first",
+  "task": "task-4",
+  "files_opened": [
+    {
+      "file": "backend/core/interfaces/validator_interface.py",
+      "chars": 3963,
+      "tokens": 991
+    },
+    {
+      "file": "backend/core/engines/base_engine.py",
+      "chars": 4007,
+      "tokens": 1002
+    },
+    {
+      "file": "backend/core/engines/zipcode_engine.py",
+      "chars": 2648,
+      "tokens": 662
+    },
+    {
+      "file": "backend/core/engines/email_engine.py",
+      "chars": 3517,
+      "tokens": 879
+    },
+    {
+      "file": "backend/core/engines/phone_engine.py",
+      "chars": 3098,
+      "tokens": 774
+    },
+    {
+      "file": "backend/core/engines/url_engine.py",
+      "chars": 3302,
+      "tokens": 826
+    },
+    {
+      "file": "backend/core/engines/ip_address_engine.py",
+      "chars": 2850,
+      "tokens": 712
+    },
+    {
+      "file": "backend/core/engines/name_engine.py",
+      "chars": 3938,
+      "tokens": 984
+    },
+    {
+      "file": "backend/core/engines/boolean_engine.py",
+      "chars": 2320,
+      "tokens": 580
+    },
+    {
+      "file": "backend/core/engines/ssn_engine.py",
+      "chars": 2444,
+      "tokens": 611
+    },
+    {
+      "file": "backend/core/engines/generic_string_engine.py",
+      "chars": 4402,
+      "tokens": 1100
+    },
+    {
+      "file": "backend/core/engines/generic_numeric_engine.py",
+      "chars": 6206,
+      "tokens": 1552
+    }
+  ],
+  "total_chars": 42695,
+  "total_tokens": 10674
+}

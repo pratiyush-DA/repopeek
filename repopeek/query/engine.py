@@ -437,24 +437,27 @@ class GraphQueryEngine:
     def resolve_task(
         self,
         task: str,
-        limit: int = 20,
+        limit: int = 5,
         enable_stemming: bool = True,
         enable_compounds: bool = True,
         use_rrf_scoring: bool = False,
+        include_story: bool = False,
     ) -> List[Dict[str, Any]]:
         """Resolve a natural language engineering task to ranked candidate symbols.
 
         Uses calibrated multi-component hybrid retrieval (AST + BM25 + Ranking).
+        Defaults to a lean, token-efficient payload (top 5 candidates).
 
         Args:
             task: Natural language task description.
-            limit: Maximum number of candidates to return.
+            limit: Maximum number of candidates to return (default: 5).
             enable_stemming: Whether to apply conservative linguistic stemming.
             enable_compounds: Whether to generate adjacent compound variants.
             use_rrf_scoring: Whether to fallback to baseline pure RRF ranking.
+            include_story: Whether to serialize full narrative stories (default: False).
 
         Returns:
-            List of dicts with keys: node_id, score, reasons, node_card (serialized).
+            List of dicts with keys: node_id, score, reasons, kind, sig, file, (optional story).
         """
         from repopeek.retrieval.intent import (
             SymbolCandidate,
@@ -502,7 +505,8 @@ class GraphQueryEngine:
                 result["kind"] = node.kind
                 result["sig"] = node.sig
                 result["file"] = node.span.file if node.span else None
-                result["story"] = node.story.text if node.story else None
+                if include_story and node.story:
+                    result["story"] = node.story.text
             results.append(result)
 
         return results
@@ -557,9 +561,11 @@ class GraphQueryEngine:
 
     def co_changes(self, target_query: str) -> List[Dict[str, Any]]:
         """Query historical git co-change relationships for target file or symbol."""
-        from repopeek.temporal.miner import GitTemporalMiner
-        miner = GitTemporalMiner(repo_root=self.repo_root)
-        relations = miner.compute_co_changes()
+        if not hasattr(self, "_cached_co_changes") or self._cached_co_changes is None:
+            from repopeek.temporal.miner import GitTemporalMiner
+            miner = GitTemporalMiner(repo_root=self.repo_root)
+            self._cached_co_changes = miner.compute_co_changes()
+        relations = self._cached_co_changes
 
         target_file = None
         target_card = self.lookup(target_query)

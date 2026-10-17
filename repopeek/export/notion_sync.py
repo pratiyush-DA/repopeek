@@ -15,7 +15,7 @@ from repopeek.query.engine import GraphQueryEngine
 def generate_notion_sync_payload(
     graph: Optional[CanonicalGraph] = None,
     engine: Optional[GraphQueryEngine] = None,
-    roi_token_reduction_pct: float = 82.5,
+    roi_token_reduction_pct: float = 16.3,
 ) -> Dict[str, Any]:
     """Generate structured documentation payload for Notion synchronization."""
     node_count = len(graph.nodes) if graph else (len(engine.graph.nodes) if engine else 0)
@@ -36,7 +36,7 @@ def generate_notion_sync_payload(
         "edge_count": edge_count,
         "languages_detected": sorted(list(languages)),
         "token_reduction_pct": roi_token_reduction_pct,
-        "mcp_tools_count": 15,
+        "mcp_tools_count": 16,
         "graph_fps_target": 60,
     }
 
@@ -48,7 +48,7 @@ def format_notion_markdown_summary(stats: Dict[str, Any]) -> str:
 - **Indexed Entities:** {stats['node_count']:,} symbols & contracts
 - **Relational Edges:** {stats['edge_count']:,} dependency & call links
 - **Polyglot Engines:** 40+ languages supported (Active in repo: {', '.join(stats['languages_detected']) or 'polyglot'})
-- **Measured Token Reduction:** {stats['token_reduction_pct']:.1f}% context savings
+- **Measured Token Reduction:** {stats['token_reduction_pct']:.1f}% context savings (up to 55.7% on cross-module tasks)
 - **Agent Intelligence Tools:** {stats['mcp_tools_count']} Model Context Protocol tools
 - **Canvas Physics Engine:** 60 FPS HTML5 Canvas 2D Force Layout
 """

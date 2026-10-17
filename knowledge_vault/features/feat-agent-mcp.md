@@ -8,27 +8,32 @@ tags: [mcp, agent, json-rpc, context-pack, blast-radius]
 code_refs: [repopeek/query/mcp_server.py, repopeek/query/engine.py, repopeek/cli.py, repopeek/query/telemetry.py, repopeek/mcp_installer.py]
 depends_on: ['[[feat-query-cli]]', '[[feat-context-compiler]]', '[[feat-traversal-confidence]]', '[[plan-phase-3]]', '[[feat-graph-analysis]]', '[[feat-graph-report]]']
 affects: ['[[log-phase-3]]', '[[feat-session-telemetry]]']
-last_verified: 2026-10-12
+last_verified: 2026-10-17
 ---
 
 # Agent Model Context Protocol (MCP) Suite
 
 ## 1. Executive Summary & Purpose
-The `RepoPeekMCPServer` implements the standard Model Context Protocol (MCP) specification over `stdio` using JSON-RPC 2.0. This allows autonomous coding assistants (such as Antigravity, Claude Desktop, Cursor, and custom agent sidecars) to interactively leverage RepoPeek's deterministic code property graph without running terminal commands or loading massive repository source contexts.
+The `RepoPeekMCPServer` implements the standard Model Context Protocol (MCP) specification over `stdio` using JSON-RPC 2.0 (server version 0.3.0). This allows autonomous coding assistants (such as Antigravity, Claude Desktop, Cursor, and custom agent sidecars) to interactively leverage RepoPeek's deterministic code property graph without running terminal commands or loading massive repository source contexts.
 
 ## 2. Exposed MCP Tool Suite
-The server exposes 10 intelligence tools plus `repopeek_session_stats` (see [[feat-session-telemetry]]):
+The server exposes 16 specialized intelligence tools:
 1. `repopeek_context`: Compiles natural language engineering tasks into budget-governed `ContextPackage`s with multi-tier progressive disclosure (`level 1/2/3`), constraints, and blast radius.
-2. `repopeek_plan`: Generates a risk-assessed, step-by-step engineering change plan (`ChangePlan`) with dependency ordering and blast radius summaries.
-3. `repopeek_impact`: Performs evidence-backed traversal confidence queries partitioned into direct, indirect, and excluded nodes with exact `file:line` citations.
+2. `repopeek_plan`: Generates a risk-assessed, step-by-step engineering change plan (`ChangePlan`) with creation-vs-modification intent detection and blast radius summaries.
+3. `repopeek_impact`: Performs evidence-backed traversal confidence queries partitioned into direct, indirect, and excluded nodes with exact `file:line` citations (includes class decorator and registry linkages).
 4. `repopeek_routes`: Discovers fullstack HTTP route endpoints, client API calls (`fetch`, `axios`), and cross-boundary linkages (`INVOKES`).
-5. `repopeek_co_changes`: Queries historical git commit co-change patterns and conditional probabilities $P(B|A)$.
-6. `repopeek_resolve`: Resolves ambiguous natural language tasks into ranked candidate symbols via AST normalization + SQLite FTS5 BM25 + Reciprocal Rank Fusion ($k=60$).
+5. `repopeek_co_changes`: Queries historical git commit co-change patterns and conditional probabilities $P(B|A)$ with session-level caching.
+6. `repopeek_resolve`: Resolves ambiguous natural language tasks into ranked candidate symbols via AST normalization + SQLite FTS5 BM25 + Reciprocal Rank Fusion ($k=60$), defaulting to 5 compact items without story narratives to preserve token budgets.
 7. `repopeek_lookup`: Fast symbol or ID inspection returning minimal JSON cards (<80 tokens) with optional source snippets.
 8. `repopeek_neighbors`: Direct relational traversal returning incoming and outgoing edges.
 9. `repopeek_data_trace`: Cross-language def-use tracing for variables and SQL database tables.
-10. `repopeek_context_pack`: Compact token-budget-governed context packs (<500 tokens).
+10. `repopeek_context_pack`: Compact token-budget-governed context packs (<500 tokens) with progressive hard budget enforcement.
 11. `repopeek_session_stats`: Session rollup of usage with *estimated* context savings; details in [[feat-session-telemetry]].
+12. `repopeek_god_nodes`: Ranks architectural hubs with degree centrality, filtering external builtins and noise.
+13. `repopeek_cycles`: Detects circular import dependencies strictly on code imports.
+14. `repopeek_communities`: Functional modular clustering excluding config nodes.
+15. `repopeek_suggest_questions`: Synthesizes actionable architectural review questions.
+16. `repopeek_report`: Exports comprehensive markdown audit trail.
 
 ## 2b. Payload Discipline & Honest Empties
 - **Systemic budget guard:** every tool response is capped at ~15k chars at the serialization

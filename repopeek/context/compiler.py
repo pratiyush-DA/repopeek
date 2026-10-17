@@ -570,6 +570,7 @@ class ContextCompiler:
             all_affected_files,
             risk_has_schema=risk_has_schema,
             risk_total_affected=risk_total_affected,
+            intent=intent,
         )
 
         # 6. Token economics calculation
@@ -702,6 +703,7 @@ class ContextCompiler:
         affected_files: Set[str],
         risk_has_schema: Optional[bool] = None,
         risk_total_affected: Optional[int] = None,
+        intent: Optional[Any] = None,
     ) -> ChangePlan:
         """Generate a risk-aware, step-by-step engineering change plan.
 
@@ -710,6 +712,12 @@ class ContextCompiler:
         file-count trimming applied for precision. When omitted they are derived from the
         (possibly trimmed) node sets for standalone use.
         """
+        if intent is None:
+            from repopeek.retrieval.intent import extract_task_identifiers
+            intent = extract_task_identifiers(task)
+
+        is_create = getattr(intent, "is_create_intent", False)
+
         # 1. Determine Risk Level
         risk_reasons: List[str] = []
         trimmed_total = len(direct_nodes) + len(indirect_nodes)
@@ -723,7 +731,12 @@ class ContextCompiler:
             )
         )
 
-        if has_schema or total_affected > 5:
+        if is_create:
+            risk_level = "LOW" if len(affected_files) <= 2 else "MEDIUM"
+            risk_reasons.append(
+                "Additive change: creating/scaffolding new component with isolated blast radius on existing codebase"
+            )
+        elif has_schema or total_affected > 5:
             risk_level = "HIGH"
             if has_schema:
                 risk_reasons.append("Modifications propagate to or from database schema tables")
@@ -748,23 +761,57 @@ class ContextCompiler:
         steps: List[ChangePlanStep] = []
         step_counter = 1
 
-        # Phase: Core modifications for top entrypoints
-        for ep in entrypoints[:2]:
-            nid = ep.get("node_id", "")
-            file_p = ep.get("file")
-            node = self.graph.nodes.get(nid)
+        if is_create:
+            # Creation intent: candidate entrypoints are sibling patterns / templates, NOT modification targets
+            top_ep = entrypoints[0] if entrypoints else None
+            top_ep_id = top_ep.get("node_id", "") if top_ep else "new_component"
+            file_p = top_ep.get("file") if top_ep else None
+            node = self.graph.nodes.get(top_ep_id) if top_ep else None
             citation = f"{node.span.file}:{node.span.start}-{node.span.end}" if node and node.span else file_p
 
             steps.append(ChangePlanStep(
                 step_number=step_counter,
-                phase="core_modification",
-                action=f"Modify implementation logic in `{nid}` to satisfy task intent",
-                target=nid,
+                phase="scaffold_new_artifact",
+                action=f"Create new implementation module modeled on pattern of sibling `{top_ep_id}`",
+                target=top_ep_id,
                 file=file_p,
                 citation=citation,
-                rationale="Primary target identified by intent resolver",
+                rationale=f"Task specifies creating a new artifact; using nearest sibling `{top_ep_id}` as architectural pattern",
             ))
             step_counter += 1
+
+            # Registration or integration step
+            reg_files = [f for f in affected_files if any(k in f.lower() for k in ("registry", "__init__", "routes", "manager", "selector", "factory"))]
+            if reg_files or "register" in task.lower():
+                reg_target = reg_files[0] if reg_files else "registry / module exports"
+                steps.append(ChangePlanStep(
+                    step_number=step_counter,
+                    phase="registration_update",
+                    action=f"Register and export the new artifact in `{reg_target}`",
+                    target=reg_target,
+                    file=reg_files[0] if reg_files else None,
+                    citation=reg_files[0] if reg_files else None,
+                    rationale="Wire new implementation into repository plugin registry or module exports",
+                ))
+                step_counter += 1
+        else:
+            # Phase: Core modifications for top entrypoints
+            for ep in entrypoints[:2]:
+                nid = ep.get("node_id", "")
+                file_p = ep.get("file")
+                node = self.graph.nodes.get(nid)
+                citation = f"{node.span.file}:{node.span.start}-{node.span.end}" if node and node.span else file_p
+
+                steps.append(ChangePlanStep(
+                    step_number=step_counter,
+                    phase="core_modification",
+                    action=f"Modify implementation logic in `{nid}` to satisfy task intent",
+                    target=nid,
+                    file=file_p,
+                    citation=citation,
+                    rationale="Primary target identified by intent resolver",
+                ))
+                step_counter += 1
 
         # Phase: Direct blast radius updates
         for d_id, d_data in list(direct_nodes.items())[:3]:

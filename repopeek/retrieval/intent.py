@@ -97,6 +97,7 @@ class TaskIntent:
     quoted_names: List[str] = field(default_factory=list)
     exclusions: List[str] = field(default_factory=list)
     task_kind: str = "application"  # application | infrastructure
+    is_create_intent: bool = False  # True when task asks to create/add a new entity
 
 
 @dataclass
@@ -474,6 +475,14 @@ def extract_task_identifiers(task: str) -> TaskIntent:
         intent.task_kind = "infrastructure"
     else:
         intent.task_kind = "application"
+
+    # Detect create/scaffold intent: task asks to add, create, or implement a new entity
+    task_l = task.lower()
+    has_create_phrase = bool(
+        re.search(r"\b(add\s+(?:a\s+)?new|create\s+(?:a\s+)?new|implement\s+(?:a\s+)?new|scaffold\s+(?:a\s+)?new|new\s+\w+)\b", task_l)
+    )
+    if has_create_phrase or (any(v in ("add", "create", "scaffold", "implement") for v in intent.verbs) and "new" in task_l.split()):
+        intent.is_create_intent = True
 
     return intent
 

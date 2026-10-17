@@ -129,11 +129,86 @@ def test_find_import_cycles():
     assert "c.py" in flat_cycle
 
 
+def test_calls_and_inheritance_do_not_produce_import_cycles():
+    graph = CanonicalGraph()
+    # a.py imports b.py; b.py calls a.py (e.g. interface/implementation pattern)
+    n_a = NodeCard(id="py:a.py::Interface", kind="class", sig="Interface", span=Span(file="a.py", start=1, end=10), content_hash="h1")
+    n_b = NodeCard(id="py:b.py::Impl", kind="class", sig="Impl", span=Span(file="b.py", start=1, end=20), content_hash="h2")
+    graph.add_node(n_a)
+    graph.add_node(n_b)
+
+    # b.py imports a.py
+    graph.add_edge(Edge(src=n_b.id, dst=n_a.id, type=EdgeType.IMPORTS))
+    # a.py calls b.py method (dynamic or abstract dispatch)
+    graph.add_edge(Edge(src=n_a.id, dst=n_b.id, type=EdgeType.CALLS))
+
+    cycles = find_import_cycles(graph)
+    # CALLS must NOT be counted as an import cycle
+    assert len(cycles) == 0
+
+
 def test_suggest_questions():
     graph = _build_test_graph()
     questions = suggest_questions(graph, top_n=5)
     assert len(questions) > 0
     assert any("Engine" in q for q in questions)
+
+
+def test_external_and_unresolved_nodes_excluded_from_god_nodes():
+    graph = CanonicalGraph()
+    # Add real class
+    real_cls = NodeCard(
+        id="py:core/app.py::Application",
+        kind="class",
+        sig="Application",
+        span=Span(file="core/app.py", start=1, end=50),
+        facts=NodeFacts(complexity=5),
+        content_hash="h_app",
+    )
+    # Add external builtin and unresolved nodes with high degree
+    ext_builtin = NodeCard(
+        id="ext:py:builtin:len",
+        kind="external_symbol",
+        sig="len",
+        span=None,
+        content_hash="h_len",
+    )
+    unresolved_node = NodeCard(
+        id="ext:py:unresolved:value",
+        kind="unresolved",
+        sig="value",
+        span=None,
+        content_hash="h_val",
+    )
+    yaml_node = NodeCard(
+        id="yaml:config.yaml::database.host",
+        kind="yaml_config",
+        sig="database.host",
+        span=Span(file="config.yaml", start=1, end=2),
+        content_hash="h_yaml",
+    )
+    for n in (real_cls, ext_builtin, unresolved_node, yaml_node):
+        graph.add_node(n)
+
+    # Make ext_builtin have 10 edges, unresolved 5 edges, real_cls 2 edges
+    for i in range(10):
+        src_id = f"py:mod_{i}.py::fn"
+        graph.add_node(NodeCard(id=src_id, kind="function", span=Span(file=f"mod_{i}.py", start=1, end=10), content_hash=f"h_{i}"))
+        graph.add_edge(Edge(src=src_id, dst=ext_builtin.id, type=EdgeType.CALLS))
+    for i in range(5):
+        src_id = f"py:mod_u_{i}.py::fn"
+        graph.add_node(NodeCard(id=src_id, kind="function", span=Span(file=f"mod_u_{i}.py", start=1, end=10), content_hash=f"hu_{i}"))
+        graph.add_edge(Edge(src=src_id, dst=unresolved_node.id, type=EdgeType.READS))
+    graph.add_edge(Edge(src="py:mod_0.py::fn", dst=real_cls.id, type=EdgeType.CALLS))
+
+    gods = god_nodes(graph, top_n=5)
+    # Neither len, nor value, nor yaml should be in god nodes despite higher degree
+    god_ids = [g["id"] for g in gods]
+    assert "ext:py:builtin:len" not in god_ids
+    assert "ext:py:unresolved:value" not in god_ids
+    assert "yaml:config.yaml::database.host" not in god_ids
+    # The application class should be listed
+    assert "py:core/app.py::Application" in god_ids
 
 
 def test_graph_diff():

@@ -138,10 +138,10 @@ class TelemetrySession:
         """One-line human-readable rollup."""
         return (
             f"RepoPeek this session: {self.total_calls} tool calls "
-            f"· ~{self.tokens_returned} tokens returned "
-            f"· est. ~{self.tokens_saved_estimate} tokens / "
+            f"| ~{self.tokens_returned} tokens returned "
+            f"| est. ~{self.tokens_saved_estimate} tokens / "
             f"~{self.files_avoided_estimate} file reads avoided "
-            f"(est. {self.reduction_pct}% reduction)."
+            f"(modeled est. {self.reduction_pct}% reduction)."
         )
 
     @staticmethod

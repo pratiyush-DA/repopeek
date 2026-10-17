@@ -308,3 +308,16 @@ def test_token_budget_trims_snippets_but_keeps_primary(tmp_path: Path):
     # The primary entrypoint and at least one snippet survive the trim.
     assert small.entrypoints
     assert len(small.snippets) >= 1
+
+
+def test_change_plan_scaffolds_on_create_intent(tmp_path: Path):
+    """When a task indicates creating a new component, change plan generates scaffold steps."""
+    graph = _make_context_test_graph()
+    build_sqlite_cache(graph, tmp_path / "cache.db")
+    engine = GraphQueryEngine(graph, storage_dir=tmp_path, repo_root=tmp_path)
+
+    plan = engine.change_plan("add a new payment processor engine and register it")
+    assert plan is not None
+    assert any(step.phase == "scaffold_new_artifact" for step in plan.steps)
+    assert not any("Modify implementation logic" in step.action for step in plan.steps)
+    assert plan.risk_level in ("LOW", "MEDIUM")

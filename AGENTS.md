@@ -27,3 +27,14 @@
 - If asked to commit: stage verified files, conventional commit message (`feat:`, `fix:`), do not add `.env` or `testing/` artifacts.
 - After completing a code task the vault DoD still applies even if git is not used.
 
+
+<!-- REPOPEEK-FIRST:START (evidence-based — see benchmarks/dcnc-eval/REPORT.md) -->
+## RepoPeek-First Navigation Protocol (evidence-based)
+Use RepoPeek as the navigation layer **for multi-file or unfamiliar tasks**, where evaluation verified context savings (new-engine −56%, architectural −33%):
+1. Lead with `repopeek_context` (the lean path) or compact `repopeek_resolve` (default 5 candidates).
+2. Call `repopeek_impact` before changing shared functions/classes/interfaces to inspect the blast radius (now tracks class decorators and registries).
+3. Call `repopeek_lookup` (`include_snippet: true`) for single-symbol inspection; open only the files/spans it cites.
+4. `repopeek_plan` distinguishes create-new vs modify-existing intent and emits scaffolding steps for new components.
+5. `repopeek_cycles` is strictly restricted to code imports (false inheritance/type cycles eliminated).
+For trivial single-file edits, just open the file directly — RepoPeek's per-call overhead is not needed for leaf changes.
+<!-- REPOPEEK-FIRST:END -->

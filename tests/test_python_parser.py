@@ -188,3 +188,22 @@ def init_db(conn):
     # The created table is a definition, not an unresolved external read.
     read_dsts = [e.dst for e in res.edges if e.type == EdgeType.READS]
     assert "pattern_cache" not in read_dsts
+
+
+def test_class_decorator_and_registry_extraction(parser: PythonParser):
+    code = '''
+@register_validator("email")
+@dataclass
+class EmailValidator:
+    def validate(self, text: str) -> bool:
+        return True
+'''
+    res = parser.parse_source(source=code, rel_path="engines/email.py")
+    cls_node = next(n for n in res.nodes if n.kind == "class")
+    assert "DECORATOR:register_validator" in cls_node.facts.reads
+    assert "REGISTRY_KEY:email" in cls_node.facts.reads
+    assert "REGISTRY:@register_validator('email')" in cls_node.facts.reads
+    # Verify CALLS edge to decorator
+    dec_edges = [e for e in res.edges if e.type == EdgeType.CALLS and e.dst == "register_validator"]
+    assert len(dec_edges) == 1
+

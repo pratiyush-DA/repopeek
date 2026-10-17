@@ -1,0 +1,33 @@
+{
+  "arm": "file-first",
+  "task": "task-5",
+  "files_opened": [
+    {
+      "file": "backend/core/interfaces/detector_interface.py",
+      "chars": 4320,
+      "tokens": 1080
+    },
+    {
+      "file": "backend/core/detection/workflow_detector.py",
+      "chars": 10167,
+      "tokens": 2542
+    },
+    {
+      "file": "backend/core/detection/detection_cache.py",
+      "chars": 4592,
+      "tokens": 1148
+    },
+    {
+      "file": "backend/core/correction/output_writer.py",
+      "chars": 10903,
+      "tokens": 2726
+    },
+    {
+      "file": "backend/services/pipeline_service.py",
+      "chars": 15956,
+      "tokens": 3989
+    }
+  ],
+  "total_chars": 45938,
+  "total_tokens": 11484
+}

@@ -1,0 +1,18 @@
+{
+  "arm": "file-first",
+  "task": "task-2",
+  "files_opened": [
+    {
+      "file": "backend/core/engines/email_engine.py",
+      "chars": 3517,
+      "tokens": 879
+    },
+    {
+      "file": "backend/core/engines/base_engine.py",
+      "chars": 4007,
+      "tokens": 1002
+    }
+  ],
+  "total_chars": 7524,
+  "total_tokens": 1881
+}

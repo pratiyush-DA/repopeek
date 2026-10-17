@@ -21,10 +21,14 @@ _BUILTIN_NOISE_LABELS: frozenset[str] = frozenset({
     "Callable", "Type", "ClassVar", "Final", "Literal", "Protocol",
     "Counter", "defaultdict", "OrderedDict", "datetime", "Enum",
     "os", "sys", "re", "json", "io", "abc", "typing",
-    # Standard language primitives
+    # Standard language primitives and builtins
     "String", "Int", "Double", "Float", "Bool", "Data", "URL", "Date", "UUID",
     "void", "char", "long", "short", "unsigned", "signed",
     "error", "nil", "string", "int32", "int64", "uint32", "uint64", "byte", "rune",
+    "len", "range", "print", "isinstance", "issubclass", "enumerate", "zip", "sum",
+    "max", "min", "getattr", "setattr", "hasattr", "delattr", "open", "type", "list",
+    "dict", "set", "tuple", "iter", "next", "repr", "super", "any", "all", "abs",
+    "round", "sorted", "filter", "map", "format", "callable", "id",
 })
 
 _JSON_NOISE_LABELS: frozenset[str] = frozenset({
@@ -43,14 +47,26 @@ def _is_file_node(card: NodeCard) -> bool:
 
 
 def _is_noise_node(card: NodeCard) -> bool:
-    """Return True if node is standard library noise or JSON dictionary key."""
+    """Return True if node is standard library noise, external, unresolved, or config node."""
+    # Exclude external and unresolved symbols
+    if card.id.startswith("ext:") or card.kind in ("external", "external_symbol", "unresolved"):
+        return True
+
+    # Exclude nodes without a real source file location
+    if not card.span or not card.span.file:
+        return True
+
+    # Exclude configuration entries
+    if card.kind in ("json_config", "yaml_config", "config"):
+        return True
+
     sig = (card.sig or "").strip()
     if sig in _BUILTIN_NOISE_LABELS:
         return True
     ident = card.id.split("::")[-1] if "::" in card.id else card.id
     if ident in _BUILTIN_NOISE_LABELS:
         return True
-    if card.kind in ("json_config", "yaml_config") and ident.lower() in _JSON_NOISE_LABELS:
+    if ident.lower() in _JSON_NOISE_LABELS:
         return True
     return False
 
@@ -225,8 +241,11 @@ def find_import_cycles(graph: CanonicalGraph) -> List[List[str]]:
     # Build file-level dependency directed graph
     file_graph = nx.DiGraph()
 
+    # Non-code file extensions to exclude from import cycle analysis
+    _non_code_exts = frozenset({".md", ".rst", ".txt", ".json", ".yaml", ".yml", ".toml", ".csv", ".tsv"})
+
     for edge in graph.edges:
-        if edge.type not in (EdgeType.IMPORTS, EdgeType.CALLS):
+        if edge.type != EdgeType.IMPORTS:
             continue
 
         src_card = graph.get_node(edge.src)
@@ -235,6 +254,8 @@ def find_import_cycles(graph: CanonicalGraph) -> List[List[str]]:
         dst_file = dst_card.span.file if dst_card and dst_card.span else None
 
         if src_file and dst_file and src_file != dst_file:
+            if Path(src_file).suffix.lower() in _non_code_exts or Path(dst_file).suffix.lower() in _non_code_exts:
+                continue
             file_graph.add_edge(src_file, dst_file)
 
     cycles: List[List[str]] = []

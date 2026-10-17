@@ -1,0 +1,331 @@
+﻿diff --git a/backend/core/correction/output_writer.py b/backend/core/correction/output_writer.py
+index bb537433..1880fd14 100644
+--- a/backend/core/correction/output_writer.py
++++ b/backend/core/correction/output_writer.py
+@@ -177,6 +177,7 @@ class OutputWriter:
+                 "good_count": good_count,
+                 "sample_values": result.get("fingerprint", {}).get("common_values", [])[:5] if result.get("fingerprint") else [],
+                 "confidence": result.get("detection_confidence", 0),
++                "evidence": result.get("evidence", []),
+             }
+         
+         good_report["total_good_values"] = total_good
+diff --git a/backend/core/detection/workflow_detector.py b/backend/core/detection/workflow_detector.py
+index 713568a5..a41e2922 100644
+--- a/backend/core/detection/workflow_detector.py
++++ b/backend/core/detection/workflow_detector.py
+@@ -93,6 +93,10 @@ class WorkflowDetector(IDetector):
+                         source=DetectionSource.PATTERN,
+                         matched_rule=pattern_result.get("pattern_name"),
+                         details={"match_ratio": pattern_result.get("match_ratio", 0)},
++                        evidence=[
++                            f"content pattern '{pattern_result.get('pattern_name')}' "
++                            f"matched {pattern_result.get('match_ratio', 0):.0%} of samples"
++                        ],
+                     )
+                     logger.debug(
+                         f"Content pattern match: {column_name} ΓåÆ "
+@@ -115,6 +119,10 @@ class WorkflowDetector(IDetector):
+                 confidence=heuristic_result.get("confidence", 0.9),
+                 source=DetectionSource.HEURISTIC,
+                 matched_rule=heuristic_result.get("rule_name"),
++                evidence=[
++                    f"column name matched heuristic rule "
++                    f"'{heuristic_result.get('rule_name')}'"
++                ],
+             )
+             logger.debug(
+                 f"Heuristic match: {column_name} ΓåÆ "
+diff --git a/backend/core/engines/__init__.py b/backend/core/engines/__init__.py
+index d0bbd232..6769a369 100644
+--- a/backend/core/engines/__init__.py
++++ b/backend/core/engines/__init__.py
+@@ -10,6 +10,7 @@ from .url_engine import URLEngine
+ from .ip_address_engine import IPAddressEngine
+ from .name_engine import NameEngine
+ from .zipcode_engine import ZipCodeEngine
++from .mac_engine import MACEngine
+ from .boolean_engine import BooleanEngine
+ from .generic_string_engine import GenericStringEngine
+ from .generic_numeric_engine import GenericNumericEngine
+@@ -24,6 +25,7 @@ __all__ = [
+     "IPAddressEngine",
+     "NameEngine",
+     "ZipCodeEngine",
++    "MACEngine",
+     "BooleanEngine",
+     "GenericStringEngine",
+     "GenericNumericEngine",
+diff --git a/backend/core/engines/boolean_engine.py b/backend/core/engines/boolean_engine.py
+index 8634b6ee..7bfec0d2 100644
+--- a/backend/core/engines/boolean_engine.py
++++ b/backend/core/engines/boolean_engine.py
+@@ -32,6 +32,10 @@ class BooleanEngine(BaseEngine):
+     def name(self) -> str:
+         return "boolean"
+     
++    @property
++    def category(self) -> str:
++        return "boolean"
++    
+     @property
+     def description(self) -> str:
+         return "Validates boolean values (True/False/Yes/No/1/0)"
+diff --git a/backend/core/engines/email_engine.py b/backend/core/engines/email_engine.py
+index 011ffffb..b15aa0c1 100644
+--- a/backend/core/engines/email_engine.py
++++ b/backend/core/engines/email_engine.py
+@@ -42,6 +42,10 @@ class EmailEngine(BaseEngine):
+     def name(self) -> str:
+         return "email"
+     
++    @property
++    def category(self) -> str:
++        return "contact"
++    
+     @property
+     def description(self) -> str:
+         return "Validates email addresses with strict format checking"
+@@ -65,6 +69,10 @@ class EmailEngine(BaseEngine):
+         if len(local) < 1 or len(local) > 64:
+             return False, 0.0
+         
++        # Reject consecutive dots in the local part (not RFC-valid unquoted)
++        if ".." in local:
++            return False, 0.0
++        
+         # Domain checks
+         if len(domain) < 4:  # Minimum: a.bc
+             return False, 0.0
+@@ -110,6 +118,10 @@ class UUIDEngine(BaseEngine):
+     def name(self) -> str:
+         return "uuid"
+     
++    @property
++    def category(self) -> str:
++        return "identifier"
++    
+     @property
+     def description(self) -> str:
+         return "Validates UUIDs (with or without dashes)"
+diff --git a/backend/core/engines/generic_numeric_engine.py b/backend/core/engines/generic_numeric_engine.py
+index 829d329f..10aec6c4 100644
+--- a/backend/core/engines/generic_numeric_engine.py
++++ b/backend/core/engines/generic_numeric_engine.py
+@@ -34,6 +34,10 @@ class GenericNumericEngine(BaseEngine):
+     def name(self) -> str:
+         return "generic_numeric"
+     
++    @property
++    def category(self) -> str:
++        return "generic"
++    
+     @property
+     def description(self) -> str:
+         return "Generic numeric validation using statistical analysis"
+diff --git a/backend/core/engines/generic_string_engine.py b/backend/core/engines/generic_string_engine.py
+index d4555318..498b9f40 100644
+--- a/backend/core/engines/generic_string_engine.py
++++ b/backend/core/engines/generic_string_engine.py
+@@ -33,6 +33,10 @@ class GenericStringEngine(BaseEngine):
+     def name(self) -> str:
+         return "generic_string"
+     
++    @property
++    def category(self) -> str:
++        return "generic"
++    
+     @property
+     def description(self) -> str:
+         return "Generic string validation using fingerprint similarity"
+diff --git a/backend/core/engines/ip_address_engine.py b/backend/core/engines/ip_address_engine.py
+index e8706e82..359fe0c8 100644
+--- a/backend/core/engines/ip_address_engine.py
++++ b/backend/core/engines/ip_address_engine.py
+@@ -30,6 +30,10 @@ class IPAddressEngine(BaseEngine):
+     def name(self) -> str:
+         return "ip_address"
+     
++    @property
++    def category(self) -> str:
++        return "network"
++    
+     @property
+     def description(self) -> str:
+         return "Validates IP addresses with strict octet checking"
+diff --git a/backend/core/engines/mac_engine.py b/backend/core/engines/mac_engine.py
+new file mode 100644
+index 00000000..92b84e8f
+--- /dev/null
++++ b/backend/core/engines/mac_engine.py
+@@ -0,0 +1,43 @@
++"""
++MAC Address Validation Engine
++Validates IEEE 802 MAC address formats (colon- or hyphen-separated)
++"""
++
++from typing import List, Tuple
++
++from .base_engine import BaseEngine
++from ..registry import register_validator
++
++
++@register_validator("mac")
++class MACEngine(BaseEngine):
++    """
++    MAC address validation engine.
++
++    Validates:
++    - Colon-separated (00:1A:2B:3C:4D:5E)
++    - Hyphen-separated (00-1A-2B-3C-4D-5E)
++    """
++
++    @property
++    def name(self) -> str:
++        return "mac"
++
++    @property
++    def category(self) -> str:
++        return "network"
++
++    @property
++    def description(self) -> str:
++        return "Validates IEEE 802 MAC addresses (colon or hyphen separated)"
++
++    @property
++    def patterns(self) -> List[str]:
++        return [
++            r"^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$",   # 00:1A:2B:3C:4D:5E
++            r"^([0-9A-Fa-f]{2}-){5}[0-9A-Fa-f]{2}$",   # 00-1A-2B-3C-4D-5E
++        ]
++
++    def _validate_normalized(self, value: str) -> Tuple[bool, float]:
++        """MAC is valid if a pattern matched (base enforces fullmatch)."""
++        return True, 1.0
+diff --git a/backend/core/engines/name_engine.py b/backend/core/engines/name_engine.py
+index 9f75981f..addef6d7 100644
+--- a/backend/core/engines/name_engine.py
++++ b/backend/core/engines/name_engine.py
+@@ -30,6 +30,10 @@ class NameEngine(BaseEngine):
+     def name(self) -> str:
+         return "name"
+     
++    @property
++    def category(self) -> str:
++        return "name"
++    
+     @property
+     def description(self) -> str:
+         return "Validates person name format (2-4 words, high alpha ratio)"
+diff --git a/backend/core/engines/phone_engine.py b/backend/core/engines/phone_engine.py
+index 06d5f670..457e99ae 100644
+--- a/backend/core/engines/phone_engine.py
++++ b/backend/core/engines/phone_engine.py
+@@ -28,6 +28,10 @@ class PhoneEngine(BaseEngine):
+     def name(self) -> str:
+         return "phone"
+     
++    @property
++    def category(self) -> str:
++        return "contact"
++    
+     @property
+     def description(self) -> str:
+         return "Validates phone numbers (7-15 digits)"
+diff --git a/backend/core/engines/ssn_engine.py b/backend/core/engines/ssn_engine.py
+index 076a2195..48abffd9 100644
+--- a/backend/core/engines/ssn_engine.py
++++ b/backend/core/engines/ssn_engine.py
+@@ -28,6 +28,10 @@ class SSNEngine(BaseEngine):
+     def name(self) -> str:
+         return "ssn"
+     
++    @property
++    def category(self) -> str:
++        return "identifier"
++    
+     @property
+     def description(self) -> str:
+         return "Validates US Social Security Numbers"
+diff --git a/backend/core/engines/url_engine.py b/backend/core/engines/url_engine.py
+index c98c56de..777087f3 100644
+--- a/backend/core/engines/url_engine.py
++++ b/backend/core/engines/url_engine.py
+@@ -28,6 +28,10 @@ class URLEngine(BaseEngine):
+     def name(self) -> str:
+         return "url"
+     
++    @property
++    def category(self) -> str:
++        return "network"
++    
+     @property
+     def description(self) -> str:
+         return "Validates URL format with protocol and domain"
+diff --git a/backend/core/engines/zipcode_engine.py b/backend/core/engines/zipcode_engine.py
+index f5aec3bc..83020551 100644
+--- a/backend/core/engines/zipcode_engine.py
++++ b/backend/core/engines/zipcode_engine.py
+@@ -25,6 +25,10 @@ class ZipCodeEngine(BaseEngine):
+     def name(self) -> str:
+         return "zipcode"
+     
++    @property
++    def category(self) -> str:
++        return "identifier"
++    
+     @property
+     def description(self) -> str:
+         return "Validates US ZIP code format (5 or 9 digits)"
+@@ -34,6 +38,7 @@ class ZipCodeEngine(BaseEngine):
+         return [
+             r"^\d{5}$",              # 12345
+             r"^\d{5}-\d{4}$",        # 12345-6789
++            r"^\d{5}\s\d{4}$",       # 12345 6789 (space-separated ZIP+4)
+             r"^\d{9}$",              # 123456789
+         ]
+     
+diff --git a/backend/core/interfaces/detector_interface.py b/backend/core/interfaces/detector_interface.py
+index d6a499d7..7be5b8f8 100644
+--- a/backend/core/interfaces/detector_interface.py
++++ b/backend/core/interfaces/detector_interface.py
+@@ -38,6 +38,10 @@ class DetectionResult:
+     # Additional detection metadata
+     details: Dict[str, Any] = field(default_factory=dict)
+     
++    # Human-readable evidence lines explaining why this type was chosen.
++    # Threaded through to the correction report for auditability.
++    evidence: List[str] = field(default_factory=list)
++    
+     # Whether this should be cached
+     cacheable: bool = True
+     
+@@ -55,6 +59,7 @@ class DetectionResult:
+             "source": self.source.value,
+             "matched_rule": self.matched_rule,
+             "details": self.details,
++            "evidence": self.evidence,
+         }
+ 
+ 
+diff --git a/backend/core/interfaces/validator_interface.py b/backend/core/interfaces/validator_interface.py
+index e544008b..ce2bb76a 100644
+--- a/backend/core/interfaces/validator_interface.py
++++ b/backend/core/interfaces/validator_interface.py
+@@ -50,6 +50,16 @@ class IValidator(ABC):
+         """Human-readable description of what this validator checks"""
+         pass
+     
++    @property
++    @abstractmethod
++    def category(self) -> str:
++        """Coarse data-domain category for this validator.
++
++        One of: contact, network, identifier, numeric, text, generic,
++        boolean, name. Used for grouping and reporting.
++        """
++        pass
++    
+     @property
+     def patterns(self) -> List[str]:
+         """Regex patterns used for validation (if any)"""

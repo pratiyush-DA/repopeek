@@ -1,0 +1,18 @@
+[
+  {"name": "repopeek_context", "arguments": {"task": "add a new validation engine", "budget": 1500, "level": 2}},
+  {"name": "repopeek_plan", "arguments": {"task": "add a new MAC address validation engine and register it"}},
+  {"name": "repopeek_impact", "arguments": {"target": "BaseEngine", "direction": "both"}},
+  {"name": "repopeek_lookup", "arguments": {"query": "HeuristicMatcher", "include_snippet": true}},
+  {"name": "repopeek_neighbors", "arguments": {"node_id": "py:backend/core/detection/heuristic_matcher.py::HeuristicMatcher", "direction": "both"}},
+  {"name": "repopeek_data_trace", "arguments": {"entity": "confidence"}},
+  {"name": "repopeek_context_pack", "arguments": {"targets": ["EmailEngine", "ZipCodeEngine"], "token_budget": 500, "include_snippet": true}},
+  {"name": "repopeek_routes", "arguments": {}},
+  {"name": "repopeek_co_changes", "arguments": {"target": "backend/core/registry.py"}},
+  {"name": "repopeek_resolve", "arguments": {"task": "where is column type detection decided"}},
+  {"name": "repopeek_god_nodes", "arguments": {"top_n": 5}},
+  {"name": "repopeek_cycles", "arguments": {}},
+  {"name": "repopeek_communities", "arguments": {"resolution": 1.0}},
+  {"name": "repopeek_suggest_questions", "arguments": {"top_n": 5}},
+  {"name": "repopeek_report", "arguments": {"project_name": "dcnc"}},
+  {"name": "repopeek_session_stats", "arguments": {"format": "json"}}
+]

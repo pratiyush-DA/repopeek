@@ -1,0 +1,18 @@
+{
+  "arm": "file-first",
+  "task": "task-1",
+  "files_opened": [
+    {
+      "file": "backend/core/engines/zipcode_engine.py",
+      "chars": 2648,
+      "tokens": 662
+    },
+    {
+      "file": "backend/core/engines/base_engine.py",
+      "chars": 4007,
+      "tokens": 1002
+    }
+  ],
+  "total_chars": 6655,
+  "total_tokens": 1664
+}

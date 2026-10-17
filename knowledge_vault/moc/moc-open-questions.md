@@ -35,3 +35,10 @@ depends_on: ['[[adr-004-graph-persistence-tbd]]', '[[adr-005-python-parser-tbd]]
 ## Active Phase 2 Investigation Items
 1. **Benchmark Traversal Latency:** Measure whether SQLite index cache provides >5x speedup over streaming JSON on medium/large repos to decide if SQLite cache is retained or vetoed.
 2. **Name Resolution Accuracy:** Benchmark Jedi vs tree-sitter symbol indexer for cross-file call target linking.
+
+## Active Product Questions (from external evaluation)
+Raised by [[res-repopeek-dcnc-eval]] (dcnc A/B study, 2026-10-13):
+1. **Savings honesty:** [[feat-session-telemetry]] reports 53.4%/82.5% vs 16.3% measured — should the headline be re-labelled a modeled upper bound and credit non-context tools?
+2. **False import cycles:** [[feat-graph-analysis]] counts inheritance/type edges as imports — restrict cycle detection to true `IMPORTS` edges?
+3. **Create-vs-modify intent:** `repopeek_plan` / [[feat-intent-retrieval]] misdirect "add new X" to editing the nearest existing symbol — add create-intent detection?
+4. **Registry/decorator blindness:** static blast radius under-counts plugin-registered classes — add `REGISTERED_AS` edges?

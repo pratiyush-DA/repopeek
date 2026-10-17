@@ -20,12 +20,14 @@ _MIN_SPLIT_SIZE = 10
 _MAX_COMMUNITY_FRACTION = 0.20
 
 
-def _build_undirected_graph(graph: CanonicalGraph) -> nx.Graph:
+def _build_undirected_graph(graph: CanonicalGraph, exclude_config_nodes: bool = True) -> nx.Graph:
     """Build a deterministic undirected NetworkX graph from CanonicalGraph."""
     G = nx.Graph()
     # Add nodes sorted
     for nid in sorted(graph.nodes.keys()):
         node = graph.nodes[nid]
+        if exclude_config_nodes and (node.kind in ("yaml_config", "json_config") or nid.startswith("ext:")):
+            continue
         G.add_node(
             nid,
             kind=node.kind,

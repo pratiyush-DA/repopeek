@@ -5,10 +5,10 @@ title: Context Compiler, Constraint Extractor & Change Plan Generator
 summary: Task-driven context compiler with relative file-score trimming under a 4-file cap, token-budget enforcement, span snippets, and hard path/symbol exclusion stripping so packs stay small, in-budget, and leak-resistant.
 status: active
 tags: [phase3, context-compiler, constraints, change-plan]
-code_refs: [repopeek/context/__init__.py, repopeek/context/compiler.py, repopeek/query/engine.py, repopeek/cli.py, tests/test_context_compiler.py]
+code_refs: [repopeek/context/__init__.py, repopeek/context/compiler.py, repopeek/query/engine.py, repopeek/query/pack.py, repopeek/cli.py, tests/test_context_compiler.py]
 depends_on: ['[[plan-phase-3]]', '[[feat-intent-retrieval]]', '[[feat-traversal-confidence]]', '[[comp-query]]', '[[moc-features]]']
 affects: ['[[log-phase-3]]', '[[feat-agent-mcp]]', '[[feat-session-telemetry]]']
-last_verified: 2026-10-09
+last_verified: 2026-10-17
 ---
 # Context Compiler, Constraint Extractor & Change Plan Generator
 
@@ -19,7 +19,7 @@ Translates high-level natural language engineering tasks directly into minimal, 
 1. **Context Compilation (`ContextCompiler.compile`):**
    - Synthesizes intent-to-symbol resolution (top candidates) with mathematical blast radius (direct, indirect, excluded).
    - Injects relevant source code snippets for zero-read code modifications.
-   - Computes token economics: estimated tokens, raw file equivalent, and percentage reduction (typically 80–95%).
+   - Computes token economics: estimated tokens, raw file equivalent, and percentage reduction.
 2. **Progressive Disclosure Markdown Rendering (`ContextPackage.to_markdown`):**
    - **Level 1 (Brief, ~250–400 tokens):** Executive task summary, candidate entrypoints, direct blast radius, and high-level change plan.
    - **Level 2 (Standard, ~600–1000 tokens):** Adds signatures, indirect blast radius, excluded node rationale, and structural constraints.
@@ -31,7 +31,8 @@ Translates high-level natural language engineering tasks directly into minimal, 
    - Database schema table dependencies.
    - Behavioral invariants derived from semantic stories.
 4. **Engineering Change Plan Generator (`_generate_plan`):**
-   - Determines risk level (`LOW`, `MEDIUM`, `HIGH`) from the **full pre-trim** downstream blast radius and schema coupling, so file-count trimming never softens a HIGH/schema assessment (`risk_has_schema` / `risk_total_affected` are passed in).
+   - Determines risk level (`LOW`, `MEDIUM`, `HIGH`) from the **full pre-trim** downstream blast radius and schema coupling.
+   - Distinguishes creation vs. modification intent: on create intent (`add a new X`), emits `scaffold_new_artifact` (using matched siblings as templates) and `registration_update` (adding to registry/exports) rather than directing modification of existing components.
    - Outputs ordered phases: Pre-Change Verification, Core Modifications, Blast Radius Adjustments, and Post-Change Regression Validation.
 
 ## Interfaces

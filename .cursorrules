@@ -26,3 +26,12 @@ The agent must NEVER automatically turn the MVP into:
 - An enterprise security platform.
 - A full coding IDE.
 - A replacement for existing coding agents.
+
+# REPOPEEK-FIRST:START (evidence-based — see benchmarks/dcnc-eval/REPORT.md)
+# RepoPeek-First Navigation Protocol (evidence-based)
+# Use RepoPeek for MULTI-FILE / unfamiliar tasks (measured savings there), not trivial edits:
+#  1. Lead with repopeek_context (lean) or compact repopeek_resolve (default 5 candidates).
+#  2. repopeek_impact before changing shared symbols to inspect blast radius (tracks decorators/registries).
+#  3. repopeek_lookup (include_snippet: true) for single-symbol inspection; open only cited files/spans.
+#  4. repopeek_plan detects create-new vs modify-existing intent; repopeek_cycles strictly restricted to code imports.
+# REPOPEEK-FIRST:END

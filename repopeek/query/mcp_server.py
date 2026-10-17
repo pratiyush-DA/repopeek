@@ -30,7 +30,7 @@ class RepoPeekMCPServer:
                 "id": req_id,
                 "result": {
                     "protocolVersion": "2024-11-05",
-                    "serverInfo": {"name": "repopeek-mcp", "version": "0.1.0"},
+                    "serverInfo": {"name": "repopeek-mcp", "version": "0.3.0"},
                     "capabilities": {"tools": {}},
                 },
             }
@@ -109,6 +109,8 @@ class RepoPeekMCPServer:
                                 "type": "object",
                                 "properties": {
                                     "task": {"type": "string", "description": "Natural language task description"},
+                                    "limit": {"type": "integer", "default": 5, "description": "Max candidates to return (default: 5)"},
+                                    "include_story": {"type": "boolean", "default": False, "description": "Include full multi-line story narrative (default: false)"},
                                 },
                                 "required": ["task"],
                             },
@@ -314,7 +316,9 @@ class RepoPeekMCPServer:
 
             elif tool_name == "repopeek_resolve":
                 task_str = args.get("task", "")
-                res = self.engine.resolve_task(task_str)
+                limit = int(args.get("limit", 5))
+                inc_story = bool(args.get("include_story", False))
+                res = self.engine.resolve_task(task_str, limit=limit, include_story=inc_story)
                 res_text = json.dumps(res, indent=2)
 
             elif tool_name == "repopeek_lookup":

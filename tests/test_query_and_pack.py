@@ -251,3 +251,13 @@ def test_empty_tool_responses_carry_a_note(sample_engine):
     routes = sample_engine.http_routes()
     if routes["total_routes"] == 0 and routes["total_links"] == 0:
         assert "note" in routes and routes["note"]
+
+
+def test_context_pack_strictly_obeys_token_budget(sample_engine):
+    """ContextPack.to_markdown must prune content to stay within requested token_budget."""
+    pack = sample_engine.context_pack(["InvoiceParser.parse"], token_budget=120, include_snippet=True)
+    md = pack.to_markdown()
+    est = ContextPack.estimate_tokens_from_text(md)
+    assert est <= 120
+    assert pack.estimated_tokens <= 120
+
