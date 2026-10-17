@@ -485,6 +485,12 @@ def compute_blast_radius(
         if direction in ("both", "upstream"):
             for e in incoming_edges.get(curr_id, []):
                 candidate_hops.append((e, e.src, "upstream"))
+            # Constructor bridge: calling the parent class invokes its constructor
+            if curr_id.endswith(".__init__") or curr_id.endswith("::constructor") or curr_id.endswith(".constructor"):
+                parent_class_id = curr_id.rsplit(".", 1)[0] if "::" not in curr_id.rsplit(".", 1)[-1] else curr_id.rsplit("::", 1)[0]
+                for e in incoming_edges.get(parent_class_id, []):
+                    if e.type == EdgeType.CALLS:
+                        candidate_hops.append((e, e.src, "upstream"))
         if direction in ("both", "downstream"):
             for e in outgoing_edges.get(curr_id, []):
                 candidate_hops.append((e, e.dst, "downstream"))

@@ -758,6 +758,20 @@ def compute_retrieval_score(
             score.exact_match = 0.0
 
     raw_l = (intent.raw or "").lower()
+
+    # Demote documentation / markdown nodes for coding tasks unless query specifically asks for documentation
+    is_doc_node = file_lower.endswith((".md", ".markdown", ".rst", ".txt")) or node_id.startswith("markdown:")
+    doc_intent = any(
+        w in raw_l for w in ("doc", "docs", "documentation", "readme", "architecture doc", "guide", "wiki")
+    )
+    if is_doc_node and not doc_intent:
+        score.kind_preference = min(score.kind_preference, 0.1)
+        score.path_relevance *= 0.2
+        score.token_overlap *= 0.3
+        score.identifier *= 0.3
+        score.lexical *= 0.2
+        score.exact_match = min(score.exact_match, 0.2)
+
     frontend_intent = any(
         w in raw_l for w in ("login", "frontend", "jsx", "react", "authcontext", "ui", "remember-me", "remember_me")
     )

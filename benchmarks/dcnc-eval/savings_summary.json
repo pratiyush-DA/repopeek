@@ -2,8 +2,8 @@
   "per_task": {
     "task-1": {
       "arm1_file_first": 1664,
-      "arm2_resolve_first": 1857,
-      "arm2_context_first": 1895
+      "arm2_resolve_first": 1887,
+      "arm2_context_first": 2074
     },
     "task-2": {
       "arm1_file_first": 1881,
@@ -18,21 +18,21 @@
     "task-4": {
       "arm1_file_first": 10674,
       "arm2_resolve_first": 11495,
-      "arm2_context_first": 10720
+      "arm2_context_first": 10719
     },
     "task-5": {
       "arm1_file_first": 11484,
       "arm2_resolve_first": 7999,
-      "arm2_context_first": 7636
+      "arm2_context_first": 7640
     }
   },
   "variant_A_resolve_first": {},
   "variant_B_context_first": {},
   "totals": {
     "arm1_file_first": 29172,
-    "arm2_resolve_first": 24988,
-    "arm2_context_first": 24246,
-    "reduction_pct_resolve_first": 14.3,
-    "reduction_pct_context_first": 16.9
+    "arm2_resolve_first": 25018,
+    "arm2_context_first": 24428,
+    "reduction_pct_resolve_first": 14.2,
+    "reduction_pct_context_first": 16.3
   }
 }

@@ -558,33 +558,33 @@ def generate_html_content(
     <div class="control-group">
       <div class="control-label">
         <span>Center Force</span>
-        <span id="val-center" class="control-val">0.015</span>
+        <span id="val-center" class="control-val">0.004</span>
       </div>
-      <input type="range" id="slider-center" min="0.001" max="0.08" step="0.001" value="0.015" />
+      <input type="range" id="slider-center" min="0.001" max="0.05" step="0.001" value="0.004" />
     </div>
 
     <div class="control-group">
       <div class="control-label">
         <span>Repel / Charge</span>
-        <span id="val-charge" class="control-val">-140</span>
+        <span id="val-charge" class="control-val">-350</span>
       </div>
-      <input type="range" id="slider-charge" min="-400" max="-30" step="10" value="-140" />
+      <input type="range" id="slider-charge" min="-800" max="-50" step="25" value="-350" />
     </div>
 
     <div class="control-group">
       <div class="control-label">
         <span>Link Distance</span>
-        <span id="val-distance" class="control-val">55</span>
+        <span id="val-distance" class="control-val">110</span>
       </div>
-      <input type="range" id="slider-distance" min="20" max="150" step="5" value="55" />
+      <input type="range" id="slider-distance" min="30" max="300" step="10" value="110" />
     </div>
 
     <div class="control-group">
       <div class="control-label">
         <span>Collision Padding</span>
-        <span id="val-collide" class="control-val">4</span>
+        <span id="val-collide" class="control-val">12</span>
       </div>
-      <input type="range" id="slider-collide" min="0" max="15" step="1" value="4" />
+      <input type="range" id="slider-collide" min="0" max="30" step="1" value="12" />
     </div>
 
     <div class="control-group">
@@ -692,28 +692,30 @@ def generate_html_content(
       requestRender();
     }});
 
-    // D3 Force Simulation Setup
-    let forceCharge = -140;
-    let forceDistance = 55;
-    let forceCenterStrength = 0.015;
-    let forceCollidePadding = 4;
+    // D3 Force Simulation Setup (Relaxed, spacious layout)
+    let forceCharge = -350;
+    let forceDistance = 110;
+    let forceCenterStrength = 0.004;
+    let forceCollidePadding = 12;
     let edgeRestingOpacity = 0.22;
     let useCommunityColors = false;
     let enableSemanticLOD = true;
 
-    // Disperse nodes by modular community in a ring to avoid center explosion
+    // Disperse nodes by modular community across radial tiers to avoid central clumping
     const commAngles = {{}};
     const commKeys = Object.keys(communityMap || {{}});
     const commTotal = Math.max(1, commKeys.length);
-    const ringRadius = Math.min(width, height) * 0.35;
+    const maxDim = Math.max(width, height);
+    const baseRadius = maxDim * 0.90;
     for (let i = 0; i < rawNodes.length; i++) {{
       const n = rawNodes[i];
       const cid = n.community || 0;
       if (!(cid in commAngles)) {{
         commAngles[cid] = (cid / commTotal) * 2 * Math.PI;
       }}
-      const angle = commAngles[cid] + (Math.random() - 0.5) * 0.7;
-      const dist = ringRadius + (Math.random() - 0.5) * (ringRadius * 0.6);
+      const ringTier = 0.55 + ((cid % 4) * 0.25);
+      const angle = commAngles[cid] + (Math.random() - 0.5) * 0.75;
+      const dist = (baseRadius * ringTier) + (Math.random() - 0.5) * (baseRadius * 0.35);
       n.x = (width / 2) + Math.cos(angle) * dist;
       n.y = (height / 2) + Math.sin(angle) * dist;
     }}
@@ -721,13 +723,16 @@ def generate_html_content(
     const simulation = d3.forceSimulation(rawNodes)
       .force('link', d3.forceLink(links)
         .id(d => d.id)
-        .distance(forceDistance)
-        .strength(d => 1 / Math.min(d.source.degree || 1, d.target.degree || 1, 15))
+        .distance(d => {{
+          const sumDeg = (d.source.degree || 1) + (d.target.degree || 1);
+          return Math.min(220, forceDistance + Math.min(60, sumDeg * 1.5));
+        }})
+        .strength(d => 0.75 / Math.min(d.source.degree || 1, d.target.degree || 1, 12))
       )
       .force('charge', d3.forceManyBody()
-        .strength(forceCharge)
+        .strength(d => forceCharge - Math.min(280, (d.degree || 1) * 8))
         .theta(0.92)
-        .distanceMax(450)
+        .distanceMax(1400)
       )
       .force('collide', d3.forceCollide()
         .radius(d => d.radius + forceCollidePadding)
@@ -737,7 +742,16 @@ def generate_html_content(
       .alphaDecay(0.025);
 
     // Initial Warmup
-    for (let i = 0; i < 40; ++i) simulation.tick();
+    for (let i = 0; i < 60; ++i) simulation.tick();
+
+    // Render Loop with Dirty Flag
+    let renderRequested = false;
+    function requestRender() {{
+      if (!renderRequested) {{
+        renderRequested = true;
+        requestAnimationFrame(renderFrame);
+      }}
+    }}
 
     // Zoom & Pan State
     let transform = d3.zoomIdentity;
@@ -753,6 +767,36 @@ def generate_html_content(
       .call(zoomBehavior)
       .on('dblclick.zoom', null);
 
+    // Auto-fit view for spacious initial framing
+    function fitToScreen(animate = false) {{
+      if (rawNodes.length === 0) return;
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      for (let i = 0; i < rawNodes.length; i++) {{
+        const nx = rawNodes[i].x, ny = rawNodes[i].y;
+        if (nx < minX) minX = nx;
+        if (nx > maxX) maxX = nx;
+        if (ny < minY) minY = ny;
+        if (ny > maxY) maxY = ny;
+      }}
+      const spanW = Math.max(100, maxX - minX);
+      const spanH = Math.max(100, maxY - minY);
+      const fitK = Math.min(1.0, Math.max(0.12, Math.min((width * 0.82) / spanW, (height * 0.82) / spanH)));
+      const midX = (minX + maxX) / 2;
+      const midY = (minY + maxY) / 2;
+      const targetTransform = d3.zoomIdentity
+        .translate(width / 2 - midX * fitK, height / 2 - midY * fitK)
+        .scale(fitK);
+      if (animate) {{
+        d3.select(canvas).transition().duration(500).call(zoomBehavior.transform, targetTransform);
+      }} else {{
+        transform = targetTransform;
+        d3.select(canvas).call(zoomBehavior.transform, targetTransform);
+      }}
+      document.getElementById('stat-zoom').textContent = transform.k.toFixed(2) + 'x';
+    }}
+
+    fitToScreen(false);
+
     // Selection & Spotlight State
     let hoveredNode = null;
     let pinnedNode = null;
@@ -760,15 +804,6 @@ def generate_html_content(
     let lastRenderTime = performance.now();
     let frameCount = 0;
     let fpsTime = performance.now();
-
-    // Render Loop with Dirty Flag
-    let renderRequested = false;
-    function requestRender() {{
-      if (!renderRequested) {{
-        renderRequested = true;
-        requestAnimationFrame(renderFrame);
-      }}
-    }}
 
     simulation.on('tick', () => {{
       requestRender();
@@ -956,17 +991,23 @@ def generate_html_content(
         const isNeighbor = activeNeighborSet && activeNeighborSet.has(n.id);
 
         // LOD Visibility Gate
+        // Zoomed-out view (k < 0.85) strictly hides resting text to avoid clutter.
+        // Labels reveal progressively as user zooms into details.
         let showLabel = false;
-        if (isActive || isNeighbor) {{
+        if (isActive) {{
           showLabel = true;
+        }} else if (isNeighbor) {{
+          showLabel = (k >= 0.50) || (deg >= 12);
         }} else if (!enableSemanticLOD) {{
           showLabel = true;
-        }} else if (k < 0.6) {{
-          showLabel = (deg > 20);
-        }} else if (k < 1.4) {{
-          showLabel = (deg > 8) || (n.kind === 'class') || (n.kind === 'file');
-        }} else if (k < 2.8) {{
-          showLabel = (deg > 2) || (n.kind === 'class') || (n.kind === 'file');
+        }} else if (k < 0.85) {{
+          showLabel = false;
+        }} else if (k < 1.40) {{
+          showLabel = ((n.kind === 'class' && deg >= 12) || (n.kind === 'file' && deg >= 18));
+        }} else if (k < 2.40) {{
+          showLabel = (deg >= 6) || (n.kind === 'class') || (n.kind === 'file');
+        }} else if (k < 3.80) {{
+          showLabel = (deg >= 2);
         }} else {{
           showLabel = true;
         }}
@@ -1179,10 +1220,7 @@ def generate_html_content(
 
     // Reset View Button
     document.getElementById('btn-reset-view').addEventListener('click', () => {{
-      d3.select(canvas)
-        .transition()
-        .duration(500)
-        .call(zoomBehavior.transform, d3.zoomIdentity);
+      fitToScreen(true);
       pinNode(null);
     }});
 
@@ -1217,7 +1255,8 @@ def generate_html_content(
     sliderCharge.addEventListener('input', (e) => {{
       const v = parseFloat(e.target.value);
       valCharge.textContent = v;
-      simulation.force('charge').strength(v);
+      forceCharge = v;
+      simulation.force('charge').strength(d => v - Math.min(280, (d.degree || 1) * 8));
       simulation.alpha(0.25).restart();
     }});
 
@@ -1226,7 +1265,11 @@ def generate_html_content(
     sliderDistance.addEventListener('input', (e) => {{
       const v = parseFloat(e.target.value);
       valDistance.textContent = v;
-      simulation.force('link').distance(v);
+      forceDistance = v;
+      simulation.force('link').distance(d => {{
+        const sumDeg = (d.source.degree || 1) + (d.target.degree || 1);
+        return Math.min(220, v + Math.min(60, sumDeg * 1.5));
+      }});
       simulation.alpha(0.25).restart();
     }});
 

@@ -261,3 +261,40 @@ def test_context_pack_strictly_obeys_token_budget(sample_engine):
     assert est <= 120
     assert pack.estimated_tokens <= 120
 
+
+
+def test_mcp_server_resolve_query_alias(sample_engine):
+    """Verify repopeek_resolve works with both 'task' and 'query' parameters."""
+    server = RepoPeekMCPServer(sample_engine)
+
+    # Call with 'query'
+    req_query = {
+        "jsonrpc": "2.0",
+        "id": 101,
+        "method": "tools/call",
+        "params": {"name": "repopeek_resolve", "arguments": {"query": "parse invoice", "limit": 3}},
+    }
+    resp_query = server.handle_request(req_query)
+    assert resp_query["id"] == 101
+    assert "error" not in resp_query
+    parsed_q = json.loads(resp_query["result"]["content"][0]["text"])
+    assert isinstance(parsed_q, list)
+
+    # Call with 'task'
+    req_task = {
+        "jsonrpc": "2.0",
+        "id": 102,
+        "method": "tools/call",
+        "params": {"name": "repopeek_resolve", "arguments": {"task": "parse invoice", "limit": 3}},
+    }
+    resp_task = server.handle_request(req_task)
+    assert resp_task["id"] == 102
+    assert "error" not in resp_task
+
+
+def test_cli_update_relative_path(capsys):
+    """Verify repopeek --update handles relative file paths against --repo-path."""
+    code = main(["--repo-path", str(FIXTURE_REPO), "--update", "src/billing/invoice.py"])
+    assert code == 0
+    out = capsys.readouterr().out
+    assert "Updated graph for" in out

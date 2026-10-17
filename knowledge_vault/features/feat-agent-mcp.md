@@ -26,12 +26,12 @@ The server exposes 16 specialized intelligence tools:
 6. `repopeek_resolve`: Resolves ambiguous natural language tasks into ranked candidate symbols via AST normalization + SQLite FTS5 BM25 + Reciprocal Rank Fusion ($k=60$), defaulting to 5 compact items without story narratives to preserve token budgets.
 7. `repopeek_lookup`: Fast symbol or ID inspection returning minimal JSON cards (<80 tokens) with optional source snippets.
 8. `repopeek_neighbors`: Direct relational traversal returning incoming and outgoing edges.
-9. `repopeek_data_trace`: Cross-language def-use tracing for variables and SQL database tables.
+9. `repopeek_data_trace`: Cross-language def-use tracing for variables and SQL database tables with token-anchored exact matching and reader/writer deduplication.
 10. `repopeek_context_pack`: Compact token-budget-governed context packs (<500 tokens) with progressive hard budget enforcement.
 11. `repopeek_session_stats`: Session rollup of usage with *estimated* context savings; details in [[feat-session-telemetry]].
 12. `repopeek_god_nodes`: Ranks architectural hubs with degree centrality, filtering external builtins and noise.
 13. `repopeek_cycles`: Detects circular import dependencies strictly on code imports.
-14. `repopeek_communities`: Functional modular clustering excluding config nodes.
+14. `repopeek_communities`: Functional modular clustering excluding config nodes with size-ranked pagination (top 10 communities by default).
 15. `repopeek_suggest_questions`: Synthesizes actionable architectural review questions.
 16. `repopeek_report`: Exports comprehensive markdown audit trail.
 

@@ -1,0 +1,58 @@
+{
+  "timestamp": "2026-10-18T00:32:22Z",
+  "total_file_tokens": 15335,
+  "total_repopeek_tokens": 6092,
+  "total_savings_pct": 60.3,
+  "tasks": [
+    {
+      "id": "T1",
+      "name": "Phone extension support ('ext 401', 'x1234') in PhoneEngine",
+      "difficulty": "Leaf (Regex / Validation)",
+      "file_tokens": 774,
+      "repopeek_tokens": 1123,
+      "savings_pct": -45.1,
+      "verified": true,
+      "incremental_sync_ok": true
+    },
+    {
+      "id": "T2",
+      "name": "CIDR subnet notation ('192.168.1.0/24') in IPAddressEngine",
+      "difficulty": "Localized (IP Validation Rules)",
+      "file_tokens": 712,
+      "repopeek_tokens": 1423,
+      "savings_pct": -99.9,
+      "verified": true,
+      "incremental_sync_ok": true
+    },
+    {
+      "id": "T3",
+      "name": "Add ISBNEngine and register in validator registry",
+      "difficulty": "Cross-Module (New Engine + Registry)",
+      "file_tokens": 1904,
+      "repopeek_tokens": 821,
+      "savings_pct": 56.9,
+      "verified": true,
+      "incremental_sync_ok": true
+    },
+    {
+      "id": "T4",
+      "name": "Add strict anomaly rate fail-fast threshold in PipelineService",
+      "difficulty": "Interface-Wide (Pipeline Service + Execution)",
+      "file_tokens": 5326,
+      "repopeek_tokens": 1242,
+      "savings_pct": 76.7,
+      "verified": true,
+      "incremental_sync_ok": true
+    },
+    {
+      "id": "T5",
+      "name": "IQR statistical outlier detection in NumericWorkflow",
+      "difficulty": "Architectural Subsystem (Numeric Workflow + Outliers)",
+      "file_tokens": 6619,
+      "repopeek_tokens": 1483,
+      "savings_pct": 77.6,
+      "verified": true,
+      "incremental_sync_ok": true
+    }
+  ]
+}

@@ -108,11 +108,11 @@ class RepoPeekMCPServer:
                             "inputSchema": {
                                 "type": "object",
                                 "properties": {
-                                    "task": {"type": "string", "description": "Natural language task description"},
+                                    "task": {"type": "string", "description": "Natural language task description or search query"},
+                                    "query": {"type": "string", "description": "Alias for task description or search query"},
                                     "limit": {"type": "integer", "default": 5, "description": "Max candidates to return (default: 5)"},
                                     "include_story": {"type": "boolean", "default": False, "description": "Include full multi-line story narrative (default: false)"},
                                 },
-                                "required": ["task"],
                             },
                         },
                         {
@@ -198,6 +198,7 @@ class RepoPeekMCPServer:
                                 "type": "object",
                                 "properties": {
                                     "resolution": {"type": "number", "default": 1.0, "description": "Clustering resolution (>1.0: smaller, <1.0: larger)"},
+                                    "top_n": {"type": "integer", "default": 10, "description": "Max top communities by size to return"},
                                 },
                             },
                         },
@@ -315,11 +316,14 @@ class RepoPeekMCPServer:
                     res_text = json.dumps(res, indent=2)
 
             elif tool_name == "repopeek_resolve":
-                task_str = args.get("task", "")
-                limit = int(args.get("limit", 5))
-                inc_story = bool(args.get("include_story", False))
-                res = self.engine.resolve_task(task_str, limit=limit, include_story=inc_story)
-                res_text = json.dumps(res, indent=2)
+                task_str = (args.get("task") or args.get("query") or "").strip()
+                if not task_str:
+                    res_text = json.dumps({"error": "Either 'task' or 'query' parameter is required."}, indent=2)
+                else:
+                    limit = int(args.get("limit", 5))
+                    inc_story = bool(args.get("include_story", False))
+                    res = self.engine.resolve_task(task_str, limit=limit, include_story=inc_story)
+                    res_text = json.dumps(res, indent=2)
 
             elif tool_name == "repopeek_lookup":
                 query = args.get("query", "")
@@ -368,19 +372,25 @@ class RepoPeekMCPServer:
                     generate_community_labels,
                 )
                 resolution = float(args.get("resolution", 1.0))
+                top_n = int(args.get("top_n", args.get("limit", 10)))
                 comms = detect_communities(self.engine.graph, resolution=resolution)
                 cohesion = compute_cohesion_scores(self.engine.graph, comms)
                 labels = generate_community_labels(self.engine.graph, comms)
-                summary = [
-                    {
-                        "id": cid,
-                        "label": labels.get(cid, f"Community {cid}"),
-                        "size": len(members),
-                        "cohesion": round(cohesion.get(cid, 0.0), 3),
-                        "top_members": members[:10],
-                    }
-                    for cid, members in comms.items()
-                ]
+                sorted_comms = sorted(comms.items(), key=lambda kv: len(kv[1]), reverse=True)
+                summary = {
+                    "total_communities": len(comms),
+                    "returned_count": min(len(sorted_comms), top_n),
+                    "communities": [
+                        {
+                            "id": cid,
+                            "label": labels.get(cid, f"Community {cid}"),
+                            "size": len(members),
+                            "cohesion": round(cohesion.get(cid, 0.0), 3),
+                            "top_members": [m.split("::")[-1] for m in members[:5]],
+                        }
+                        for cid, members in sorted_comms[:top_n]
+                    ],
+                }
                 res_text = json.dumps(summary, indent=2)
 
             elif tool_name == "repopeek_suggest_questions":
@@ -404,7 +414,7 @@ class RepoPeekMCPServer:
             # Systemic payload guard: no tool may emit an unbounded blob. Per-tool caps keep
             # normal results small; this is the structural backstop that keeps any tool within
             # the ~15k budget (returns valid JSON, not a truncated/invalid fragment).
-            MAX_TOOL_TEXT_CHARS = 15000
+            MAX_TOOL_TEXT_CHARS = 30000
             if len(res_text) > MAX_TOOL_TEXT_CHARS:
                 res_text = json.dumps({
                     "truncated": True,

@@ -1,5 +1,6 @@
 """High-performance graph query engine providing lookup, impact, data trace, and context packs."""
 
+import re
 from collections import deque
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Set
@@ -258,28 +259,49 @@ class GraphQueryEngine:
         """Trace variable def-use and data entity flows across language barriers."""
         entity = self.lookup(entity_query)
         entity_id = entity.id if entity else entity_query
+        eq_clean = entity_query.strip()
+        eq_lower = eq_clean.lower()
+
+        # Token pattern to avoid matching substring inside other identifiers (e.g. 'confidence' vs '_calculate_confidence')
+        token_pat = re.compile(rf"(?:^|[.:/]){re.escape(eq_lower)}(?:$|[.:])", re.IGNORECASE)
+
+        def _is_entity_match(dst: str) -> bool:
+            dst_lower = dst.lower()
+            if dst_lower == entity_id.lower() or dst_lower == eq_lower:
+                return True
+            if dst_lower.endswith(f"::{eq_lower}") or dst_lower.endswith(f":{eq_lower}") or dst_lower.endswith(f".{eq_lower}"):
+                return True
+            if token_pat.search(dst):
+                return True
+            return False
 
         writers = []
         readers = []
+        seen_writers: Set[str] = set()
+        seen_readers: Set[str] = set()
 
         for e in self.graph.edges:
-            if e.dst == entity_id or entity_query in e.dst:
+            if _is_entity_match(e.dst):
                 if e.type == EdgeType.WRITES:
-                    writers.append({
-                        "writer_id": e.src,
-                        "file": self.graph.nodes[e.src].span.file
-                        if e.src in self.graph.nodes and self.graph.nodes[e.src].span else None,
-                        "story": self.graph.nodes[e.src].story.text
-                        if e.src in self.graph.nodes and self.graph.nodes[e.src].story else None,
-                    })
+                    if e.src not in seen_writers:
+                        seen_writers.add(e.src)
+                        node = self.graph.nodes.get(e.src)
+                        writers.append({
+                            "writer_id": e.src,
+                            "file": node.span.file if node and node.span else None,
+                            "sig": node.sig if node and node.sig else None,
+                            "story": node.story.text if node and node.story else None,
+                        })
                 elif e.type == EdgeType.READS:
-                    readers.append({
-                        "reader_id": e.src,
-                        "file": self.graph.nodes[e.src].span.file
-                        if e.src in self.graph.nodes and self.graph.nodes[e.src].span else None,
-                        "story": self.graph.nodes[e.src].story.text
-                        if e.src in self.graph.nodes and self.graph.nodes[e.src].story else None,
-                    })
+                    if e.src not in seen_readers:
+                        seen_readers.add(e.src)
+                        node = self.graph.nodes.get(e.src)
+                        readers.append({
+                            "reader_id": e.src,
+                            "file": node.span.file if node and node.span else None,
+                            "sig": node.sig if node and node.sig else None,
+                            "story": node.story.text if node and node.story else None,
+                        })
 
         result = {
             "entity": entity_id,
@@ -646,7 +668,7 @@ class GraphQueryEngine:
         }
         if not routes_data and not links_data:
             result["note"] = (
-                "No HTTP routes or client calls detected — this repository has no recognized "
+                "No HTTP routes or client calls detected -- this repository has no recognized "
                 "web/API layer (FastAPI/Flask/Express/Django routes or fetch/axios clients)."
             )
         return result

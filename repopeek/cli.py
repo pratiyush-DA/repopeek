@@ -524,7 +524,7 @@ def main(argv=None) -> int:
             from repopeek.graph.builder import GraphBuilder
             from repopeek.storage import update_file_shard, update_sqlite_file
 
-            target_file = args.update.resolve()
+            target_file = args.update if args.update.is_absolute() else (resolved_repo / args.update).resolve()
             if not target_file.exists():
                 print(f"Error: Target file to update '{target_file}' does not exist.", file=sys.stderr)
                 return 1
