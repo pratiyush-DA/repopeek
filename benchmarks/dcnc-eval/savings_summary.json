@@ -1,38 +1,38 @@
 {
   "per_task": {
     "task-1": {
-      "arm1_file_first": 1664,
-      "arm2_resolve_first": 1887,
-      "arm2_context_first": 2074
+      "arm1_file_first": 1613,
+      "arm2_resolve_first": 1651,
+      "arm2_context_first": 2073
     },
     "task-2": {
-      "arm1_file_first": 1881,
-      "arm2_resolve_first": 2006,
-      "arm2_context_first": 2329
+      "arm1_file_first": 1827,
+      "arm2_resolve_first": 1752,
+      "arm2_context_first": 2239
     },
     "task-3": {
-      "arm1_file_first": 3469,
-      "arm2_resolve_first": 1631,
-      "arm2_context_first": 1666
+      "arm1_file_first": 3418,
+      "arm2_resolve_first": 1213,
+      "arm2_context_first": 1572
     },
     "task-4": {
       "arm1_file_first": 10674,
-      "arm2_resolve_first": 11495,
-      "arm2_context_first": 10719
+      "arm2_resolve_first": 11392,
+      "arm2_context_first": 10808
     },
     "task-5": {
       "arm1_file_first": 11484,
-      "arm2_resolve_first": 7999,
-      "arm2_context_first": 7640
+      "arm2_resolve_first": 7879,
+      "arm2_context_first": 7785
     }
   },
   "variant_A_resolve_first": {},
   "variant_B_context_first": {},
   "totals": {
-    "arm1_file_first": 29172,
-    "arm2_resolve_first": 25018,
-    "arm2_context_first": 24428,
-    "reduction_pct_resolve_first": 14.2,
-    "reduction_pct_context_first": 16.3
+    "arm1_file_first": 29016,
+    "arm2_resolve_first": 23887,
+    "arm2_context_first": 24477,
+    "reduction_pct_resolve_first": 17.7,
+    "reduction_pct_context_first": 15.6
   }
 }

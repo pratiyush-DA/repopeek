@@ -744,6 +744,43 @@ def main(argv=None) -> int:
     build_sqlite_cache(graph, db_path)
     print(f"SQLite traversal cache created at {db_path}.")
 
+    # Precompute analytics & temporal co-changes for sub-millisecond query latency
+    try:
+        import json
+        from repopeek.graph.clustering import detect_communities, generate_community_labels
+        from repopeek.graph.analysis import god_nodes, find_import_cycles
+        from repopeek.temporal.miner import GitTemporalMiner
+        comms = detect_communities(graph)
+        labels = generate_community_labels(graph, comms)
+        gods = god_nodes(graph, top_n=30)
+        cycles = find_import_cycles(graph)
+        analytics_data = {
+            "communities": {str(k): v for k, v in comms.items()},
+            "labels": {str(k): v for k, v in labels.items()},
+            "god_nodes": gods,
+            "cycles": cycles,
+        }
+        (config.output_dir / "analytics.json").write_text(
+            json.dumps(analytics_data, indent=2, sort_keys=True), encoding="utf-8"
+        )
+        miner = GitTemporalMiner(repo_root=resolved_repo)
+        mined_co = [
+            {
+                "target_file": r.file_a,
+                "co_changed_file": r.file_b,
+                "probability": r.probability,
+                "co_commit_count": r.co_commit_count,
+                "total_commits": r.total_commits_a,
+                "last_co_commit_age_days": r.last_co_commit_age_days,
+            }
+            for r in miner.compute_co_changes()
+        ]
+        (config.output_dir / "co_changes.json").write_text(
+            json.dumps(mined_co, indent=2, sort_keys=True), encoding="utf-8"
+        )
+    except Exception:
+        pass
+
     return 0
 
 

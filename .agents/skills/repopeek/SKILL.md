@@ -14,10 +14,13 @@ triggers:
 RepoPeek provides deterministic, low-context codebase property graphs, topological analysis, and context compilation for AI coding agents.
 
 ## Core Directives for Coding Agents
-1. **Never read monolithic files blindly**: Query RepoPeek via CLI or MCP to obtain exact node cards and targeted snippets (<80 tokens).
-2. **Blast Radius Verification**: Before editing a shared class or function, run `--impact` or `repopeek_impact` to assess upstream consumers and callers.
+1. **Hybrid Decision Ladder**:
+   - For known, single-file leaf edits (e.g., regex tweaks, typos, localized conditionals), open the file directly without tool overhead.
+   - For symbol contract checks before editing, call `repopeek_lookup` (<70 tokens).
+   - For multi-file tasks, unfamiliar codebases, or adding new components, lead with `repopeek_context` or `repopeek_resolve`.
+2. **Blast Radius Verification**: Before editing a shared class or function, run `--impact` or `repopeek_impact` to assess upstream consumers, callers, decorators, and dynamic registries.
 3. **Change Planning**: When planning non-trivial edits, run `--plan` or `repopeek_plan` to generate an indexed, risk-assessed change plan.
-4. **Architectural Understanding**: Consult `repopeek-out/GRAPH_REPORT.md` and `repopeek-out/wiki/index.md` for modular community structures and god nodes.
+4. **Architectural Understanding**: Consult precomputed modular community structures, cycles, and god nodes (<1ms latency).
 
 ## Command Reference
 

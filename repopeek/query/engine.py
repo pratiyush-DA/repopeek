@@ -3,7 +3,7 @@
 import re
 from collections import deque
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Set
+from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 
 from repopeek.graph.identity import is_sql_table_kind
 from repopeek.models.schema import CanonicalGraph, EdgeType, NodeCard
@@ -42,6 +42,35 @@ class GraphQueryEngine:
         for edge in self.graph.edges:
             self._incoming_edges.setdefault(edge.dst, []).append(edge)
             self._outgoing_edges.setdefault(edge.src, []).append(edge)
+
+        # Precomputed analytics & temporal cache for sub-millisecond query performance
+        self._precomputed_analytics: Dict[str, Any] = {}
+        self._cached_co_changes: Optional[List[Any]] = None
+        if self.storage_dir:
+            analytics_file = self.storage_dir / "analytics.json"
+            if analytics_file.exists():
+                try:
+                    import json
+                    self._precomputed_analytics = json.loads(analytics_file.read_text(encoding="utf-8"))
+                except Exception:
+                    pass
+            elif (self.storage_dir / "cache.db").exists():
+                try:
+                    from repopeek.storage.sqlite_cache import query_sqlite_analytics
+                    for k in ("communities", "god_nodes", "cycles"):
+                        val = query_sqlite_analytics(self.storage_dir / "cache.db", k)
+                        if val is not None:
+                            self._precomputed_analytics[k] = val
+                except Exception:
+                    pass
+
+            co_file = self.storage_dir / "co_changes.json"
+            if co_file.exists():
+                try:
+                    import json
+                    self._cached_co_changes = json.loads(co_file.read_text(encoding="utf-8"))
+                except Exception:
+                    pass
 
     def compute_blast(self, node_id: str) -> Dict[str, int]:
         """Compute compact 1-hop blast metrics (callers, readers, files, tables)."""
@@ -581,13 +610,72 @@ class GraphQueryEngine:
         pkg = compiler.compile(task=task)
         return pkg.change_plan
 
+    def get_communities(
+        self, resolution: float = 1.0
+    ) -> Tuple[Dict[int, List[str]], Dict[int, str]]:
+        """Retrieve modular communities, utilizing precomputed cache for sub-millisecond retrieval."""
+        if resolution == 1.0 and "communities" in self._precomputed_analytics:
+            raw = self._precomputed_analytics["communities"]
+            comms = {int(k): v for k, v in raw.get("communities", {}).items()}
+            labels = {int(k): v for k, v in raw.get("labels", {}).items()}
+            return comms, labels
+
+        from repopeek.graph.clustering import detect_communities, generate_community_labels
+        comms = detect_communities(self.graph, resolution=resolution)
+        labels = generate_community_labels(self.graph, comms)
+        if resolution == 1.0:
+            self._precomputed_analytics["communities"] = {
+                "communities": {str(k): v for k, v in comms.items()},
+                "labels": {str(k): v for k, v in labels.items()},
+            }
+        return comms, labels
+
+    def get_god_nodes(self, top_n: int = 10) -> List[Dict[str, Any]]:
+        """Retrieve highest centrality god nodes, using precomputed cache when available."""
+        if "god_nodes" in self._precomputed_analytics:
+            return self._precomputed_analytics["god_nodes"][:top_n]
+
+        from repopeek.graph.analysis import god_nodes
+        gods = god_nodes(self.graph, top_n=max(top_n, 30))
+        self._precomputed_analytics["god_nodes"] = gods
+        return gods[:top_n]
+
+    def get_cycles(self) -> List[Dict[str, Any]]:
+        """Retrieve code import cycles, using precomputed cache when available."""
+        if "cycles" in self._precomputed_analytics:
+            return self._precomputed_analytics["cycles"]
+
+        from repopeek.graph.analysis import find_import_cycles
+        cycles = find_import_cycles(self.graph)
+        self._precomputed_analytics["cycles"] = cycles
+        return cycles
+
     def co_changes(self, target_query: str) -> List[Dict[str, Any]]:
         """Query historical git co-change relationships for target file or symbol."""
-        if not hasattr(self, "_cached_co_changes") or self._cached_co_changes is None:
-            from repopeek.temporal.miner import GitTemporalMiner
-            miner = GitTemporalMiner(repo_root=self.repo_root)
-            self._cached_co_changes = miner.compute_co_changes()
-        relations = self._cached_co_changes
+        if self._cached_co_changes is None:
+            if self.storage_dir and (self.storage_dir / "co_changes.json").exists():
+                try:
+                    import json
+                    self._cached_co_changes = json.loads(
+                        (self.storage_dir / "co_changes.json").read_text(encoding="utf-8")
+                    )
+                except Exception:
+                    pass
+
+            if self._cached_co_changes is None:
+                from repopeek.temporal.miner import GitTemporalMiner
+                miner = GitTemporalMiner(repo_root=self.repo_root)
+                self._cached_co_changes = [
+                    {
+                        "target_file": r.file_a,
+                        "co_changed_file": r.file_b,
+                        "probability": r.probability,
+                        "co_commit_count": r.co_commit_count,
+                        "total_commits": r.total_commits_a,
+                        "last_co_commit_age_days": r.last_co_commit_age_days,
+                    }
+                    for r in miner.compute_co_changes()
+                ]
 
         target_file = None
         target_card = self.lookup(target_query)
@@ -604,16 +692,10 @@ class GraphQueryEngine:
             target_file = target_query.replace("\\", "/").lstrip("./")
 
         results = []
-        for r in relations:
-            if r.file_a == target_file or target_file.endswith(r.file_a):
-                results.append({
-                    "target_file": r.file_a,
-                    "co_changed_file": r.file_b,
-                    "probability": r.probability,
-                    "co_commit_count": r.co_commit_count,
-                    "total_commits": r.total_commits_a,
-                    "last_co_commit_age_days": r.last_co_commit_age_days,
-                })
+        for r in (self._cached_co_changes or []):
+            f_a = r.get("target_file", "")
+            if f_a == target_file or target_file.endswith(f_a):
+                results.append(r)
         return results
 
     def http_routes(self) -> Dict[str, Any]:

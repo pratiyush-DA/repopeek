@@ -3,9 +3,9 @@
   "task": "task-1",
   "files_opened": [
     {
-      "file": "backend/core/engines/zipcode_engine.py",
-      "chars": 2648,
-      "tokens": 662
+      "file": "backend/core/engines/ssn_engine.py",
+      "chars": 2444,
+      "tokens": 611
     },
     {
       "file": "backend/core/engines/base_engine.py",
@@ -13,6 +13,6 @@
       "tokens": 1002
     }
   ],
-  "total_chars": 6655,
-  "total_tokens": 1664
+  "total_chars": 6451,
+  "total_tokens": 1613
 }

@@ -1,19 +1,19 @@
 [
-  {"name": "repopeek_resolve", "arguments": {"task": "accept space-separated ZIP+4 like 12345 6789 in zip code validation"}},
-  {"name": "repopeek_lookup", "arguments": {"query": "ZipCodeEngine", "include_snippet": true}},
+  {"name": "repopeek_resolve", "arguments": {"task": "accept space-separated SSN format like 123 45 6789 in ssn validation"}},
+  {"name": "repopeek_lookup", "arguments": {"query": "SSNEngine", "include_snippet": true}},
 
-  {"name": "repopeek_resolve", "arguments": {"task": "reject consecutive dots in the local part of email validation"}},
-  {"name": "repopeek_lookup", "arguments": {"query": "EmailEngine", "include_snippet": true}},
+  {"name": "repopeek_resolve", "arguments": {"task": "reject bare numeric IP address host in url validation"}},
+  {"name": "repopeek_lookup", "arguments": {"query": "URLEngine", "include_snippet": true}},
 
-  {"name": "repopeek_resolve", "arguments": {"task": "add a new MAC address validation engine as a registered validator plugin"}},
-  {"name": "repopeek_lookup", "arguments": {"query": "ZipCodeEngine", "include_snippet": true}},
+  {"name": "repopeek_resolve", "arguments": {"task": "add a new credit card validation engine with luhn check as a registered validator plugin"}},
+  {"name": "repopeek_lookup", "arguments": {"query": "SSNEngine", "include_snippet": true}},
   {"name": "repopeek_lookup", "arguments": {"query": "register_validator", "include_snippet": false}},
 
-  {"name": "repopeek_resolve", "arguments": {"task": "add a category property to the validator interface and implement it on every engine"}},
+  {"name": "repopeek_resolve", "arguments": {"task": "add abstract get_supported_mime_types method to validator interface and implement on all engines"}},
   {"name": "repopeek_impact", "arguments": {"target": "IValidator", "direction": "both"}},
   {"name": "repopeek_lookup", "arguments": {"query": "IValidator", "include_snippet": true}},
 
-  {"name": "repopeek_resolve", "arguments": {"task": "thread a new evidence field from DetectionResult through the detector into the correction report"}},
+  {"name": "repopeek_resolve", "arguments": {"task": "thread risk_tier field from DetectionResult through workflow detector into correction output writer"}},
   {"name": "repopeek_impact", "arguments": {"target": "DetectionResult", "direction": "both"}},
   {"name": "repopeek_lookup", "arguments": {"query": "DetectionResult", "include_snippet": true}},
 

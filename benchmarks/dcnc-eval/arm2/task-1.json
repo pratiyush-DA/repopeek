@@ -1,8 +1,8 @@
 {
   "arm": "repopeek-first (context)",
   "task": "task-1",
-  "repopeek_payload_tokens": 1412,
-  "edit_target_tokens": 662,
-  "total_tokens": 2074,
-  "variant_resolve_first_total": 1887
+  "repopeek_payload_tokens": 1462,
+  "edit_target_tokens": 611,
+  "total_tokens": 2073,
+  "variant_resolve_first_total": 1651
 }

@@ -30,11 +30,13 @@
 
 <!-- REPOPEEK-FIRST:START (evidence-based — see benchmarks/dcnc-eval/REPORT.md) -->
 ## RepoPeek-First Navigation Protocol (evidence-based)
-Use RepoPeek as the navigation layer **for multi-file or unfamiliar tasks**, where evaluation verified context savings (new-engine −56%, architectural −33%):
-1. Lead with `repopeek_context` (the lean path) or compact `repopeek_resolve` (default 5 candidates).
-2. Call `repopeek_impact` before changing shared functions/classes/interfaces to inspect the blast radius (now tracks class decorators and registries).
-3. Call `repopeek_lookup` (`include_snippet: true`) for single-symbol inspection; open only the files/spans it cites.
-4. `repopeek_plan` distinguishes create-new vs modify-existing intent and emits scaffolding steps for new components.
-5. `repopeek_cycles` is strictly restricted to code imports (false inheritance/type cycles eliminated).
-For trivial single-file edits, just open the file directly — RepoPeek's per-call overhead is not needed for leaf changes.
+Use RepoPeek as the navigation layer **for multi-file or unfamiliar tasks**, where evaluation verified context savings (new-engine -56%, architectural -33%):
+1. **Hybrid Decision Ladder:**
+   - **Known leaf/single-file edit (e.g. regex tweak, typo, single function tweak):** Open the file directly. Do not spend tool call budget on known leaf changes.
+   - **Symbol contract check:** Call `repopeek_lookup` (<70 tokens lean contract) before editing.
+   - **Multi-file feature, unfamiliar code, or new component:** Lead with `repopeek_context` (lean contract slices + change plan) or `repopeek_resolve` (BM25 + AST code-first ranking).
+   - **Shared interface or public function modification:** ALWAYS call `repopeek_impact` first to inspect upstream/downstream blast radius (tracks inheritance, decorators, and dynamic registries).
+2. `repopeek_plan` distinguishes create-new vs modify-existing intent and emits scaffolding steps for new components.
+3. `repopeek_cycles`, `repopeek_god_nodes`, and `repopeek_communities` run against precomputed indices (<1ms latency).
+4. `repopeek_co_changes` fast-fails on shallow git clones and loads from precomputed caches.
 <!-- REPOPEEK-FIRST:END -->

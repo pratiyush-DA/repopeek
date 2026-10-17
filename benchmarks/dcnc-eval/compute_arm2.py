@@ -1,4 +1,4 @@
-"""Compute Arm 2 (RepoPeek-first) ledgers for BOTH navigation variants.
+"""Compute Arm 2 (RepoPeek-first) ledgers for BOTH navigation variants (5 New Tasks).
 
 Variant A (resolve-first): the agent leads with repopeek_resolve (also sanctioned
     by the steering rule). Payloads from arm2/nav_out.json.
@@ -32,8 +32,8 @@ CONTEXT_CALLS = {
 }
 
 EDIT_TARGETS = {
-    "task-1": [E + "zipcode_engine.py"],
-    "task-2": [E + "email_engine.py"],
+    "task-1": [E + "ssn_engine.py"],
+    "task-2": [E + "url_engine.py"],
     "task-3": [E + "__init__.py"],
     "task-4": [I + "validator_interface.py", E + "zipcode_engine.py", E + "email_engine.py",
                E + "phone_engine.py", E + "url_engine.py", E + "ip_address_engine.py",

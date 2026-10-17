@@ -46,7 +46,7 @@ class RepoPeekMCPServer:
                     "tools": [
                         {
                             "name": "repopeek_context",
-                            "description": "Compile natural language task into a budget-governed ContextPackage with progressive disclosure, constraints, and blast radius",
+                            "description": "Compile task into token-reduced context package and change plan. Best for multi-file features and unfamiliar code. For known single-file leaf changes, open the file directly to avoid tool overhead.",
                             "inputSchema": {
                                 "type": "object",
                                 "properties": {
@@ -71,7 +71,7 @@ class RepoPeekMCPServer:
                         },
                         {
                             "name": "repopeek_impact",
-                            "description": "Compute mathematical traversal confidence blast radius answering 'If I change X, what breaks?'",
+                            "description": "Compute mathematical traversal confidence blast radius answering 'If I change X, what breaks?'. Always call before modifying shared interfaces or functions.",
                             "inputSchema": {
                                 "type": "object",
                                 "properties": {
@@ -117,7 +117,7 @@ class RepoPeekMCPServer:
                         },
                         {
                             "name": "repopeek_lookup",
-                            "description": "Lookup node card by symbol or ID (<80 tokens) with optional source snippet",
+                            "description": "Ultra-compact symbol contract retrieval (<70 tokens). Returns signature, location, and blast radius. Best for quick symbol checks before editing.",
                             "inputSchema": {
                                 "type": "object",
                                 "properties": {
@@ -329,7 +329,20 @@ class RepoPeekMCPServer:
                 query = args.get("query", "")
                 include_snip = bool(args.get("include_snippet", False))
                 card = self.engine.lookup(query, include_snippet=include_snip)
-                res_text = json.dumps(card.model_dump(exclude_none=True), indent=2) if card else "Node not found."
+                if not card:
+                    res_text = "Node not found."
+                else:
+                    lean = {
+                        "id": card.id,
+                        "kind": card.kind,
+                        "sig": card.sig,
+                        "file": card.span.file if card.span else None,
+                        "lines": f"{card.span.start}-{card.span.end}" if card.span else None,
+                        "blast_radius": self.engine.compute_blast(card.id),
+                    }
+                    if include_snip and getattr(card, "snippet", None):
+                        lean["snippet"] = card.snippet
+                    res_text = json.dumps(lean, indent=2)
 
             elif tool_name == "repopeek_neighbors":
                 node_id = args.get("node_id", "")
@@ -355,27 +368,18 @@ class RepoPeekMCPServer:
                 tokens_saved_estimate = max(0, baseline - pack.estimated_tokens)
 
             elif tool_name == "repopeek_god_nodes":
-                from repopeek.graph.analysis import god_nodes
                 top_n = int(args.get("top_n", 10))
-                gods = god_nodes(self.engine.graph, top_n=top_n)
+                gods = self.engine.get_god_nodes(top_n=top_n)
                 res_text = json.dumps(gods, indent=2)
 
             elif tool_name == "repopeek_cycles":
-                from repopeek.graph.analysis import find_import_cycles
-                cycles = find_import_cycles(self.engine.graph)
+                cycles = self.engine.get_cycles()
                 res_text = json.dumps(cycles, indent=2)
 
             elif tool_name == "repopeek_communities":
-                from repopeek.graph.clustering import (
-                    compute_cohesion_scores,
-                    detect_communities,
-                    generate_community_labels,
-                )
                 resolution = float(args.get("resolution", 1.0))
                 top_n = int(args.get("top_n", args.get("limit", 10)))
-                comms = detect_communities(self.engine.graph, resolution=resolution)
-                cohesion = compute_cohesion_scores(self.engine.graph, comms)
-                labels = generate_community_labels(self.engine.graph, comms)
+                comms, labels = self.engine.get_communities(resolution=resolution)
                 sorted_comms = sorted(comms.items(), key=lambda kv: len(kv[1]), reverse=True)
                 summary = {
                     "total_communities": len(comms),
@@ -385,7 +389,6 @@ class RepoPeekMCPServer:
                             "id": cid,
                             "label": labels.get(cid, f"Community {cid}"),
                             "size": len(members),
-                            "cohesion": round(cohesion.get(cid, 0.0), 3),
                             "top_members": [m.split("::")[-1] for m in members[:5]],
                         }
                         for cid, members in sorted_comms[:top_n]

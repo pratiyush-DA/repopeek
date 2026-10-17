@@ -1,4 +1,4 @@
-"""Compute Arm 1 (file-first) per-task ledgers from objective file sizes.
+"""Compute Arm 1 (file-first) per-task ledgers from objective file sizes (5 New Tasks).
 
 File-first cost = Σ tokens of every file a cold agent must open in full to
 locate the change, understand the contract, and assess blast radius. File sets
@@ -16,10 +16,10 @@ E = "backend/core/engines/"
 I = "backend/core/interfaces/"
 
 SETS = {
-    "task-1": [E + "zipcode_engine.py", E + "base_engine.py"],
-    "task-2": [E + "email_engine.py", E + "base_engine.py"],
+    "task-1": [E + "ssn_engine.py", E + "base_engine.py"],
+    "task-2": [E + "url_engine.py", E + "base_engine.py"],
     "task-3": [E + "base_engine.py", "backend/core/registry.py",
-               E + "zipcode_engine.py", E + "__init__.py"],
+               E + "ssn_engine.py", E + "__init__.py"],
     "task-4": [I + "validator_interface.py", E + "base_engine.py",
                E + "zipcode_engine.py", E + "email_engine.py", E + "phone_engine.py",
                E + "url_engine.py", E + "ip_address_engine.py", E + "name_engine.py",

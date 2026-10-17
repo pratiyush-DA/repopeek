@@ -1,4 +1,4 @@
-"""Per-task acceptance checks for the dcnc A/B experiment.
+"""Per-task acceptance checks for the dcnc A/B experiment (5 New Tasks).
 
 Each check is a deterministic assertion that proves a task's required behavior.
 Run with the eval venv and PYTHONPATH pointed at the dcnc repo:
@@ -13,10 +13,6 @@ from __future__ import annotations
 
 import importlib
 import sys
-
-ALLOWED_CATEGORIES = {
-    "contact", "network", "identifier", "numeric", "text", "generic", "boolean", "name",
-}
 
 
 def _reset_backend() -> None:
@@ -39,104 +35,107 @@ def _registry_with_engines():
     return reg.get_validator_registry()
 
 
-# ---------------- Task 1: ZipCode space-separated ZIP+4 ----------------
+# ---------------- Task 1: SSN space-separated format ----------------
 def check_task1() -> None:
-    m = _import("backend.core.engines.zipcode_engine")
-    e = m.ZipCodeEngine()
-    assert e.validate("12345 6789")[0] is True, "'12345 6789' should be valid"
-    assert e.validate("12345")[0] is True, "regression: plain 5-digit"
-    assert e.validate("abcde")[0] is False, "regression: junk rejected"
-    print("TASK1 PASS: space-separated ZIP+4 accepted; regressions hold")
+    m = _import("backend.core.engines.ssn_engine")
+    e = m.SSNEngine()
+    assert e.validate("123 45 6789")[0] is True, "'123 45 6789' should be valid"
+    assert e.validate("123-45-6789")[0] is True, "regression: hyphen format"
+    assert e.validate("123456789")[0] is True, "regression: plain 9-digit"
+    assert e.validate("000-45-6789")[0] is False, "regression: invalid area 000"
+    assert e.validate("abcdefghi")[0] is False, "regression: letters rejected"
+    print("TASK1 PASS: space-separated SSN accepted; regressions hold")
 
 
 def check_task1_baseline() -> None:
-    m = _import("backend.core.engines.zipcode_engine")
-    assert m.ZipCodeEngine().validate("12345 6789")[0] is False
-    print("TASK1 BASELINE: space-separated ZIP+4 rejected (unmodified)")
+    m = _import("backend.core.engines.ssn_engine")
+    assert m.SSNEngine().validate("123 45 6789")[0] is False
+    print("TASK1 BASELINE: space-separated SSN rejected (unmodified)")
 
 
-# ---------------- Task 2: Email rejects consecutive dots in local part ----------------
+# ---------------- Task 2: URL reject bare numeric/IP address host ----------------
 def check_task2() -> None:
-    m = _import("backend.core.engines.email_engine")
-    e = m.EmailEngine()
-    assert e.validate("a..b@gmail.com")[0] is False, "consecutive dots must be invalid"
-    assert e.validate("a.b@gmail.com")[0] is True, "single dot still valid"
-    assert e.validate("john@gmail.com")[0] is True, "regression: normal email"
-    print("TASK2 PASS: consecutive-dot local part rejected; valid emails still pass")
+    m = _import("backend.core.engines.url_engine")
+    e = m.URLEngine()
+    assert e.validate("http://192.168.1.1/api")[0] is False, "bare IP host in URL must be rejected"
+    assert e.validate("https://10.0.0.1")[0] is False, "bare private IP in URL must be rejected"
+    assert e.validate("https://example.com/api")[0] is True, "standard domain URL still valid"
+    assert e.validate("http://sub.domain.org/path")[0] is True, "subdomain URL still valid"
+    print("TASK2 PASS: bare numeric IP hosts in URL rejected; domain URLs still pass")
 
 
 def check_task2_baseline() -> None:
-    m = _import("backend.core.engines.email_engine")
-    assert m.EmailEngine().validate("a..b@gmail.com")[0] is True, \
-        "baseline: consecutive-dot currently accepted (regex is permissive)"
-    print("TASK2 BASELINE: consecutive-dot local part accepted (unmodified)")
+    m = _import("backend.core.engines.url_engine")
+    assert m.URLEngine().validate("http://192.168.1.1/api")[0] is True, \
+        "baseline: bare IP host currently accepted"
+    print("TASK2 BASELINE: bare numeric IP host accepted (unmodified)")
 
 
-# ---------------- Task 3: New MAC-address validation engine ----------------
+# ---------------- Task 3: New CreditCard validation engine ----------------
 def check_task3() -> None:
     reg = _registry_with_engines()
-    assert reg.has("mac"), "validator registry must contain 'mac'"
-    e = reg.get("mac")
+    assert reg.has("credit_card"), "validator registry must contain 'credit_card'"
+    e = reg.get("credit_card")
     assert e is not None
-    assert e.validate("00:1A:2B:3C:4D:5E")[0] is True, "colon MAC valid"
-    assert e.validate("00-1A-2B-3C-4D-5E")[0] is True, "hyphen MAC valid"
-    assert e.validate("not-a-mac")[0] is False, "junk rejected"
-    # Exported from the engines package
+    assert e.validate("4532015112830366")[0] is True, "valid Visa credit card passes"
+    assert e.validate("4532-0151-1283-0366")[0] is True, "formatted card number passes"
+    assert e.validate("4532015112830367")[0] is False, "invalid Luhn checksum rejected"
+    assert e.validate("not-a-card")[0] is False, "junk rejected"
     engines = _import("backend.core.engines")
-    assert hasattr(engines, "MACEngine") or hasattr(engines, "MacEngine"), \
-        "MAC engine class must be exported from engines package"
-    print("TASK3 PASS: 'mac' engine registered, exported, and validating")
+    assert hasattr(engines, "CreditCardEngine"), "CreditCardEngine must be exported from engines"
+    print("TASK3 PASS: 'credit_card' engine registered, exported, and validating")
 
 
 def check_task3_baseline() -> None:
     reg = _registry_with_engines()
-    assert not reg.has("mac"), "baseline: no 'mac' validator yet"
-    print("TASK3 BASELINE: no 'mac' validator (unmodified)")
+    assert not reg.has("credit_card"), "baseline: no 'credit_card' validator yet"
+    print("TASK3 BASELINE: no 'credit_card' validator (unmodified)")
 
 
-# ---------------- Task 4: Interface-wide `category` property on all engines ----------------
+# ---------------- Task 4: Interface-wide get_supported_mime_types on all engines ----------------
 def check_task4() -> None:
     reg = _registry_with_engines()
     keys = reg.list_keys()
     assert keys, "expected registered validators"
     for k in keys:
         e = reg.get(k)
-        cat = getattr(e, "category", None)
-        assert isinstance(cat, str) and cat in ALLOWED_CATEGORIES, \
-            f"engine '{k}' must expose a valid category; got {cat!r}"
-    # Contract is enforced on the interface: a bare subclass missing category
-    # must fail to instantiate (abstract).
+        mimes = getattr(e, "get_supported_mime_types", None)
+        assert callable(mimes), f"engine '{k}' must implement get_supported_mime_types()"
+        res = e.get_supported_mime_types()
+        assert isinstance(res, list) and len(res) > 0 and all(isinstance(x, str) for x in res), \
+            f"engine '{k}' must return non-empty list of mime strings; got {res!r}"
     iface = _import("backend.core.interfaces.validator_interface")
-    assert hasattr(iface.IValidator, "category"), "IValidator must declare 'category'"
-    print(f"TASK4 PASS: all {len(keys)} engines expose a valid category; interface enforces it")
+    assert hasattr(iface.IValidator, "get_supported_mime_types"), \
+        "IValidator must declare 'get_supported_mime_types'"
+    print(f"TASK4 PASS: all {len(keys)} engines expose get_supported_mime_types(); interface enforces it")
 
 
 def check_task4_baseline() -> None:
     reg = _registry_with_engines()
     e = reg.get(reg.list_keys()[0])
-    assert not hasattr(e, "category"), "baseline: engines have no 'category' yet"
-    print("TASK4 BASELINE: engines lack 'category' (unmodified)")
+    assert not hasattr(e, "get_supported_mime_types"), "baseline: engines lack 'get_supported_mime_types'"
+    print("TASK4 BASELINE: engines lack 'get_supported_mime_types' (unmodified)")
 
 
-# ---------------- Task 5: Thread `evidence` field end-to-end ----------------
+# ---------------- Task 5: Thread risk_tier field end-to-end ----------------
 def check_task5() -> None:
     iface = _import("backend.core.interfaces.detector_interface")
     r = iface.DetectionResult(workflow="text", subtype="email")
-    assert hasattr(r, "evidence"), "DetectionResult must have 'evidence'"
-    assert r.evidence == [], "evidence defaults to empty list"
-    r.evidence.append("matched 9/10 samples against email pattern")
+    assert hasattr(r, "risk_tier"), "DetectionResult must have 'risk_tier'"
+    assert r.risk_tier == "low", "risk_tier defaults to 'low'"
+    r.risk_tier = "high"
     d = r.to_dict()
-    assert "evidence" in d, "to_dict() must serialize 'evidence'"
-    assert d["evidence"] == ["matched 9/10 samples against email pattern"]
-    print("TASK5 PASS: DetectionResult.evidence present, defaulted, and serialized")
+    assert "risk_tier" in d, "to_dict() must serialize 'risk_tier'"
+    assert d["risk_tier"] == "high"
+    print("TASK5 PASS: DetectionResult.risk_tier present, defaulted, and serialized")
 
 
 def check_task5_baseline() -> None:
     iface = _import("backend.core.interfaces.detector_interface")
     r = iface.DetectionResult(workflow="text", subtype="email")
-    assert not hasattr(r, "evidence"), "baseline: no 'evidence' field yet"
-    assert "evidence" not in r.to_dict()
-    print("TASK5 BASELINE: DetectionResult has no 'evidence' (unmodified)")
+    assert not hasattr(r, "risk_tier"), "baseline: no 'risk_tier' field yet"
+    assert "risk_tier" not in r.to_dict()
+    print("TASK5 BASELINE: DetectionResult has no 'risk_tier' (unmodified)")
 
 
 TABLE = {

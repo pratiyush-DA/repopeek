@@ -322,6 +322,27 @@ class PythonParser(BaseParser):
             elif isinstance(tgt, ast.Attribute):
                 name = ast.unparse(tgt)
 
+            if isinstance(tgt, ast.Subscript):
+                container_name = ast.unparse(tgt.value)
+                key_name = ast.unparse(tgt.slice)
+                val_name = ast.unparse(assign_node.value) if assign_node.value else ""
+                if val_name and any(k in container_name.lower() for k in ("registry", "plugin", "engine", "handler", "map")):
+                    edges.append(
+                        Edge(
+                            src=val_name,
+                            dst=container_name,
+                            type=EdgeType.CALLS,
+                            confidence=Confidence.AMBIGUOUS,
+                            evidence=Evidence(
+                                file=rel_path,
+                                start_line=start_line,
+                                end_line=end_line,
+                                how_derived="ast_dict_registration",
+                            ),
+                        )
+                    )
+                continue
+
             if not name:
                 continue
 
@@ -784,6 +805,67 @@ class PythonParser(BaseParser):
                                     start_line=sub_node.lineno,
                                     end_line=getattr(sub_node, "end_lineno", sub_node.lineno),
                                     how_derived="ast_config_read",
+                                ),
+                            )
+                        )
+
+                # Dynamic reflection: getattr(target, "attribute_name")
+                if callee_name == "getattr" and len(sub_node.args) >= 2:
+                    if isinstance(sub_node.args[1], ast.Constant) and isinstance(sub_node.args[1].value, str):
+                        attr_val = sub_node.args[1].value
+                        reads.add(f"GETATTR:{attr_val}")
+                        call_edges.append(
+                            Edge(
+                                src=func_id,
+                                dst=attr_val,
+                                type=EdgeType.CALLS,
+                                confidence=Confidence.AMBIGUOUS,
+                                evidence=Evidence(
+                                    file=rel_path,
+                                    start_line=sub_node.lineno,
+                                    end_line=getattr(sub_node, "end_lineno", sub_node.lineno),
+                                    how_derived="ast_getattr",
+                                ),
+                            )
+                        )
+
+                # Registry calls: e.g. registry.register(key, ClassName) or register(key, ClassName)
+                if any(k in call_lower for k in ("register", "plugin", "handler")):
+                    for arg in sub_node.args:
+                        if isinstance(arg, ast.Name):
+                            call_edges.append(
+                                Edge(
+                                    src=arg.id,
+                                    dst=callee_name,
+                                    type=EdgeType.CALLS,
+                                    confidence=Confidence.AMBIGUOUS,
+                                    evidence=Evidence(
+                                        file=rel_path,
+                                        start_line=sub_node.lineno,
+                                        end_line=getattr(sub_node, "end_lineno", sub_node.lineno),
+                                        how_derived="ast_registration",
+                                    ),
+                                )
+                            )
+                        elif isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+                            reads.add(f"REGISTRY_KEY:{arg.value}")
+
+                # Registry lookup calls: e.g. registry.get("key")
+                if call_lower.endswith(".get") and any(k in call_lower for k in ("registry", "plugin", "factory")):
+                    if sub_node.args and isinstance(sub_node.args[0], ast.Constant) and isinstance(sub_node.args[0].value, str):
+                        key_val = sub_node.args[0].value
+                        reads.add(f"REGISTRY_GET:{key_val}")
+                        call_edges.append(
+                            Edge(
+                                src=func_id,
+                                dst=key_val,
+                                type=EdgeType.CALLS,
+                                confidence=Confidence.AMBIGUOUS,
+                                evidence=Evidence(
+                                    file=rel_path,
+                                    start_line=sub_node.lineno,
+                                    end_line=getattr(sub_node, "end_lineno", sub_node.lineno),
+                                    how_derived="ast_registry_get",
                                 ),
                             )
                         )

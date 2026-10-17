@@ -24,6 +24,11 @@ def build_sqlite_cache(graph: CanonicalGraph, db_path: Path) -> None:
             PRAGMA synchronous = OFF;
             PRAGMA journal_mode = MEMORY;
 
+            CREATE TABLE IF NOT EXISTS analytics (
+                key TEXT PRIMARY KEY,
+                value_json TEXT NOT NULL
+            );
+
             CREATE TABLE metadata (
                 key TEXT PRIMARY KEY,
                 value TEXT
@@ -144,7 +149,52 @@ def build_sqlite_cache(graph: CanonicalGraph, db_path: Path) -> None:
             fts_rows,
         )
 
+        # Precompute and populate analytics table for sub-millisecond retrieval
+        try:
+            from repopeek.graph.clustering import detect_communities, generate_community_labels
+            from repopeek.graph.analysis import god_nodes, find_import_cycles
+            comms = detect_communities(graph)
+            labels = generate_community_labels(graph, comms)
+            gods = god_nodes(graph, top_n=30)
+            cycles = find_import_cycles(graph)
+            analytics_rows = [
+                (
+                    "communities",
+                    json.dumps({
+                        "communities": {str(k): v for k, v in comms.items()},
+                        "labels": {str(k): v for k, v in labels.items()},
+                    }),
+                ),
+                ("god_nodes", json.dumps(gods)),
+                ("cycles", json.dumps(cycles)),
+            ]
+            cur.executemany("INSERT OR REPLACE INTO analytics(key, value_json) VALUES (?, ?);", analytics_rows)
+        except Exception:
+            pass
+
         conn.commit()
+    finally:
+        conn.close()
+
+
+def query_sqlite_analytics(db_path: Path, key: str) -> Optional[Any]:
+    """Retrieve precomputed analytical results from SQLite cache."""
+    db_file = Path(db_path).resolve()
+    if not db_file.exists():
+        return None
+    conn = sqlite3.connect(str(db_file))
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='analytics';")
+        if not cur.fetchone():
+            return None
+        cur.execute("SELECT value_json FROM analytics WHERE key = ?;", (key,))
+        row = cur.fetchone()
+        if row and row[0]:
+            return json.loads(row[0])
+        return None
+    except Exception:
+        return None
     finally:
         conn.close()
 

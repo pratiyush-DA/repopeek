@@ -50,7 +50,11 @@ class GitTemporalMiner:
 
     def mine_commits(self, max_commits: int = 2000) -> List[CommitRecord]:
         """Extract commit history via git log without merges."""
-        if not (self.repo_root / ".git").exists():
+        git_dir = self.repo_root / ".git"
+        if not git_dir.exists():
+            return []
+        # Fast-fail for shallow repositories (e.g. CI/CD depth=1) to eliminate 1.5s subshell cost
+        if (git_dir / "shallow").exists():
             return []
 
         try:
@@ -69,6 +73,7 @@ class GitTemporalMiner:
                 text=True,
                 encoding="utf-8",
                 errors="replace",
+                timeout=5.0,
                 check=False,
             )
             if res.returncode != 0:
