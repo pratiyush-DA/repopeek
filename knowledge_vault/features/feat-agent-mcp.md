@@ -49,6 +49,19 @@ The server exposes 16 specialized intelligence tools:
 - Follows MCP JSON-RPC 2.0 handshake: `initialize` -> `notifications/initialized` -> `tools/list` -> `tools/call`.
 - Completely deterministic, offline, and sub-10ms response time per query.
 
-## 4. One-Click Client Auto-Configuration
-- Command: `repopeek mcp install --client [cursor|claude|windsurf|antigravity|vscode]` (or default `all`).
-- Safely discovers and patches assistant configuration files (`mcp.json`, `claude_desktop_config.json`, etc.) with automatic `.bak` backups.
+## 4. One-Click Assistant & Master Steering Rules Configuration
+- **Command:** `repopeek install [cursor|claude|windsurf|antigravity|vscode|all]` (or `--install-mcp`).
+- **MCP Registration:** Patches assistant JSON configs (`mcp.json`, `claude_desktop_config.json`, etc.) with `.bak` backups.
+- **Master Rule Injection:** Injects the Hybrid Decision Ladder into client rules using idempotent `<!-- REPOPEEK-RULES:START -->` tags:
+  - **Cursor:** `.cursor/rules/repopeek.mdc` (`alwaysApply: true`) and `.cursorrules`.
+  - **Claude Code:** `CLAUDE.md`.
+  - **Windsurf:** `.windsurf/rules/repopeek.md` and `.windsurfrules`.
+  - **Antigravity:** `.agents/rules/repopeek.md` and `~/.gemini/config/rules/repopeek.md`.
+  - **Copilot / VS Code:** `.github/copilot-instructions.md`.
+  - **Universal Standard:** `AGENTS.md`.
+- **Hybrid Directives:**
+  - Skip RepoPeek for trivial leaf edits (known file, regex, typo).
+  - Call `repopeek_lookup` (<70 tokens) for symbol signatures.
+  - Call `repopeek_context` for multi-file features and unfamiliar code.
+  - Call `repopeek_resolve` for ambiguous search terms.
+  - Call `repopeek_impact` before modifying shared interfaces.

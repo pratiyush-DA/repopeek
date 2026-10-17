@@ -97,21 +97,41 @@ This generates `.repopeek/graph.json` and sharded lenses.
 
 ---
 
-### 3. One-Click MCP Client Registration
+### 3. One-Click Assistant & Master Steering Rules Setup
 
-Automatically registers RepoPeek with your installed AI coding assistant:
+Automatically registers RepoPeek's MCP server and injects the evidence-based **Hybrid Steering Directives** into your coding assistants:
 
 ```bash
-# Register with all detected clients
-repopeek mcp install
+# Register MCP server + master rules across all detected assistants:
+repopeek install
 
-# Or target a specific client:
-repopeek mcp install cursor
-repopeek mcp install claude
-repopeek mcp install windsurf
-repopeek mcp install antigravity
-repopeek mcp install vscode
+# Or target a specific assistant:
+repopeek install cursor
+repopeek install claude
+repopeek install windsurf
+repopeek install antigravity
+repopeek install vscode
+
+# Optional flags:
+repopeek install --rules-only   # Only inject rules without patching MCP configs
+repopeek install --no-rules     # Only patch MCP configs without creating rules
+repopeek install --global-rules # Inject rules into global user profiles (~/.gemini, ~/.cursor)
 ```
+
+**What gets configured automatically:**
+- **Cursor:** `.cursor/rules/repopeek.mdc` (`alwaysApply: true`, `globs: *`) and `.cursorrules`.
+- **Claude Code:** `CLAUDE.md`.
+- **Windsurf:** `.windsurf/rules/repopeek.md` and `.windsurfrules`.
+- **Antigravity:** `.agents/rules/repopeek.md` and `~/.gemini/config/rules/repopeek.md`.
+- **VS Code / Copilot:** `.github/copilot-instructions.md`.
+- **Universal Standard:** `AGENTS.md`.
+
+**The Injected Hybrid Decision Ladder:**
+- **Leaf Changes (known file, regex, typo):** Edit directly. Never waste tool tokens on trivial edits.
+- **Symbol Check:** Call `repopeek_lookup` (<70 tokens) before editing.
+- **Multi-File Feature or Unfamiliar Code:** Call `repopeek_context` FIRST (-54% to -65% context tokens).
+- **Ambiguous Terms:** Call `repopeek_resolve` (code-first BM25 + AST ranking).
+- **Shared Interfaces:** Call `repopeek_impact` before modifying public APIs.
 
 ---
 

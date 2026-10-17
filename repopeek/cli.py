@@ -95,7 +95,22 @@ def build_parser() -> argparse.ArgumentParser:
         const="all",
         default=None,
         choices=["all", "cursor", "claude", "windsurf", "antigravity", "vscode"],
-        help="Automatically register RepoPeek MCP server in AI assistant configuration (default: all)",
+        help="Automatically register RepoPeek MCP server and master agent steering rules in AI assistants (default: all)",
+    )
+    parser.add_argument(
+        "--no-rules",
+        action="store_true",
+        help="Skip installing agent steering rules when running --install-mcp",
+    )
+    parser.add_argument(
+        "--rules-only",
+        action="store_true",
+        help="Only install agent steering rules without modifying MCP server configs",
+    )
+    parser.add_argument(
+        "--global-rules",
+        action="store_true",
+        help="Install agent steering rules into global user profile directories where supported",
     )
     parser.add_argument(
         "--view",
@@ -287,6 +302,22 @@ def main(argv=None) -> int:
         argv = ["--cluster"] + argv[1:]
     if argv and argv[0] == "view":
         argv = ["--view"] + argv[1:]
+    if argv and argv[0] == "install":
+        if len(argv) > 1 and not argv[1].startswith("-"):
+            target = argv[1]
+            rest = argv[2:]
+        else:
+            target = "all"
+            rest = argv[1:]
+        argv = ["--install-mcp", target] + rest
+    if argv and argv[0] == "rules":
+        if len(argv) > 1 and not argv[1].startswith("-"):
+            target = argv[1]
+            rest = argv[2:]
+        else:
+            target = "all"
+            rest = argv[1:]
+        argv = ["--install-mcp", target, "--rules-only"] + rest
     if argv and argv[0] == "mcp":
         if len(argv) > 1 and argv[1] == "install":
             if len(argv) > 2 and not argv[2].startswith("-"):
@@ -369,23 +400,68 @@ def main(argv=None) -> int:
     # Query dispatch handling
     if is_query_mode:
         if args.install_mcp:
-            from repopeek.mcp_installer import install_all_clients, install_mcp_config
+            from repopeek.mcp_installer import (
+                install_agent_rules,
+                install_all_clients,
+                install_all_rules,
+                install_mcp_config,
+            )
             target = args.install_mcp
-            if target == "all":
-                results = install_all_clients(repo_path=resolved_repo)
-            else:
-                results = {target: install_mcp_config(target, repo_path=resolved_repo)}
+            install_rules = not args.no_rules
+            global_install = getattr(args, "global_rules", False)
 
-            print("RepoPeek MCP Client Configuration:")
+            if getattr(args, "rules_only", False):
+                print("RepoPeek Agent Steering Rules Installation:")
+                if target == "all":
+                    rule_results = install_all_rules(repo_path=resolved_repo, global_install=global_install)
+                else:
+                    rule_results = {target: install_agent_rules(target, repo_path=resolved_repo, global_install=global_install)}
+                for client, res in rule_results.items():
+                    files = res.get("files", [])
+                    print(f"  [{client.upper()}] Status: {res.get('status')}")
+                    for f in files:
+                        bk = f" (backup: {f.get('backup')})" if f.get("backup") else ""
+                        print(f"    Master Rule -> {f.get('path')}{bk}")
+                return 0
+
+            if target == "all":
+                results = install_all_clients(
+                    repo_path=resolved_repo,
+                    install_rules=install_rules,
+                    global_install=global_install,
+                )
+            else:
+                results = {
+                    target: install_mcp_config(
+                        target,
+                        repo_path=resolved_repo,
+                        install_rules=install_rules,
+                        global_install=global_install,
+                    )
+                }
+
+            print("RepoPeek Assistant Configuration & Agent Rules:")
             for client, res in results.items():
                 status = res.get("status")
                 path = res.get("path", "")
                 msg = res.get("message", "")
                 if status == "success":
                     backup = f" (backup: {res.get('backup')})" if res.get("backup") else ""
-                    print(f"  [{client.upper()}] Configured successfully -> {path}{backup}")
-                else:
+                    print(f"  [{client.upper()}] MCP Configured -> {path}{backup}")
+                elif status == "partial":
+                    print(f"  [{client.upper()}] Partial setup: {path}")
+                elif path:
                     print(f"  [{client.upper()}] Notice: {msg or path}")
+
+                rules = res.get("rules")
+                if rules and isinstance(rules, dict):
+                    for rf in rules.get("files", []):
+                        rf_bk = f" (backup: {rf.get('backup')})" if rf.get("backup") else ""
+                        print(f"    Master Rule -> {rf.get('path')}{rf_bk}")
+                elif client == "agents":
+                    for rf in res.get("files", []):
+                        rf_bk = f" (backup: {rf.get('backup')})" if rf.get("backup") else ""
+                        print(f"  [AGENTS] Master Rule -> {rf.get('path')}{rf_bk}")
             return 0
 
         import json

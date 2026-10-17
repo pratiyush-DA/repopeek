@@ -95,6 +95,65 @@ def test_mcp_installer_entry_generation(tmp_path: Path):
     assert "repopeek" in entry["args"]
 
 
+def test_generate_repopeek_system_prompt():
+    from repopeek.mcp_installer import generate_repopeek_system_prompt
+    general = generate_repopeek_system_prompt("general")
+    assert "RepoPeek Code Intelligence Protocol" in general
+    assert "Hybrid Decision Ladder" in general
+    assert "repopeek_context" in general
+    assert "repopeek_lookup" in general
+    assert "repopeek_impact" in general
+    assert "Leaf / Single-File Edit" in general
+
+    cursor = generate_repopeek_system_prompt("cursor")
+    assert "alwaysApply: true" in cursor
+    assert "globs: *" in cursor
+
+
+def test_install_agent_rules_idempotent(tmp_path: Path):
+    from repopeek.mcp_installer import (
+        START_RULE_TAG,
+        END_RULE_TAG,
+        install_agent_rules,
+        install_all_rules,
+    )
+    repo_dir = tmp_path / "sample_repo"
+    repo_dir.mkdir()
+
+    # 1. New rule file installation
+    res = install_agent_rules("claude", repo_path=repo_dir)
+    assert res["status"] == "success"
+    claude_md = repo_dir / "CLAUDE.md"
+    assert claude_md.exists()
+    assert START_RULE_TAG in claude_md.read_text(encoding="utf-8")
+
+    # 2. Existing file with user custom instructions - must not be clobbered
+    custom_md = repo_dir / "CUSTOM.md"
+    custom_md.write_text("# My Project Instructions\nAlways run tests.", encoding="utf-8")
+    res_custom = install_agent_rules("general", repo_path=repo_dir, rule_files=[custom_md])
+    assert res_custom["status"] == "success"
+    content = custom_md.read_text(encoding="utf-8")
+    assert "# My Project Instructions" in content
+    assert "Always run tests." in content
+    assert START_RULE_TAG in content
+
+    # 3. Idempotent re-run - replaces block without duplicating
+    res_re = install_agent_rules("general", repo_path=repo_dir, rule_files=[custom_md])
+    assert res_re["status"] == "success"
+    content_re = custom_md.read_text(encoding="utf-8")
+    assert content_re.count(START_RULE_TAG) == 1
+    assert content_re.count(END_RULE_TAG) == 1
+    assert "# My Project Instructions" in content_re
+
+    # 4. Install all rules
+    all_res = install_all_rules(repo_path=repo_dir)
+    assert "cursor" in all_res
+    assert "claude" in all_res
+    assert "agents" in all_res
+    assert (repo_dir / "AGENTS.md").exists()
+    assert (repo_dir / ".cursor" / "rules" / "repopeek.mdc").exists()
+
+
 def test_viewer_v3_rest_endpoints(v3_test_graph: CanonicalGraph):
     import threading
     engine = GraphQueryEngine(graph=v3_test_graph)
