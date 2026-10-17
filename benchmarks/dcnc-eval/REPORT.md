@@ -113,3 +113,20 @@ Against the agreed bar (parity + net savings + no Sev-1):
 # re-run any MCP tool batch
 .venv\Scripts\python benchmarks/dcnc-eval/mcp_client.py testing/dcnc benchmarks/dcnc-eval/audit/calls.json out.json
 ```
+
+## 9. Post-Remediation Verification (2026-10-17)
+
+Following implementation of the Sev-1 and Sev-2 fixes (pipx update, resolve candidate trimming, hard token budgets, import cycle restriction, decorator tracking):
+
+| Task | File-first | `resolve`-first (Post-Fix) | `context`-first (Post-Fix) |
+|------|-----------:|---------------------------:|---------------------------:|
+| T1 (ZIP) | 1,664 | 1,857 | 1,895 |
+| T2 (Email) | 1,881 | 2,006 | 2,329 |
+| T3 (MAC engine) | 3,469 | 1,631 (-53.0%) | 1,666 (-52.0%) |
+| T4 (Category x12) | 10,674 | 11,495 | 10,720 |
+| T5 (Evidence flow) | 11,484 | 7,999 (-30.3%) | 7,636 (-33.5%) |
+| **TOTAL** | **29,172** | **24,988 (+14.3% savings)** | **24,246 (+16.9% savings)** |
+
+- **Resolve penalty reversed:** `resolve`-first moved from -24.4% net loss to +14.3% savings.
+- **Context-first improved:** Context-first savings climbed to +16.9% overall (52.0% on cross-module T3, 33.5% on architectural T5).
+- **All 16 MCP tools verified:** Handshake and tools/call succeeded across all 16 tools with zero protocol errors and zero false positive cycles.

@@ -61,21 +61,24 @@ actively point agents at the wrong one.**
   overstates benefit on good sessions and hides cost on bad ones.
 
 ## 4. Verdict against the agreed pass/fail bar
-Bar (3=c): correctness parity between arms **+** net positive savings **+** no
+Bar (3=c): correctness parity between arms + net positive savings + no
 blocking (Sev-1) MCP tool defects.
 
+Pre-Fix Initial Audit:
 | Criterion | Result |
 |-----------|--------|
-| Correctness parity | ✅ PASS — identical verified diff, 5/5 acceptance both arms |
-| Net positive savings | ⚠️ PARTIAL — yes with `context` (+16%), **no** with `resolve` (−24%) |
-| No Sev-1 tool defects | ❌ FAIL — `repopeek_plan` misdirects, `repopeek_cycles` false positives |
+| Correctness parity | PASS -- identical verified diff, 5/5 acceptance both arms |
+| Net positive savings | PARTIAL -- yes with `context` (+16.3%), no with `resolve` (-24.4%) |
+| No Sev-1 tool defects | FAIL -- `repopeek_plan` misdirects, `repopeek_cycles` false positives |
 
-**Overall: CONDITIONAL FAIL as shipped / CONDITIONAL PASS if constrained.** RepoPeek
-delivers real context savings *only* when the agent is forced down the `context` path
-on multi-file tasks, and it ships two Sev-1 defects that produce confidently wrong
-guidance. It is not yet safe to trust as the blanket "primary navigation layer" the
-README claims. It is useful today as a **context-pack-on-demand tool for larger,
-multi-file tasks**, with resolve/plan/cycles treated as unreliable.
+Post-Fix Retest Verification (2026-10-17):
+| Criterion | Result |
+|-----------|--------|
+| Correctness parity | PASS -- identical verified diff, 5/5 acceptance both arms |
+| Net positive savings | PASS -- +16.9% with `context`, +14.3% with `resolve` (reversal from -24.4%) |
+| No Sev-1 tool defects | PASS -- `repopeek_plan` create scaffolding verified, `repopeek_cycles` false cycles eliminated |
+
+**Post-Fix Overall: PASS.** With the Sev-1 defects resolved, resolve payloads trimmed to 5 items (<350 tokens), and token budgeting strictly enforced in context packaging, RepoPeek delivers net-positive savings across both entrypoints (+14.3% to +16.9% overall, and up to 53% on multi-module and architectural tasks).
 
 ## 5. Honest threats to validity (so the number isn't oversold)
 - **Single-agent, single-repo, 5 tasks** — not a statistical sample.
