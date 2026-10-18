@@ -789,6 +789,15 @@ def compute_retrieval_score(
         if "views.py" in file_lower.replace("\\", "/") and not any("view" in i for i in ident_l):
             score.path_relevance = min(score.path_relevance, 0.2)
 
+    is_external_node = node_id.startswith("ext:") or kind in ("external", "external_symbol", "unresolved") or not file_lower
+    if is_external_node:
+        score.kind_preference = 0.05
+        score.path_relevance = 0.0
+        score.exact_match *= 0.4
+        score.identifier *= 0.3
+        score.token_overlap *= 0.3
+        score.lexical *= 0.2
+
     return score
 
 

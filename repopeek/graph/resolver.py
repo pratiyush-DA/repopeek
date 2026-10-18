@@ -288,9 +288,21 @@ class SymbolResolver:
 
         # 2. Check if imported in this file
         imports = self.file_imports.get(src_file, {})
+        import_target = None
         if bare_name in imports:
             import_target = imports[bare_name]
-            resolved = self._find_node_by_dotted_path(import_target)
+        elif "." in callee_name:
+            prefix, remainder = callee_name.split(".", 1)
+            if prefix in imports:
+                mod_target = imports[prefix]
+                import_target = f"{mod_target}.{remainder}"
+        elif callee_name in imports:
+            import_target = imports[callee_name]
+
+        if import_target:
+            resolved = self._resolve_import(src_file, import_target)
+            if not resolved:
+                resolved = self._find_node_by_dotted_path(import_target)
             if resolved:
                 dst_lang = language_from_node_id(resolved)
                 if not src_lang or not dst_lang or src_lang == dst_lang:
@@ -307,7 +319,51 @@ class SymbolResolver:
 
     def _resolve_import(self, src_file: str, import_path: str) -> Optional[str]:
         """Resolve an import path to a concrete file or symbol node in the repository."""
-        # 1. Try relative path resolution (e.g. ./api or ../utils)
+        # 1. Python relative imports with leading dots (e.g. .validators, ..models.BaseEntity)
+        if import_path.startswith(".") and "/" not in import_path and src_file:
+            dots_count = len(import_path) - len(import_path.lstrip("."))
+            remainder = import_path.lstrip(".")
+            base_dir = Path(src_file).parent
+            for _ in range(dots_count - 1):
+                base_dir = base_dir.parent
+
+            if not remainder:
+                init_cand = (base_dir / "__init__.py").as_posix()
+                if init_cand in self.file_nodes:
+                    return self.file_nodes[init_cand]
+            else:
+                parts = remainder.split(".")
+                # Check if parts[0] is a module file in base_dir
+                for ext in (".py", ".ts", ".tsx", ".js"):
+                    cand_file = (base_dir / f"{parts[0]}{ext}").as_posix()
+                    if cand_file in self.file_nodes:
+                        if len(parts) == 1:
+                            return self.file_nodes[cand_file]
+                        sym_name = ".".join(parts[1:])
+                        if (cand_file, sym_name) in self.symbols_by_qualname:
+                            return self.symbols_by_qualname[(cand_file, sym_name)]
+                        if (cand_file, parts[1]) in self.symbols_by_qualname:
+                            return self.symbols_by_qualname[(cand_file, parts[1])]
+
+                # Check if parts[0] is a package directory in base_dir
+                pkg_init = (base_dir / parts[0] / "__init__.py").as_posix()
+                if pkg_init in self.file_nodes:
+                    if len(parts) == 1:
+                        return self.file_nodes[pkg_init]
+                    if len(parts) >= 2:
+                        for ext in (".py", ".ts", ".tsx", ".js"):
+                            sub_mod = (base_dir / parts[0] / f"{parts[1]}{ext}").as_posix()
+                            if sub_mod in self.file_nodes:
+                                if len(parts) == 2:
+                                    return self.file_nodes[sub_mod]
+                                sym_name = ".".join(parts[2:])
+                                if (sub_mod, sym_name) in self.symbols_by_qualname:
+                                    return self.symbols_by_qualname[(sub_mod, sym_name)]
+                    sym_name = ".".join(parts[1:])
+                    if (pkg_init, sym_name) in self.symbols_by_qualname:
+                        return self.symbols_by_qualname[(pkg_init, sym_name)]
+
+        # 2. Path-based relative resolution (e.g. ./api or ../utils in TS/JS)
         if import_path.startswith(".") and src_file:
             src_dir = Path(src_file).parent
             rel_candidate = (src_dir / import_path).as_posix().lstrip("./")
@@ -316,18 +372,18 @@ class SymbolResolver:
                 if cand_path in self.file_nodes:
                     return self.file_nodes[cand_path]
 
-        # 2. Try direct dotted module match
+        # 3. Direct dotted module match
         if import_path in self.module_to_file:
             return self.module_to_file[import_path]
 
-        # 3. Try stripping leading segments (e.g. tests.fixtures.sample_repo.src.billing.invoice)
+        # 4. Try stripping leading segments (e.g. tests.fixtures.sample_repo.src.billing.invoice)
         parts = import_path.split(".")
         for i in range(len(parts)):
             suffix = ".".join(parts[i:])
             if suffix in self.module_to_file:
                 return self.module_to_file[suffix]
 
-        # 4. Try matching as symbol in a module (e.g. module.symbol or ./api.fetchUser)
+        # 5. Try matching as symbol in a module (e.g. module.symbol or ./api.fetchUser)
         if "." in import_path:
             mod_part, sym_part = import_path.rsplit(".", 1)
             file_id = self._resolve_import(src_file, mod_part)

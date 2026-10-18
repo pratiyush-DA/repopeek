@@ -118,9 +118,13 @@ class PythonParser(BaseParser):
                         )
                     )
             elif isinstance(node, ast.ImportFrom):
-                mod = node.module or ""
+                level_dots = "." * node.level if node.level > 0 else ""
+                mod = f"{level_dots}{node.module}" if node.module else level_dots
                 for alias in node.names:
-                    target_name = f"{mod}.{alias.name}" if mod else alias.name
+                    if level_dots and not node.module:
+                        target_name = f"{level_dots}{alias.name}"
+                    else:
+                        target_name = f"{mod}.{alias.name}" if mod else alias.name
                     edges.append(
                         Edge(
                             src=file_id,

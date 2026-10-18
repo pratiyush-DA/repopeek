@@ -148,29 +148,71 @@ class GraphQueryEngine:
         include_snippet: bool = False,
         include_blast: bool = True,
     ) -> Optional[NodeCard]:
-        """Lookup node card by exact ID, qualified symbol name, or identifier suffix."""
-        target: Optional[NodeCard] = None
-        if query in self.graph.nodes:
-            target = self.graph.nodes[query]
-        else:
-            # Suffix matching
-            matches = [
-                node for nid, node in self.graph.nodes.items()
-                if nid.endswith(f"::{query}") or nid.endswith(f".{query}") or nid == query
-            ]
-            if matches:
-                target = matches[0]
-            else:
-                # Substring search
-                substr_matches = [
-                    node for nid, node in self.graph.nodes.items()
-                    if query in nid
-                ]
-                if substr_matches:
-                    target = substr_matches[0]
+        """Lookup node card by exact ID, qualified symbol name, or identifier suffix.
 
-        if not target:
+        Prioritizes internal repository symbols over external unresolved nodes,
+        and exact symbol name matches over loose substrings.
+        """
+        q = query.strip()
+        if not q:
             return None
+
+        # 1. Direct exact ID lookup
+        if q in self.graph.nodes:
+            direct_node = self.graph.nodes[q]
+            if not direct_node.id.startswith("ext:") and direct_node.span:
+                card = direct_node.model_copy()
+                if include_blast and card.blast is None:
+                    card.blast = self.compute_blast(card.id)
+                if include_snippet and card.snippet is None:
+                    card.snippet = self.extract_snippet(card)
+                return card
+
+        q_lower = q.lower()
+
+        def _rank_node(card: NodeCard) -> Tuple[int, int, str]:
+            nid = card.id
+            is_ext = nid.startswith("ext:") or card.kind in ("external", "external_symbol", "unresolved") or not card.span
+            kind = getattr(card, "kind", "")
+            qualname = nid.split("::")[-1] if "::" in nid else nid
+            bare_name = qualname.split(".")[-1]
+            bare_lower = bare_name.lower()
+            qual_lower = qualname.lower()
+
+            if not is_ext:
+                if nid == q:
+                    tier = 0
+                elif nid.endswith(f"::{q}") or nid.endswith(f".{q}"):
+                    tier = 1
+                elif nid.lower().endswith(f"::{q_lower}") or nid.lower().endswith(f".{q_lower}"):
+                    tier = 2
+                elif bare_lower == q_lower:
+                    tier = 3
+                elif qual_lower == q_lower:
+                    tier = 4
+                elif bare_lower.startswith(q_lower) or q_lower in bare_lower:
+                    tier = 5 if kind not in ("file", "module", "repository") else 7
+                elif kind not in ("file", "module", "repository"):
+                    tier = 6
+                else:
+                    tier = 7
+            else:
+                if nid == q or bare_lower == q_lower:
+                    tier = 8
+                else:
+                    tier = 9
+
+            return (tier, len(nid), nid)
+
+        candidates = [
+            node for nid, node in self.graph.nodes.items()
+            if q_lower in nid.lower() or (node.sig and q_lower in node.sig.lower())
+        ]
+        if not candidates:
+            return None
+
+        candidates.sort(key=_rank_node)
+        target = candidates[0]
 
         card = target.model_copy()
         if include_blast and card.blast is None:
@@ -468,6 +510,29 @@ class GraphQueryEngine:
             affected_tables=sorted(list(affected_tables)),
         )
         final_pack.estimated_tokens = ContextPack.estimate_tokens_from_text(final_pack.to_markdown())
+
+        # Enforce hard budget guarantee if initial targets or cards exceed token_budget
+        if final_pack.estimated_tokens > token_budget and packed_nodes:
+            for nid, node_dict in packed_nodes.items():
+                if node_dict.get("snippet"):
+                    lines = node_dict["snippet"].splitlines()
+                    if len(lines) > 10:
+                        node_dict["snippet"] = "\n".join(lines[:10]) + "\n# ... (budget truncated)"
+            final_pack.nodes = list(packed_nodes.values())
+            final_pack.estimated_tokens = ContextPack.estimate_tokens_from_text(final_pack.to_markdown())
+
+            target_ids = {t.id for t in resolved_targets}
+            non_targets = [nid for nid in list(packed_nodes.keys()) if nid not in target_ids]
+            while final_pack.estimated_tokens > token_budget and non_targets:
+                drop_id = non_targets.pop()
+                del packed_nodes[drop_id]
+                final_pack.nodes = list(packed_nodes.values())
+                final_pack.relationships = [
+                    e for e in final_pack.relationships
+                    if e["src"] in packed_nodes and e["dst"] in packed_nodes
+                ]
+                final_pack.estimated_tokens = ContextPack.estimate_tokens_from_text(final_pack.to_markdown())
+
         return final_pack
 
     def _build_node_index(self) -> Dict[str, Dict[str, Any]]:
