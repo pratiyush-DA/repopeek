@@ -1,0 +1,5 @@
+Stop drowning your AI coding agent in 50k tokens of raw source code. 
+
+Meet RepoPeek: a lightweight Semantic Code Property Graph engine that parses 36+ languages into an interactive relational graph, exposes 16 MCP tools, and compiles surgical 40-line AST spans to cut context tokens by up to 55.7% with sub-50ms incremental sync.
+
+Free and open-source on GitHub: https://github.com/pratiyush-DA/repopeek

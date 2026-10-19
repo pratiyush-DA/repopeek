@@ -157,7 +157,7 @@ class GraphViewerHandler(BaseHTTPRequestHandler):
     def _serve_context(self, task: str, budget: int) -> None:
         from repopeek.context import ContextCompiler
         compiler = ContextCompiler(self.engine)
-        pkg = compiler.compile(task=task, token_budget=budget)
+        pkg = compiler.compile(task=task, budget=budget)
         self._send_json_response(pkg.to_dict())
 
     def _serve_god_nodes(self, top_n: int) -> None:

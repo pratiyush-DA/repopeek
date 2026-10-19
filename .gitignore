@@ -57,3 +57,4 @@ testing/
 .env
 .env.*
 !.env.example
+brag-output/work/
