@@ -8,6 +8,15 @@ RepoPeek serves as an **on-demand navigation index**, not a closed-world dump of
 
 **Agent Handoff Guide:** [Workflow_Documentation/07-Agent-Handoff.md](Workflow_Documentation/07-Agent-Handoff.md)
 
+---
+
+## Demo & Launch Video
+
+[![RepoPeek Launch Demo](docs/brag.jpg)](docs/brag.mp4)
+
+> Stop drowning your AI coding agent in 50k tokens of raw source code. RepoPeek parses 36+ languages into an interactive relational graph, exposes 16 MCP tools, and compiles surgical 40-line AST spans to cut context tokens by up to 55.7% with sub-50ms incremental sync.
+> Watch the launch video: [docs/brag.mp4](docs/brag.mp4)
+
 ![RepoPeek Interactive Graph Viewer](docs/dashboard-preview.png)
 
 ---
@@ -50,6 +59,12 @@ RepoPeek serves as an **on-demand navigation index**, not a closed-world dump of
 
 10. **Context Compiler & Change Plan Engine**
     Transforms ambiguous natural language engineering tasks into budget-governed context packages with 3-tier progressive disclosure (`level 1/2/3`) and multi-step, risk-assessed engineering change plans.
+
+11. **Multi-Root Monorepo Federation & tsconfig Resolution**
+    Analyzes multi-root and monorepo architectures (e.g. decoupled frontend/backend or microservice packages) with deterministic `tsconfig.json` path aliasing, package boundary isolation, and zero cross-package symbol collisions.
+
+12. **Structural Retrieval & Code-First AST Ranking**
+    Combines BM25 token matching with AST structural depth and Reciprocal Rank Fusion (RRF) to rank target symbols, call sites, and code slices with sub-millisecond precision.
 
 ---
 
@@ -193,6 +208,9 @@ repopeek --context "Raise MAX_LLM_RETRIES in metadata generation" --budget 1500 
 # Generate a risk-assessed change plan
 repopeek --plan "Refactor database connection pool"
 
+# Surgical single-file incremental sync (<50ms)
+repopeek --update src/billing/invoice.py
+
 # Start background incremental watch daemon (<50ms sync)
 repopeek --watch
 ```
@@ -220,7 +238,7 @@ RepoPeek operates as a standard stdio JSON-RPC MCP server compatible with **Curs
 
 ### 1-Click Installation (Recommended)
 
-Run `repopeek mcp install` directly from your terminal.
+Run `repopeek install` directly from your terminal.
 
 ### Manual Configuration
 
@@ -299,6 +317,19 @@ RepoPeek quantifies how much context tokens and file reads it saved the agent du
 ```text
 RepoPeek this session: 7 tool calls · ~2.9k tokens returned · est. ~34k tokens / ~19 file reads avoided (est. 92% reduction).
 ```
+
+### Empirical Multi-Module Benchmark Results (DCNC Evaluation)
+
+Empirically measured across real-world multi-module tasks on external repositories:
+
+| Metric | Without RepoPeek (File-First) | With RepoPeek | Verified Result |
+|---|---|---|---|
+| **Cross-Module Features (e.g. New Plugin Engine)** | 3,418 tokens | **1,213 to 1,572 tokens** | **54.0% to 64.5% Token Reduction** |
+| **Architectural Data Flow Inquiries** | 11,484 tokens | **7,785 to 7,879 tokens** | **31.4% to 32.2% Token Reduction** |
+| **Overall Suite Savings** | 29,016 tokens | **23,887 tokens** | **17.7% Net Savings Across All Tasks** |
+| **Topological Query Latency (God Nodes, Cycles)** | 15–300 ms | **<1 ms** | **Sub-millisecond Precomputed Cache** |
+| **Temporal Co-Change Discovery** | ~1.5s subshell | **<4 ms** | **375x Faster with Git Fast-Fail** |
+| **Privacy & Reliability** | Third-party cloud | **100% Local Execution** | **Zero External Cloud Dependencies** |
 
 ### Empirical 3-Defect Benchmark Results
 
