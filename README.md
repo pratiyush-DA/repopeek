@@ -2,7 +2,7 @@
 
 **Version:** `0.3.0` | **Status:** Production | **Protocol:** Model Context Protocol (MCP) | **Python:** `>=3.10`
 
-RepoPeek is a lightweight, local Semantic Code Property Graph (SCPG) engine and agent navigation platform. It parses 36+ programming languages into a unified relational graph, performs topological graph analysis (god nodes, import cycles, community clusters), provides a high-performance 60 FPS interactive Canvas graph visualizer, and compiles task-specific context packs of **≤4 files with ~40-line spans** (~1–2k tokens, delivering **16.3% context token reduction overall, and up to 55.7% on cross-module tasks**) for autonomous AI coding agents.
+RepoPeek is a lightweight, 100% local Semantic Code Property Graph (SCPG) engine and agent navigation platform. It parses 36+ programming languages into an embedded relational property graph (powered by NetworkX and local SQLite traversal caches—with zero external graph databases like Neo4j/Memgraph, and zero cloud SaaS dependencies). It performs topological graph analysis (god nodes, import cycles, community clusters), provides a high-performance 60 FPS interactive Canvas graph visualizer, and compiles task-specific context packs of **≤4 files with ~40-line spans** (~1–2k tokens, delivering **16.3% context token reduction overall, and up to 55.7% on cross-module tasks**) for autonomous AI coding agents.
 
 RepoPeek serves as an **on-demand navigation index**, not a closed-world dump of the repository. Coding agents lead with `repopeek_context` for multi-file feature or architectural tasks, and use `repopeek_lookup` for surgical single-symbol inspection, inspecting only the cited files.
 
@@ -15,9 +15,8 @@ RepoPeek serves as an **on-demand navigation index**, not a closed-world dump of
 [![RepoPeek Launch Demo](docs/brag.jpg)](docs/brag.mp4)
 
 > Stop drowning your AI coding agent in 50k tokens of raw source code. RepoPeek parses 36+ languages into an interactive relational graph, exposes 16 MCP tools, and compiles surgical 40-line AST spans to cut context tokens by up to 55.7% with sub-50ms incremental sync.
-> Watch the launch video: [docs/brag.mp4](docs/brag.mp4)
+> Watch the launch video: [brag-output\brag.mp4](brag-output\brag.mp4)
 
-![RepoPeek Interactive Graph Viewer](docs/dashboard-preview.png)
 
 ---
 
@@ -26,43 +25,34 @@ RepoPeek serves as an **on-demand navigation index**, not a closed-world dump of
 1. **Universal Polyglot Engine (36+ Languages)**
    Robust AST extraction (pure-Python `ast` for Python, deterministic recursive-descent parsers for TypeScript/JavaScript/SQL) with graceful regex/heuristic fallbacks across 36+ languages:
    Python, TypeScript, JavaScript, Go, Rust, Java, C, C++, C#, Ruby, PHP, Swift, Kotlin, SQL (PostgreSQL, SQLite, MySQL, Oracle), Shell/Bash, HTML, CSS, JSON, YAML, TOML, Markdown. Includes automated sensitive file shielding (skips `.env`, credentials, private keys, lockfiles, minified bundles).
-
 2. **Cross-Language Bridges & Data Flow**
    Automatically tracks variable def-use flows (`READS`, `WRITES`), subprocess executions, SQL table schema bindings, and cross-boundary HTTP client-to-server linkages (maps client `fetch`/`axios` calls to backend FastAPI/Flask/Express routes via `INVOKES` edges).
-
 3. **Topological Graph Analysis & Architectural Guardrails**
    Computes graph centrality and architecture risks without external services:
+
    - **God Nodes**: Ranks high-centrality hub abstractions via PageRank and degree distribution.
    - **Circular Dependencies**: Detects import cycles and recursive architectural couplings.
    - **Surprising Connections**: Identifies cross-boundary bridges linking distinct architectural layers.
    - **Automated Inquiry**: Generates contextual architectural prompts for developer and agent onboarding.
-
 4. **Unsupervised Community Clustering**
    Partitions repository graphs into functional modular communities using Louvain and modularity algorithms. Computes community cohesion scores ($0.0 \dots 1.0$) and synthesizes human-readable semantic cluster labels.
-
 5. **Wikipedia-Style Agent Wiki & Audit Reports**
+
    - **Agent Documentation Wiki (`wiki/index.md`)**: Wikipedia-style Markdown documentation with per-community dossiers and architectural hub deep dives.
    - **Graph Report (`GRAPH_REPORT.md`)**: Comprehensive codebase health audit with component distributions and circular dependency warnings.
-
 6. **Interactive 60 FPS Canvas Graph Viewer & Live REST APIs**
    High-speed Canvas 2D and WebGL visualizer running with alpha-cooled velocity damping to eliminate node oscillation. Features 9 materialization lenses (`Call Graph`, `Module Hierarchy`, `Data Flow`, etc.), minimap, glowing highlight paths, and live local REST API endpoints (`/api/graph`, `/api/god-nodes`, `/api/cycles`, `/api/communities`, `/api/impact`, etc.).
-
 7. **1-Click MCP Auto-Installer for Coding Assistants**
    Instantly configures the RepoPeek MCP server in your favorite AI environment with atomic `.bak` backup protection:
    Cursor, Claude Desktop, Claude Code, Windsurf, Antigravity IDE, VS Code, and Roo Code.
-
 8. **Complete 16-Tool Stdio JSON-RPC MCP Suite**
    Implements the official Model Context Protocol (MCP) standard over `stdio`, exposing 16 specialized tools to any MCP-compliant coding assistant.
-
 9. **Incremental Watch Daemon (<50ms Sync)**
    Background filesystem watcher that parses modified files and updates the graph incrementally in under 50ms, eliminating the overhead of full rebuilds during active development sessions.
-
 10. **Context Compiler & Change Plan Engine**
     Transforms ambiguous natural language engineering tasks into budget-governed context packages with 3-tier progressive disclosure (`level 1/2/3`) and multi-step, risk-assessed engineering change plans.
-
 11. **Multi-Root Monorepo Federation & tsconfig Resolution**
     Analyzes multi-root and monorepo architectures (e.g. decoupled frontend/backend or microservice packages) with deterministic `tsconfig.json` path aliasing, package boundary isolation, and zero cross-package symbol collisions.
-
 12. **Structural Retrieval & Code-First AST Ranking**
     Combines BM25 token matching with AST structural depth and Reciprocal Rank Fusion (RRF) to rank target symbols, call sites, and code slices with sub-millisecond precision.
 
@@ -134,6 +124,7 @@ repopeek install --global-rules # Inject rules into global user profiles (~/.gem
 ```
 
 **What gets configured automatically:**
+
 - **Cursor:** `.cursor/rules/repopeek.mdc` (`alwaysApply: true`, `globs: *`) and `.cursorrules`.
 - **Claude Code:** `CLAUDE.md`.
 - **Windsurf:** `.windsurf/rules/repopeek.md` and `.windsurfrules`.
@@ -142,6 +133,7 @@ repopeek install --global-rules # Inject rules into global user profiles (~/.gem
 - **Universal Standard:** `AGENTS.md`.
 
 **The Injected Hybrid Decision Ladder:**
+
 - **Leaf Changes (known file, regex, typo):** Edit directly. Never waste tool tokens on trivial edits.
 - **Symbol Check:** Call `repopeek_lookup` (<70 tokens) before editing.
 - **Multi-File Feature or Unfamiliar Code:** Call `repopeek_context` FIRST (-54% to -65% context tokens).
@@ -258,14 +250,14 @@ If you prefer to configure manually, use the following server definition:
 
 Configuration file paths by environment:
 
-| Assistant / Client | Configuration Path |
-|---|---|
-| **Cursor** | `.cursor/mcp.json` (workspace) or `~/.cursor/mcp.json` (user) |
-| **Claude Desktop** | `%APPDATA%\Claude\claude_desktop_config.json` (Windows) or `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) |
-| **Claude Code** | `~/.claude/mcp.json` |
-| **Windsurf** | `~/.codeium/windsurf/mcp_config.json` |
-| **Antigravity IDE** | `~/.gemini/config/mcp_config.json` or `.gemini/mcp_config.json` |
-| **VS Code** | `.vscode/mcp.json` |
+| Assistant / Client        | Configuration Path                                                                                                                       |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| **Cursor**          | `.cursor/mcp.json` (workspace) or `~/.cursor/mcp.json` (user)                                                                        |
+| **Claude Desktop**  | `%APPDATA%\Claude\claude_desktop_config.json` (Windows) or `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) |
+| **Claude Code**     | `~/.claude/mcp.json`                                                                                                                   |
+| **Windsurf**        | `~/.codeium/windsurf/mcp_config.json`                                                                                                  |
+| **Antigravity IDE** | `~/.gemini/config/mcp_config.json` or `.gemini/mcp_config.json`                                                                      |
+| **VS Code**         | `.vscode/mcp.json`                                                                                                                     |
 
 ---
 
@@ -286,24 +278,24 @@ Trust RepoPeek as the navigation index; open only the specific files and spans i
 
 ### Complete MCP Tool Suite (16 Tools)
 
-| Tool | Parameters | Description |
-|---|---|---|
-| `repopeek_context` | `task` (str), `budget` (int), `level` (int) | Compiles task-aware context package with blast radius and constraints. |
-| `repopeek_plan` | `task` (str) | Generates a risk-assessed, step-by-step engineering change plan. |
-| `repopeek_impact` | `target` (str), `max_depth` (int), `direction` (str), `threshold` (float) | Calculates complete blast radius tree (direct, indirect, excluded). |
-| `repopeek_lookup` | `query` (str), `include_snippet` (bool) | Searches and retrieves atomic node card (<80 tokens) with source snippet. |
-| `repopeek_neighbors` | `node_id` (str), `direction` (str) | Inspects incoming and outgoing relational edges. |
-| `repopeek_data_trace` | `entity` (str) | Traces variable and SQL database table def-use flows across languages. |
-| `repopeek_context_pack` | `targets` (list[str]), `token_budget` (int), `include_snippet` (bool) | Produces minimal token-budget-governed context pack (<500 tokens). |
-| `repopeek_routes` | *(none)* | Discovers server HTTP route endpoints and client API call linkages. |
-| `repopeek_co_changes` | `target` (str) | Queries historical git commit co-change patterns and temporal coupling. |
-| `repopeek_resolve` | `task` (str) | Resolves natural language tasks into ranked candidate symbols via RRF. |
-| `repopeek_god_nodes` | `top_n` (int) | Identifies core architectural abstractions and degree centrality rankings. |
-| `repopeek_cycles` | *(none)* | Detects circular dependencies and import cycles in the repository. |
-| `repopeek_communities` | `resolution` (float) | Partitions graph into modular functional communities with cohesion scores. |
-| `repopeek_suggest_questions` | `top_n` (int) | Generates actionable architectural onboarding questions. |
-| `repopeek_report` | `project_name` (str) | Generates complete Markdown Graph Report (`GRAPH_REPORT.md`) audit trail. |
-| `repopeek_session_stats` | `format` (str) | Rollup of session usage with modeled context savings (tokens avoided). |
+| Tool                           | Parameters                                                                        | Description                                                                 |
+| ------------------------------ | --------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `repopeek_context`           | `task` (str), `budget` (int), `level` (int)                                 | Compiles task-aware context package with blast radius and constraints.      |
+| `repopeek_plan`              | `task` (str)                                                                    | Generates a risk-assessed, step-by-step engineering change plan.            |
+| `repopeek_impact`            | `target` (str), `max_depth` (int), `direction` (str), `threshold` (float) | Calculates complete blast radius tree (direct, indirect, excluded).         |
+| `repopeek_lookup`            | `query` (str), `include_snippet` (bool)                                       | Searches and retrieves atomic node card (<80 tokens) with source snippet.   |
+| `repopeek_neighbors`         | `node_id` (str), `direction` (str)                                            | Inspects incoming and outgoing relational edges.                            |
+| `repopeek_data_trace`        | `entity` (str)                                                                  | Traces variable and SQL database table def-use flows across languages.      |
+| `repopeek_context_pack`      | `targets` (list[str]), `token_budget` (int), `include_snippet` (bool)       | Produces minimal token-budget-governed context pack (<500 tokens).          |
+| `repopeek_routes`            | *(none)*                                                                        | Discovers server HTTP route endpoints and client API call linkages.         |
+| `repopeek_co_changes`        | `target` (str)                                                                  | Queries historical git commit co-change patterns and temporal coupling.     |
+| `repopeek_resolve`           | `task` (str)                                                                    | Resolves natural language tasks into ranked candidate symbols via RRF.      |
+| `repopeek_god_nodes`         | `top_n` (int)                                                                   | Identifies core architectural abstractions and degree centrality rankings.  |
+| `repopeek_cycles`            | *(none)*                                                                        | Detects circular dependencies and import cycles in the repository.          |
+| `repopeek_communities`       | `resolution` (float)                                                            | Partitions graph into modular functional communities with cohesion scores.  |
+| `repopeek_suggest_questions` | `top_n` (int)                                                                   | Generates actionable architectural onboarding questions.                    |
+| `repopeek_report`            | `project_name` (str)                                                            | Generates complete Markdown Graph Report (`GRAPH_REPORT.md`) audit trail. |
+| `repopeek_session_stats`     | `format` (str)                                                                  | Rollup of session usage with modeled context savings (tokens avoided).      |
 
 ---
 
@@ -322,14 +314,14 @@ RepoPeek this session: 7 tool calls · ~2.9k tokens returned · est. ~34k tokens
 
 Empirically measured across real-world multi-module tasks on external repositories:
 
-| Metric | Without RepoPeek (File-First) | With RepoPeek | Verified Result |
-|---|---|---|---|
-| **Cross-Module Features (e.g. New Plugin Engine)** | 3,418 tokens | **1,213 to 1,572 tokens** | **54.0% to 64.5% Token Reduction** |
-| **Architectural Data Flow Inquiries** | 11,484 tokens | **7,785 to 7,879 tokens** | **31.4% to 32.2% Token Reduction** |
-| **Overall Suite Savings** | 29,016 tokens | **23,887 tokens** | **17.7% Net Savings Across All Tasks** |
-| **Topological Query Latency (God Nodes, Cycles)** | 15–300 ms | **<1 ms** | **Sub-millisecond Precomputed Cache** |
-| **Temporal Co-Change Discovery** | ~1.5s subshell | **<4 ms** | **375x Faster with Git Fast-Fail** |
-| **Privacy & Reliability** | Third-party cloud | **100% Local Execution** | **Zero External Cloud Dependencies** |
+| Metric                                                   | Without RepoPeek (File-First) | With RepoPeek                   | Verified Result                              |
+| -------------------------------------------------------- | ----------------------------- | ------------------------------- | -------------------------------------------- |
+| **Cross-Module Features (e.g. New Plugin Engine)** | 3,418 tokens                  | **1,213 to 1,572 tokens** | **54.0% to 64.5% Token Reduction**     |
+| **Architectural Data Flow Inquiries**              | 11,484 tokens                 | **7,785 to 7,879 tokens** | **31.4% to 32.2% Token Reduction**     |
+| **Overall Suite Savings**                          | 29,016 tokens                 | **23,887 tokens**         | **17.7% Net Savings Across All Tasks** |
+| **Topological Query Latency (God Nodes, Cycles)**  | 15–300 ms                    | **<1 ms**                 | **Sub-millisecond Precomputed Cache**  |
+| **Temporal Co-Change Discovery**                   | ~1.5s subshell                | **<4 ms**                 | **375x Faster with Git Fast-Fail**     |
+| **Privacy & Reliability**                          | Third-party cloud             | **100% Local Execution**  | **Zero External Cloud Dependencies**   |
 
 ### Empirical 3-Defect Benchmark Results
 
@@ -354,7 +346,7 @@ Telemetry operates in-memory with **zero network egress by default**. To emit me
 Always execute tests targeting the `tests/` directory:
 
 ```bash
-# Run complete test suite (246 passing tests)
+# Run complete test suite (264 passing tests)
 $env:PYTHONPATH="."
 .venv\Scripts\python -m pytest tests
 
@@ -366,8 +358,8 @@ python knowledge_vault/_meta/validate.py
 
 ## Architecture & Governance
 
+- **100% Local-First Engine**: Powered by NetworkX in-memory graphs and local SQLite traversal caches. Zero external graph databases (no Neo4j/Memgraph) and zero cloud SaaS multi-tenancy.
 - **Decision Ladder (Ponytail Protocol: `full`)**: YAGNI -> Existing codebase -> Stdlib -> Existing dependencies -> Smallest correct implementation.
 - **Knowledge Vault**: Canonical requirements and schemas maintained in `knowledge_vault/` (`python knowledge_vault/_meta/validate.py`).
 - **Workflow Documentation**: `Workflow_Documentation/00-README.md`.
 - **License**: MIT
-

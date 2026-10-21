@@ -1,5 +1,42 @@
-Stop drowning your AI coding agent in 50k tokens of raw source code. 
+# --- X (Twitter) Post ---
+Your AI can write code. But does it really understand your codebase?
 
-Meet RepoPeek: a lightweight Semantic Code Property Graph engine that parses 36+ languages into an interactive relational graph, exposes 16 MCP tools, and compiles surgical 40-line AST spans to cut context tokens by up to 55.7% with sub-50ms incremental sync.
+Most AI coding assistants waste thousands of context tokens dumping entire files, only to miss hidden downstream dependencies.
 
-Free and open-source on GitHub: https://github.com/pratiyush-DA/repopeek
+Meet RepoPeek: an autonomous navigation radar for AI coding assistants.
+- Retrieves surgical 40-line AST slices instead of entire files (82.5% context reduction on our 3-defect benchmark)
+- Pre-edit blast radius radar reveals what changes affect before you edit
+- 100% local-first on your machine (zero external graph DB, zero cloud egress)
+
+Give your AI a map: https://github.com/pratiyush-DA/repopeek
+
+
+# --- LinkedIn Update ---
+AI coding assistants are great at generating code, but blind when navigating large repositories. They frequently read thousands of lines of raw source code to modify a single function—wasting token budget and causing regressions in downstream callers.
+
+RepoPeek provides the missing layer of codebase understanding:
+1. Surgical Context Retrieval: Compiles task-scoped AST slices instead of monolithic file dumps. On our 3-defect benchmark, context consumption dropped from 22,633 tokens down to 3,966 tokens (82.5% reduction).
+2. Pre-Edit Impact Radar: Analyzes call hierarchies and data flow to flag downstream callers before an edit is made.
+3. 100% Local Execution: Powered by embedded NetworkX and SQLite with sub-50ms incremental sync. Your codebase never leaves your machine.
+
+Compatible with Claude Code, Cursor, Windsurf, Antigravity, and standard MCP clients across 36+ languages.
+
+Explore the open-source repository on GitHub:
+https://github.com/pratiyush-DA/repopeek
+
+
+# --- Developer Community Post (Reddit / Hacker News / Discord) ---
+Title: RepoPeek: Give your AI coding assistant an interactive dependency map (82.5% benchmark context reduction, 100% local)
+
+When you ask Cursor, Claude Code, or Windsurf to refactor code in a large repository, the default strategy is brute-force: ripgrep and full-file dumps. That burns context window budget and leaves the model unaware of downstream callers.
+
+I built RepoPeek as an open-source, local-first code property graph engine for AI coding assistants:
+- Maps 36+ languages into an embedded relational graph (NetworkX + SQLite, no Neo4j or cloud service needed).
+- Context Compiler: Pinpoints precise 40-line AST spans instead of entire files.
+- Change Impact Radar: Identifies affected callers and breaking risks before you commit an edit.
+- Sub-50ms incremental watch daemon that syncs the graph on save.
+
+Tested against 264 unit tests. Measured an 82.5% context reduction on a 3-defect benchmark (22,633 down to 3,966 tokens), with 17.7% net savings across the full benchmark suite.
+
+GitHub: https://github.com/pratiyush-DA/repopeek
+Feedback and issues welcome!
