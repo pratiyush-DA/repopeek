@@ -28,15 +28,37 @@
 - After completing a code task the vault DoD still applies even if git is not used.
 
 
-<!-- REPOPEEK-FIRST:START (evidence-based — see benchmarks/dcnc-eval/REPORT.md) -->
-## RepoPeek-First Navigation Protocol (evidence-based)
-Use RepoPeek as the navigation layer **for multi-file or unfamiliar tasks**, where evaluation verified context savings (new-engine -56%, architectural -33%):
-1. **Hybrid Decision Ladder:**
-   - **Known leaf/single-file edit (e.g. regex tweak, typo, single function tweak):** Open the file directly. Do not spend tool call budget on known leaf changes.
-   - **Symbol contract check:** Call `repopeek_lookup` (<70 tokens lean contract) before editing.
-   - **Multi-file feature, unfamiliar code, or new component:** Lead with `repopeek_context` (lean contract slices + change plan) or `repopeek_resolve` (BM25 + AST code-first ranking).
-   - **Shared interface or public function modification:** ALWAYS call `repopeek_impact` first to inspect upstream/downstream blast radius (tracks inheritance, decorators, and dynamic registries).
-2. `repopeek_plan` distinguishes create-new vs modify-existing intent and emits scaffolding steps for new components.
-3. `repopeek_cycles`, `repopeek_god_nodes`, and `repopeek_communities` run against precomputed indices (<1ms latency).
-4. `repopeek_co_changes` fast-fails on shallow git clones and loads from precomputed caches.
-<!-- REPOPEEK-FIRST:END -->
+<!-- REPOPEEK-RULES:START -->
+# RepoPeek Code Intelligence Protocol
+
+When RepoPeek is available in this repository, follow this evidence-based protocol for all code navigation, search, and refactoring:
+
+## 1. Mandatory Tool Routing
+- **Direct MCP Tools (Cursor, Claude Code, Windsurf, VS Code):**
+  Invoke tools directly: `repopeek_lookup`, `repopeek_context`, `repopeek_resolve`, `repopeek_impact`, `repopeek_plan`.
+- **Meta/Lazy MCP Dispatcher (Antigravity IDE & Wrapped Agents):**
+  When tools are not in the top-level schema, invoke via the meta-tool:
+  `call_mcp_tool(ServerName="repopeek", ToolName="repopeek_<cmd>", Arguments={...})`
+- **Native CLI Fallback (Universal, Zero-Daemon, Offline):**
+  If MCP is offline, unregistered, or returns errors, run the CLI equivalent directly via terminal:
+  `repopeek --resolve "<task>"` | `repopeek --context "<task>"` | `repopeek --lookup <sym> --snippet` | `repopeek --impact <sym>` | `repopeek --plan "<task>"`
+
+## 2. Competing Tool Constraints & Exploration Directives
+- **Negative Constraint:** Treat `grep_search`, `list_dir`, and raw whole-file reading as forbidden for code search and architectural exploration UNTIL RepoPeek returns zero results or errors.
+- **Zero Blind Grep:** Never begin code exploration with broad recursive greps or scanning whole directories.
+- **Surgical Spans Only:** Read only the specific line ranges (`StartLine`/`EndLine`) returned by RepoPeek context slices rather than raw source files.
+
+## 3. Hybrid Decision Ladder
+- **Leaf / Single-File Edit (known file, regex tweak, typo, single localized function):**
+  -> Open the file directly. Do NOT invoke RepoPeek tools on known leaf locations to avoid token framing overhead.
+- **Symbol Contract Check:**
+  -> Call `repopeek_lookup(query="<symbol>")` (CLI: `repopeek --lookup <symbol> --snippet`) (<70 tokens) before editing to check signature, location, and blast radius.
+- **Multi-File Feature, Unfamiliar Code, or New Component:**
+  -> ALWAYS call `repopeek_context(task="<task>")` (CLI: `repopeek --context "<task>"`) FIRST. It compiles AST slices, constraints, and change planning, cutting context tokens by 50-65% without reading 500-line raw files.
+- **Unknown Keyword or Identifier Search:**
+  -> Call `repopeek_resolve(query="<term>")` (CLI: `repopeek --resolve "<term>"`) FIRST (code-first BM25 + AST ranking).
+- **Modifying Shared Interfaces, Base Classes, or Public APIs:**
+  -> ALWAYS call `repopeek_impact(target="<symbol>")` (CLI: `repopeek --impact <symbol>`) FIRST to inspect upstream/downstream blast radius across call hierarchies, registries, and decorators.
+- **Post-Edit Graph Synchronization:**
+  -> Run `repopeek --update <file>` for sub-50ms incremental property graph synchronization.
+<!-- REPOPEEK-RULES:END -->

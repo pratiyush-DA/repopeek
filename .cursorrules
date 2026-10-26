@@ -27,11 +27,42 @@ The agent must NEVER automatically turn the MVP into:
 - A full coding IDE.
 - A replacement for existing coding agents.
 
-# REPOPEEK-FIRST:START (evidence-based — see benchmarks/dcnc-eval/REPORT.md)
-# RepoPeek-First Navigation Protocol (evidence-based)
-# Use RepoPeek for MULTI-FILE / unfamiliar tasks (measured savings there), not trivial edits:
-#  1. Lead with repopeek_context (lean) or compact repopeek_resolve (default 5 candidates).
-#  2. repopeek_impact before changing shared symbols to inspect blast radius (tracks decorators/registries).
-#  3. repopeek_lookup (include_snippet: true) for single-symbol inspection; open only cited files/spans.
-#  4. repopeek_plan detects create-new vs modify-existing intent; repopeek_cycles strictly restricted to code imports.
-# REPOPEEK-FIRST:END
+---
+description: RepoPeek Code Intelligence & Navigation Protocol
+globs: *
+alwaysApply: true
+---
+<!-- REPOPEEK-RULES:START -->
+# RepoPeek Code Intelligence Protocol
+
+When RepoPeek is available in this repository, follow this evidence-based protocol for all code navigation, search, and refactoring:
+
+## 1. Mandatory Tool Routing
+- **Direct MCP Tools (Cursor, Claude Code, Windsurf, VS Code):**
+  Invoke tools directly: `repopeek_lookup`, `repopeek_context`, `repopeek_resolve`, `repopeek_impact`, `repopeek_plan`.
+- **Meta/Lazy MCP Dispatcher (Antigravity IDE & Wrapped Agents):**
+  When tools are not in the top-level schema, invoke via the meta-tool:
+  `call_mcp_tool(ServerName="repopeek", ToolName="repopeek_<cmd>", Arguments={...})`
+- **Native CLI Fallback (Universal, Zero-Daemon, Offline):**
+  If MCP is offline, unregistered, or returns errors, run the CLI equivalent directly via terminal:
+  `repopeek --resolve "<task>"` | `repopeek --context "<task>"` | `repopeek --lookup <sym> --snippet` | `repopeek --impact <sym>` | `repopeek --plan "<task>"`
+
+## 2. Competing Tool Constraints & Exploration Directives
+- **Negative Constraint:** Treat `grep_search`, `list_dir`, and raw whole-file reading as forbidden for code search and architectural exploration UNTIL RepoPeek returns zero results or errors.
+- **Zero Blind Grep:** Never begin code exploration with broad recursive greps or scanning whole directories.
+- **Surgical Spans Only:** Read only the specific line ranges (`StartLine`/`EndLine`) returned by RepoPeek context slices rather than raw source files.
+
+## 3. Hybrid Decision Ladder
+- **Leaf / Single-File Edit (known file, regex tweak, typo, single localized function):**
+  -> Open the file directly. Do NOT invoke RepoPeek tools on known leaf locations to avoid token framing overhead.
+- **Symbol Contract Check:**
+  -> Call `repopeek_lookup(query="<symbol>")` (CLI: `repopeek --lookup <symbol> --snippet`) (<70 tokens) before editing to check signature, location, and blast radius.
+- **Multi-File Feature, Unfamiliar Code, or New Component:**
+  -> ALWAYS call `repopeek_context(task="<task>")` (CLI: `repopeek --context "<task>"`) FIRST. It compiles AST slices, constraints, and change planning, cutting context tokens by 50-65% without reading 500-line raw files.
+- **Unknown Keyword or Identifier Search:**
+  -> Call `repopeek_resolve(query="<term>")` (CLI: `repopeek --resolve "<term>"`) FIRST (code-first BM25 + AST ranking).
+- **Modifying Shared Interfaces, Base Classes, or Public APIs:**
+  -> ALWAYS call `repopeek_impact(target="<symbol>")` (CLI: `repopeek --impact <symbol>`) FIRST to inspect upstream/downstream blast radius across call hierarchies, registries, and decorators.
+- **Post-Edit Graph Synchronization:**
+  -> Run `repopeek --update <file>` for sub-50ms incremental property graph synchronization.
+<!-- REPOPEEK-RULES:END -->

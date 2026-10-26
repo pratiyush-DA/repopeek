@@ -34,35 +34,49 @@ END_RULE_TAG = "<!-- REPOPEEK-RULES:END -->"
 def generate_repopeek_system_prompt(client: str = "general") -> str:
     """Generate the canonical evidence-backed steering rule for coding agents.
     
-    Includes the 4-tier Hybrid Decision Ladder discovered in empirical benchmarks:
-    - Skip RepoPeek for trivial leaf changes (known files, single regex, typos) to avoid token framing overhead.
-    - Call repopeek_lookup (<70 tokens) for quick symbol signatures before editing.
-    - Call repopeek_context for multi-file features and unfamiliar code (-54% to -65% context tokens).
-    - Call repopeek_resolve for ambiguous keywords.
-    - Call repopeek_impact before modifying shared interfaces or public classes.
+    Includes:
+    1. Mandatory Tool Routing: Direct MCP, meta/lazy MCP (call_mcp_tool), and zero-daemon CLI fallback.
+    2. Negative Constraints & Exploration Directives: Block competing raw grep/read until RepoPeek returns zero/error.
+    3. The 4-tier Hybrid Decision Ladder discovered in empirical benchmarks:
+       - Skip RepoPeek for trivial leaf changes (known files, single regex, typos) to avoid token framing overhead.
+       - Call repopeek_lookup (<70 tokens) for quick symbol signatures before editing.
+       - Call repopeek_context for multi-file features and unfamiliar code (-54% to -65% context tokens).
+       - Call repopeek_resolve for ambiguous keywords.
+       - Call repopeek_impact before modifying shared interfaces or public classes.
     """
     body = f"""{START_RULE_TAG}
 # RepoPeek Code Intelligence Protocol
 
-When the RepoPeek MCP server is configured in this repository, follow this evidence-based Hybrid Decision Ladder for all code navigation, search, and refactoring:
+When RepoPeek is available in this repository, follow this evidence-based protocol for all code navigation, search, and refactoring:
 
-## 1. Hybrid Decision Ladder
+## 1. Mandatory Tool Routing
+- **Direct MCP Tools (Cursor, Claude Code, Windsurf, VS Code):**
+  Invoke tools directly: `repopeek_lookup`, `repopeek_context`, `repopeek_resolve`, `repopeek_impact`, `repopeek_plan`.
+- **Meta/Lazy MCP Dispatcher (Antigravity IDE & Wrapped Agents):**
+  When tools are not in the top-level schema, invoke via the meta-tool:
+  `call_mcp_tool(ServerName="repopeek", ToolName="repopeek_<cmd>", Arguments={{...}})`
+- **Native CLI Fallback (Universal, Zero-Daemon, Offline):**
+  If MCP is offline, unregistered, or returns errors, run the CLI equivalent directly via terminal:
+  `repopeek --resolve "<task>"` | `repopeek --context "<task>"` | `repopeek --lookup <sym> --snippet` | `repopeek --impact <sym>` | `repopeek --plan "<task>"`
+
+## 2. Competing Tool Constraints & Exploration Directives
+- **Negative Constraint:** Treat `grep_search`, `list_dir`, and raw whole-file reading as forbidden for code search and architectural exploration UNTIL RepoPeek returns zero results or errors.
+- **Zero Blind Grep:** Never begin code exploration with broad recursive greps or scanning whole directories.
+- **Surgical Spans Only:** Read only the specific line ranges (`StartLine`/`EndLine`) returned by RepoPeek context slices rather than raw source files.
+
+## 3. Hybrid Decision Ladder
 - **Leaf / Single-File Edit (known file, regex tweak, typo, single localized function):**
   -> Open the file directly. Do NOT invoke RepoPeek tools on known leaf locations to avoid token framing overhead.
 - **Symbol Contract Check:**
-  -> Call `repopeek_lookup(query="<symbol>")` (<70 tokens) before editing to check signature, location, and blast radius.
+  -> Call `repopeek_lookup(query="<symbol>")` (CLI: `repopeek --lookup <symbol> --snippet`) (<70 tokens) before editing to check signature, location, and blast radius.
 - **Multi-File Feature, Unfamiliar Code, or New Component:**
-  -> ALWAYS call `repopeek_context(task="<task>")` FIRST. It compiles AST slices, constraints, and change planning, cutting context tokens by 50-65% without reading 500-line raw files.
+  -> ALWAYS call `repopeek_context(task="<task>")` (CLI: `repopeek --context "<task>"`) FIRST. It compiles AST slices, constraints, and change planning, cutting context tokens by 50-65% without reading 500-line raw files.
 - **Unknown Keyword or Identifier Search:**
-  -> Call `repopeek_resolve(query="<term>")` FIRST (code-first BM25 + AST ranking).
+  -> Call `repopeek_resolve(query="<term>")` (CLI: `repopeek --resolve "<term>"`) FIRST (code-first BM25 + AST ranking).
 - **Modifying Shared Interfaces, Base Classes, or Public APIs:**
-  -> ALWAYS call `repopeek_impact(target="<symbol>")` FIRST to inspect upstream/downstream blast radius across call hierarchies, registries, and decorators.
+  -> ALWAYS call `repopeek_impact(target="<symbol>")` (CLI: `repopeek --impact <symbol>`) FIRST to inspect upstream/downstream blast radius across call hierarchies, registries, and decorators.
 - **Post-Edit Graph Synchronization:**
   -> Run `repopeek --update <file>` for sub-50ms incremental property graph synchronization.
-
-## 2. Exploration Directives
-- Zero Blind Grep: Avoid raw recursive grepping across the repository.
-- Surgical Spans Only: Read only the specific line ranges returned by RepoPeek context slices.
 {END_RULE_TAG}"""
 
     if client.lower() in ("cursor", "mdc"):
@@ -99,8 +113,11 @@ def get_default_config_path(client: str, workspace_root: Optional[Path] = None) 
         return home / ".codeium" / "windsurf" / "mcp_config.json"
 
     elif client == "antigravity":
-        if workspace_root and (workspace_root / ".gemini").exists():
-            return workspace_root / ".gemini" / "mcp_config.json"
+        if workspace_root:
+            if (workspace_root / ".agents").exists():
+                return workspace_root / ".agents" / "mcp_config.json"
+            if (workspace_root / ".gemini").exists():
+                return workspace_root / ".gemini" / "mcp_config.json"
         return home / ".gemini" / "config" / "mcp_config.json"
 
     elif client == "vscode":
@@ -175,8 +192,19 @@ def _inject_rules_into_file(file_path: Path, rule_content: str, backup: bool = T
             pattern = re.compile(rf"{re.escape(START_RULE_TAG)}.*?{re.escape(END_RULE_TAG)}", re.DOTALL)
             updated = pattern.sub(rule_content.strip(), existing)
         else:
-            sep = "\n\n" if existing.strip() else ""
-            updated = f"{existing.rstrip()}{sep}{rule_content.strip()}\n"
+            legacy_patterns = [
+                re.compile(r"<!--\s*REPOPEEK-FIRST:START.*?-->.*?<!--\s*REPOPEEK-FIRST:END\s*-->", re.DOTALL),
+                re.compile(r"#\s*REPOPEEK-FIRST:START.*?#\s*REPOPEEK-FIRST:END", re.DOTALL),
+            ]
+            matched = False
+            for leg_pat in legacy_patterns:
+                if leg_pat.search(existing):
+                    updated = leg_pat.sub(rule_content.strip(), existing)
+                    matched = True
+                    break
+            if not matched:
+                sep = "\n\n" if existing.strip() else ""
+                updated = f"{existing.rstrip()}{sep}{rule_content.strip()}\n"
     else:
         updated = f"{rule_content.strip()}\n"
 

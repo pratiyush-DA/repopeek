@@ -99,6 +99,11 @@ def test_generate_repopeek_system_prompt():
     from repopeek.mcp_installer import generate_repopeek_system_prompt
     general = generate_repopeek_system_prompt("general")
     assert "RepoPeek Code Intelligence Protocol" in general
+    assert "Mandatory Tool Routing" in general
+    assert "call_mcp_tool" in general
+    assert "repopeek --resolve" in general
+    assert "Negative Constraint" in general
+    assert "Surgical Spans Only" in general
     assert "Hybrid Decision Ladder" in general
     assert "repopeek_context" in general
     assert "repopeek_lookup" in general
@@ -114,6 +119,7 @@ def test_install_agent_rules_idempotent(tmp_path: Path):
     from repopeek.mcp_installer import (
         START_RULE_TAG,
         END_RULE_TAG,
+        get_default_config_path,
         install_agent_rules,
         install_all_rules,
     )
@@ -145,7 +151,32 @@ def test_install_agent_rules_idempotent(tmp_path: Path):
     assert content_re.count(END_RULE_TAG) == 1
     assert "# My Project Instructions" in content_re
 
-    # 4. Install all rules
+    # 4. Legacy tag migration (HTML comment and hash style)
+    legacy_html = repo_dir / "LEGACY_HTML.md"
+    legacy_html.write_text("# Head\n<!-- REPOPEEK-FIRST:START -->\nold rule\n<!-- REPOPEEK-FIRST:END -->\n# Tail\n", encoding="utf-8")
+    install_agent_rules("general", repo_path=repo_dir, rule_files=[legacy_html])
+    html_migrated = legacy_html.read_text(encoding="utf-8")
+    assert "# Head" in html_migrated
+    assert "# Tail" in html_migrated
+    assert START_RULE_TAG in html_migrated
+    assert "REPOPEEK-FIRST" not in html_migrated
+
+    legacy_hash = repo_dir / "LEGACY_HASH.md"
+    legacy_hash.write_text("# Head\n# REPOPEEK-FIRST:START\nold hash rule\n# REPOPEEK-FIRST:END\n# Tail\n", encoding="utf-8")
+    install_agent_rules("general", repo_path=repo_dir, rule_files=[legacy_hash])
+    hash_migrated = legacy_hash.read_text(encoding="utf-8")
+    assert "# Head" in hash_migrated
+    assert "# Tail" in hash_migrated
+    assert START_RULE_TAG in hash_migrated
+    assert "REPOPEEK-FIRST" not in hash_migrated
+
+    # 5. Antigravity workspace config path (.agents priority)
+    agents_dir = repo_dir / ".agents"
+    agents_dir.mkdir()
+    ag_path = get_default_config_path("antigravity", workspace_root=repo_dir)
+    assert ag_path == agents_dir / "mcp_config.json"
+
+    # 6. Install all rules
     all_res = install_all_rules(repo_path=repo_dir)
     assert "cursor" in all_res
     assert "claude" in all_res
